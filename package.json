@@ -9,6 +9,8 @@
   "author": "Albertbz",
   "license": "ISC",
   "dependencies": {
-    "discord.js": "^14.22.1"
+    "discord.js": "^14.22.1",
+    "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7"
   }
 }
