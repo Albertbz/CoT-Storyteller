@@ -2,3 +2,5 @@
 config.json
 node_modules
 .env
+database.sqlite
+activeCharacters.csv
