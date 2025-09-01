@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, EmbedBuilder, MessageFlags, userMention } = require('discord.js');
-const { Players, Characters, ActiveCharacters } = require('../../dbObjects.js');
+const { Players, Characters, ActiveCharacters, Affiliations, SocialClasses } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 
 module.exports = {
@@ -49,7 +49,7 @@ module.exports = {
 
       const activeCharacter = await ActiveCharacters.findOne({
         include: [
-          { model: Characters, as: 'character' }
+          { model: Characters, as: 'character', include: [{ model: Affiliations, as: 'affiliation' }, { model: SocialClasses, as: 'socialClass' }] }
         ],
         where: { playerId: user.id },
         attributes: []
@@ -66,8 +66,8 @@ module.exports = {
           .addFields(
             { name: 'Name', value: '`' + character.name + '`', inline: true },
             { name: 'Sex', value: '`' + character.sex + '`', inline: true },
-            { name: 'Affiliation', value: '`' + character.affiliation + '`', inline: true },
-            { name: 'Social Class', value: '`' + character.socialClass + '`', inline: true },
+            { name: 'Affiliation', value: '`' + character.affiliation.name + '`', inline: true },
+            { name: 'Social Class', value: '`' + character.socialClass.name + '`', inline: true },
             { name: 'Year of Maturity', value: '`' + character.yearOfMaturity + '`', inline: true },
             { name: 'PvE Deaths', value: '`' + character.pveDeaths + '`', inline: true },
           )
@@ -89,7 +89,10 @@ module.exports = {
     else if (interaction.options.getSubcommand() === 'character') {
       const characterId = interaction.options.getString('name');
 
-      const character = await Characters.findOne({ where: { id: characterId } });
+      const character = await Characters.findOne({
+        include: [{ model: Affiliations, as: 'affiliation' }, { model: SocialClasses, as: 'socialClass' }],
+        where: { id: characterId }
+      });
 
       const embed = new EmbedBuilder()
         .setTitle('Result')
@@ -102,8 +105,8 @@ module.exports = {
         .addFields(
           { name: 'Name', value: '`' + character.name + '`', inline: true },
           { name: 'Sex', value: '`' + character.sex + '`', inline: true },
-          { name: 'Affiliation', value: '`' + character.affiliation + '`', inline: true },
-          { name: 'Social Class', value: '`' + character.socialClass + '`', inline: true },
+          { name: 'Affiliation', value: '`' + character.affiliation.name + '`', inline: true },
+          { name: 'Social Class', value: '`' + character.socialClass.name + '`', inline: true },
           { name: 'Year of Maturity', value: '`' + character.yearOfMaturity + '`', inline: true },
           { name: 'PvE Deaths', value: '`' + character.pveDeaths + '`', inline: true },
         )
@@ -117,7 +120,6 @@ module.exports = {
       if (activeCharacter) {
         const player = activeCharacter.player;
         const user = await interaction.client.users.fetch(player.id);
-        // const user = member.user;
 
         embed
           .addFields(

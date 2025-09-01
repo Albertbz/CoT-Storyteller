@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, InteractionContextType, EmbedBuilder, MessageFlags, userMention } = require('discord.js');
-const { Players, Characters, ActiveCharacters } = require('../../dbObjects.js');
-const { channels } = require('../../configs/ids.json');
+const { Players, Characters, ActiveCharacters, Affiliations, SocialClasses } = require('../../dbObjects.js');
+const { channels, roles } = require('../../configs/ids.json');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -11,7 +11,7 @@ module.exports = {
   async execute(interaction) {
     const activeCharactersList = await ActiveCharacters.findAll({
       include: [
-        { model: Characters, as: 'character', attributes: ['name', 'affiliation', 'pveDeaths', 'yearOfMaturity'] },
+        { model: Characters, as: 'character', include: [{ model: Affiliations, as: 'affiliation' }, { model: SocialClasses, as: 'socialClass' }], attributes: ['name', 'pveDeaths', 'yearOfMaturity'] },
         { model: Players, as: 'player', attributes: ['id'] },
       ],
       attributes: []
@@ -19,24 +19,25 @@ module.exports = {
 
     const channel = await interaction.guild.channels.fetch(channels.activeCharacters);
 
-    const houses = [
-      { name: 'House Aetos', color: 0x38761d },
-      { name: 'House Ayrin', color: 0xcc0000 },
-      { name: 'House Dayne', color: 0x6fa8dc },
-      { name: 'House Farring', color: 0x1155cc },
-      { name: 'House Locke', color: 0x93c47d },
-      { name: 'House Merrick', color: 0xe69138 },
-      { name: 'House Wildhart', color: 0x8e7cc3 },
+    const affiliations = [
+      { id: roles.aetos, color: 0x38761d },
+      { id: roles.ayrin, color: 0xcc0000 },
+      { id: roles.dayne, color: 0x6fa8dc },
+      { id: roles.farring, color: 0x1155cc },
+      { id: roles.locke, color: 0x93c47d },
+      { id: roles.merrick, color: 0xe69138 },
+      { id: roles.wildhart, color: 0x8e7cc3 },
     ]
 
-    houses.forEach(house => {
-      const activeCharactersFiltered = activeCharactersList.filter(activeCharacter => activeCharacter.character.affiliation == house.name)
+    affiliations.forEach(async affiliation => {
+      const affiliationRole = await interaction.guild.roles.fetch(affiliation.id);
+      const activeCharactersFiltered = activeCharactersList.filter(activeCharacter => activeCharacter.character.affiliation.id === affiliation.id)
       const chunkSize = 16;
 
       for (let i = 0; i < activeCharactersFiltered.length; i += chunkSize) {
         const embed = new EmbedBuilder()
-          .setColor(house.color)
-          .setTitle('Active Characters | ' + house.name)
+          .setColor(affiliation.color)
+          .setTitle('Active Characters | ' + affiliationRole.name)
 
         activeCharactersFiltered.slice(i, i + chunkSize)
           .forEach((activeCharacter, j, array) => {
@@ -44,7 +45,7 @@ module.exports = {
               name: activeCharacter.character.name,
               value: 'Played by: ' + userMention(activeCharacter.player.id) + '\n' +
                 '```' + '\n' +
-                'Affiliation: ' + activeCharacter.character.affiliation.slice(6) + '\n' +
+                'Affiliation: ' + activeCharacter.character.affiliation.name + '\n' +
                 'PvE Deaths: ' + activeCharacter.character.pveDeaths + '\n' +
                 'Year of Maturity: ' + activeCharacter.character.yearOfMaturity + '\n' +
                 '```',

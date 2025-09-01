@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { parse } from 'csv-parse';
-import { Players, Characters, ActiveCharacters } from './dbObjects.js';
+import { Players, Characters, ActiveCharacters, Affiliations } from './dbObjects.js';
 import { Client, Collection, GatewayIntentBits } from 'discord.js';
 import data from './config.json' with { type: 'json'};
 
@@ -24,9 +24,11 @@ const processFile = async () => {
         ign: record[1]
       });
 
+      const affiliation = await Affiliations.findOne({ where: { name: record[3] } })
+      console.log(affiliation.toJSON())
       const character = await Characters.create({
         name: record[2],
-        affiliation: record[3],
+        affiliationId: affiliation.id,
         pveDeaths: record[4],
         yearOfMaturity: record[5]
       });

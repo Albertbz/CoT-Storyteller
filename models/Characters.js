@@ -1,3 +1,5 @@
+const { roles } = require('../configs/ids.json');
+
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('characters', {
     id: {
@@ -14,13 +16,12 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       defaultValue: 'Undefined',
     },
-    affiliation: {
+    affiliationId: {
       type: DataTypes.STRING,
-      defaultValue: 'Wanderer',
     },
-    socialClass: {
+    socialClassId: {
       type: DataTypes.STRING,
-      defaultValue: 'Commoner',
+      defaultValue: roles.commoner
     },
     yearOfMaturity: {
       type: DataTypes.INTEGER,
@@ -28,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     role: {
       type: DataTypes.STRING,
-      defaultValue: '',
+      defaultValue: 'Undefined',
     },
     pveDeaths: {
       type: DataTypes.INTEGER,

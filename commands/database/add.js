@@ -24,8 +24,8 @@ module.exports = {
         .setRequired(true)
     )
     .addStringOption(option =>
-      option.setName('house')
-        .setDescription('The House that the player belongs to (if any).')
+      option.setName('affiliation')
+        .setDescription('The affiliation of the character.')
         .addChoices(
           { name: 'Aetos', value: roles.aetos },
           { name: 'Ayrin', value: roles.ayrin },
@@ -33,7 +33,8 @@ module.exports = {
           { name: 'Farring', value: roles.farring },
           { name: 'Locke', value: roles.locke },
           { name: 'Merrick', value: roles.merrick },
-          { name: 'Wildhart', value: roles.wildhart }
+          { name: 'Wildhart', value: roles.wildhart },
+          { name: 'Wanderer', value: roles.wanderer }
         )
     )
     .addStringOption(option =>
@@ -50,7 +51,7 @@ module.exports = {
     const user = interaction.options.getUser('player');
     const ign = interaction.options.getString('ign');
     const characterName = interaction.options.getString('character');
-    const affiliationId = interaction.options.getString('house') ?? roles.wanderer;
+    const affiliationId = interaction.options.getString('affiliation') ?? roles.wanderer;
     const socialClassId = interaction.options.getString('socialclass') ?? roles.commoner;
 
     // Add the player to the database
@@ -81,12 +82,12 @@ module.exports = {
       // Add affiliation
       member.roles.add(affiliationId);
       const affiliationRole = await interaction.guild.roles.fetch(affiliationId);
-      await character.update({ affiliation: affiliationRole.name });
+      await character.update({ affiliationId: affiliationId });
 
       // Add social class
       member.roles.add(socialClassId);
       const socialClassRole = await interaction.guild.roles.fetch(socialClassId);
-      await character.update({ socialClass: socialClassRole.name });
+      await character.update({ socialClassId: socialClassId });
 
       // Make character description for reply
       const characterDescription =

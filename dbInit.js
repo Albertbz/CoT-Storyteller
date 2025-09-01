@@ -1,4 +1,5 @@
 const Sequelize = require('sequelize');
+const { roles } = require('./configs/ids.json');
 
 // Create connection to database
 const sequelize = new Sequelize('database', 'user', 'password', {
@@ -9,6 +10,8 @@ const sequelize = new Sequelize('database', 'user', 'password', {
   storage: 'database.sqlite',
 });
 
+const Affiliations = require('./models/Affiliations.js')(sequelize, Sequelize.DataTypes);
+const SocialClasses = require('./models/SocialClasses.js')(sequelize, Sequelize.DataTypes);
 require('./models/Players.js')(sequelize, Sequelize.DataTypes);
 require('./models/Characters.js')(sequelize, Sequelize.DataTypes);
 require('./models/ActiveCharacters.js')(sequelize, Sequelize.DataTypes);
@@ -16,6 +19,20 @@ require('./models/ActiveCharacters.js')(sequelize, Sequelize.DataTypes);
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 
 sequelize.sync({ force }).then(async () => {
-  console.log('Database synced');
+  await Affiliations.create({ id: roles.aetos, name: 'House Aetos' });
+  await Affiliations.create({ id: roles.ayrin, name: 'House Ayrin' });
+  await Affiliations.create({ id: roles.dayne, name: 'House Dayne' });
+  await Affiliations.create({ id: roles.farring, name: 'House Farring' });
+  await Affiliations.create({ id: roles.merrick, name: 'House Merrick' });
+  await Affiliations.create({ id: roles.locke, name: 'House Locke' });
+  await Affiliations.create({ id: roles.wildhart, name: 'House Wildhart' });
+  await Affiliations.create({ id: roles.wanderer, name: 'Wanderer' });
+
+  await SocialClasses.create({ id: roles.commoner, name: 'Commoner' });
+  await SocialClasses.create({ id: roles.notable, name: 'Notable' });
+  await SocialClasses.create({ id: roles.noble, name: 'Noble' });
+  await SocialClasses.create({ id: roles.ruler, name: 'Ruler' });
+
+  console.log('Database synced.');
   sequelize.close();
 }).catch(console.error);
