@@ -11,7 +11,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     timezone: {
       type: DataTypes.STRING,
-      defaultValue: '',
+      defaultValue: 'Undefined',
     },
   });
 }

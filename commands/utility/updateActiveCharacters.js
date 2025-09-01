@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, InteractionContextType, EmbedBuilder, Embed, MessageFlags, userMention } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, EmbedBuilder, MessageFlags, userMention } = require('discord.js');
 const { Players, Characters, ActiveCharacters } = require('../../dbObjects.js');
 const { channels } = require('../../configs/ids.json');
 

@@ -1,7 +1,5 @@
 import fs from 'node:fs';
 import { parse } from 'csv-parse';
-// const fs = require('node:fs');
-// const parse = require('csv-parse');
 import { Players, Characters, ActiveCharacters } from './dbObjects.js';
 import { Client, Collection, GatewayIntentBits } from 'discord.js';
 import data from './config.json' with { type: 'json'};
@@ -13,7 +11,7 @@ const __dirname = new URL(".", import.meta.url).pathname;
 
 const processFile = async () => {
   const records = [];
-  const parser = fs.createReadStream(`${__dirname}/activeCharacters.csv`).pipe(
+  const parser = fs.createReadStream(`${__dirname}/data/activeCharacters.csv`).pipe(
     parse({
       // CSV options if any
     }),

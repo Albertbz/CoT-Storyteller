@@ -12,7 +12,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     sex: {
       type: DataTypes.STRING,
-      defaultValue: '',
+      defaultValue: 'Undefined',
     },
     affiliation: {
       type: DataTypes.STRING,
