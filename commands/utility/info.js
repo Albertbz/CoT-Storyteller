@@ -33,6 +33,12 @@ module.exports = {
 
       const player = await Players.findOne({ where: { id: user.id } });
 
+      if (!player) {
+        return interaction.reply({
+          content: 'This user is currently not in the database.', flags: MessageFlags.Ephemeral
+        })
+      }
+
       const embed = new EmbedBuilder()
         .setTitle('Result')
         .setDescription('Info about: ' + userMention(user.id))
