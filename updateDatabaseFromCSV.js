@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { parse } from 'csv-parse';
-import { Players, Characters, ActiveCharacters, Affiliations } from './dbObjects.js';
+import { Players, Characters, Affiliations } from './dbObjects.js';
 import { Client, Collection, GatewayIntentBits } from 'discord.js';
 import data from './config.json' with { type: 'json'};
 
@@ -33,10 +33,7 @@ const processFile = async () => {
         yearOfMaturity: record[5]
       });
 
-      const activeCharacter = await ActiveCharacters.create({
-        playerId: player.id,
-        characterId: character.id
-      });
+      await player.update({ characterId: character.id })
 
     } catch (error) {
       console.log(error);

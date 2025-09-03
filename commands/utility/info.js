@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, EmbedBuilder, MessageFlags, userMention } = require('discord.js');
-const { Players, Characters, ActiveCharacters, Affiliations, SocialClasses } = require('../../dbObjects.js');
+const { Players, Characters, Affiliations, SocialClasses } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 
 module.exports = {
@@ -30,12 +30,19 @@ module.exports = {
   async execute(interaction) {
     if (interaction.options.getSubcommand() === 'player') {
       const user = interaction.options.getUser('user');
-
-      const player = await Players.findOne({ where: { id: user.id } });
-
+      const player = await Players.findOne({
+        where: { id: user.id },
+        include: {
+          model: Characters, as: 'character',
+          include: [
+            { model: Affiliations, as: 'affiliation' },
+            { model: SocialClasses, as: 'socialClass' }]
+        }
+      }
+      );
       if (!player) {
         return interaction.reply({
-          content: 'This user is currently not in the database.', flags: MessageFlags.Ephemeral
+          content: 'This user is not in the database.', flags: MessageFlags.Ephemeral
         })
       }
 
@@ -53,16 +60,8 @@ module.exports = {
           { name: 'Timezone', value: '`' + player.timezone + '`', inline: true },
         )
 
-      const activeCharacter = await ActiveCharacters.findOne({
-        include: [
-          { model: Characters, as: 'character', include: [{ model: Affiliations, as: 'affiliation' }, { model: SocialClasses, as: 'socialClass' }] }
-        ],
-        where: { playerId: user.id },
-        attributes: []
-      })
-
-      if (activeCharacter) {
-        const character = activeCharacter.character;
+      if (player.character) {
+        const character = player.character;
         embed
           .addFields(
             { name: '\u200b', value: '\u200b', inline: true },
@@ -96,8 +95,10 @@ module.exports = {
       const characterId = interaction.options.getString('name');
 
       const character = await Characters.findOne({
-        include: [{ model: Affiliations, as: 'affiliation' }, { model: SocialClasses, as: 'socialClass' }],
-        where: { id: characterId }
+        where: { id: characterId },
+        include: [
+          { model: Affiliations, as: 'affiliation' },
+          { model: SocialClasses, as: 'socialClass' }]
       });
 
       const embed = new EmbedBuilder()
@@ -117,14 +118,11 @@ module.exports = {
           { name: 'PvE Deaths', value: '`' + character.pveDeaths + '`', inline: true },
         )
 
-      const activeCharacter = await ActiveCharacters.findOne({
-        include: { model: Players, as: 'player' },
-        where: { characterId: character.id },
-        attributes: []
-      });
+      const player = await Players.findOne({
+        where: { characterId: character.id }
+      })
 
-      if (activeCharacter) {
-        const player = activeCharacter.player;
+      if (player) {
         const user = await interaction.client.users.fetch(player.id);
 
         embed

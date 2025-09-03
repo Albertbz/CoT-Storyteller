@@ -1,8 +1,5 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, roleMention } = require('discord.js');
-const { Players, Characters, ActiveCharacters, Affiliations } = require('../../dbObjects.js');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, roleMention, EmbedBuilder } = require('discord.js');
 const { roles, channels } = require('../../configs/ids.json');
-const { Op } = require('sequelize');
-
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -40,9 +37,15 @@ module.exports = {
     const message = '*' + text + '*\n||' + roleMention(houseId) + '||';
     doorbellChannel.send({ content: message })
 
-    const doorbellLogChannel = await interaction.guild.channels.fetch(channels.doorbellLog);
-    const logMessage = userMention(interaction.user.id) + ' ran the doorbell command with the following text: `' + text + '`';
-    doorbellLogChannel.send({ content: logMessage })
+    const logChannel = await interaction.guild.channels.fetch(channels.storytellerLog);
+    const logEmbed = new EmbedBuilder()
+      .setTitle('Doorbell')
+      .setDescription(
+        'Rung by: ' + userMention(interaction.user.id) + '\n' +
+        'Rung House: ' + roleMention(houseId) + '\n' +
+        'Message: `' + text + '`'
+      )
+    logChannel.send({ embeds: [logEmbed] })
 
     return interaction.reply({ content: 'The doorbell has been rung.', flags: MessageFlags.Ephemeral })
   }

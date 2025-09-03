@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention } = require('discord.js');
-const { Players, Characters, ActiveCharacters, Affiliations } = require('../../dbObjects.js');
+const { Players, Characters, Affiliations } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 
@@ -178,7 +178,11 @@ module.exports = {
       const newPvEDeaths = interaction.options.getNumber('pvedeaths_new');
       const newRole = interaction.options.getString('role_new');
 
-      const player = await Players.findOne({ where: { id: user.id } });
+      const player = await Players.findOne({
+        where: { id: user.id },
+        include: { model: Characters, as: 'character' }
+      }
+      );
 
       let characterInfoChangedText = '';
       let playerInfoChangedText = '';
@@ -195,18 +199,14 @@ module.exports = {
         playerInfoChangedText = playerInfoChangedText + 'Timezone: ' + '`' + oldTimezone + '` -> `' + newTimezone + '`\n';
       }
 
-      const activeCharacter = await ActiveCharacters.findOne({
-        include: { model: Characters, as: 'character' },
-        where: { playerId: player.id }
-      })
-      if (activeCharacter) {
-        const character = activeCharacter.character;
+      if (player.character) {
+        const character = player.character;
 
         if (newName) {
           const oldName = character.name;
           await character.update({ name: newName });
           const member = await interaction.guild.members.fetch(user);
-          member.setNickname(newName);
+          // member.setNickname(newName); // Crashes the bot if used on owner of server
           characterInfoChangedText = characterInfoChangedText + 'Name: ' + '`' + oldName + '` -> `' + newName + '`\n';
         }
 
@@ -258,7 +258,7 @@ module.exports = {
       }
 
       if (characterInfoChangedText !== '') {
-        characterInfoChangedText = '**The following Character info was changed for `' + activeCharacter.character.name + '`:**\n' + characterInfoChangedText;
+        characterInfoChangedText = '**The following Character info was changed for `' + player.character.name + '`:**\n' + characterInfoChangedText;
       }
 
 
@@ -339,7 +339,7 @@ module.exports = {
         changedText = 'Please specify what to change.'
       }
       else {
-        changedText = '**The following was changed for `' + character.name + ':**\n' + changedText;
+        changedText = '**The following was changed for `' + character.name + '`:**\n' + changedText;
       }
 
       return interaction.reply({ content: changedText, flags: MessageFlags.Ephemeral })

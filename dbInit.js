@@ -12,9 +12,8 @@ const sequelize = new Sequelize('database', 'user', 'password', {
 
 const Affiliations = require('./models/Affiliations.js')(sequelize, Sequelize.DataTypes);
 const SocialClasses = require('./models/SocialClasses.js')(sequelize, Sequelize.DataTypes);
-require('./models/Players.js')(sequelize, Sequelize.DataTypes);
 require('./models/Characters.js')(sequelize, Sequelize.DataTypes);
-require('./models/ActiveCharacters.js')(sequelize, Sequelize.DataTypes);
+require('./models/Players.js')(sequelize, Sequelize.DataTypes);
 
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 

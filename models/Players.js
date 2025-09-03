@@ -13,5 +13,12 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       defaultValue: 'Undefined',
     },
+    characterId: {
+      type: DataTypes.UUID
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true
+    }
   });
 }
