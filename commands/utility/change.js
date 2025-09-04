@@ -2,6 +2,8 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention }
 const { Players, Characters, Affiliations } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
+const { postInLogChannel } = require('../../misc.js');
+
 
 
 module.exports = {
@@ -184,6 +186,8 @@ module.exports = {
       }
       );
 
+      if (!player) return interaction.reply({ content: 'The specified player does not exist in the database.', flags: MessageFlags.Ephemeral });
+
       let characterInfoChangedText = '';
       let playerInfoChangedText = '';
 
@@ -254,10 +258,22 @@ module.exports = {
 
       // Handle different cases of changed info
       if (playerInfoChangedText !== '') {
+        postInLogChannel(
+          'Database | Player Info Changed',
+          '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
+          'Player: ' + userMention(user.id) + '\n\n' +
+          playerInfoChangedText.replace(/\n$/, '')
+        )
         playerInfoChangedText = '**The following Player info was changed for ' + userMention(user.id) + ':**\n' + playerInfoChangedText;
       }
 
       if (characterInfoChangedText !== '') {
+        postInLogChannel(
+          'Database | Character Info Changed',
+          '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
+          'Character: `' + player.character.name + '`\n\n' +
+          characterInfoChangedText.replace(/\n$/, '')
+        )
         characterInfoChangedText = '**The following Character info was changed for `' + player.character.name + '`:**\n' + characterInfoChangedText;
       }
 
@@ -339,6 +355,12 @@ module.exports = {
         changedText = 'Please specify what to change.'
       }
       else {
+        postInLogChannel(
+          'Database | Character Info Changed',
+          '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
+          'Character: `' + character.name + '`\n\n' +
+          changedText
+        )
         changedText = '**The following was changed for `' + character.name + '`:**\n' + changedText;
       }
 

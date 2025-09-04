@@ -43,7 +43,8 @@ module.exports = {
             .setDescription('The sex of the character.')
             .addChoices(
               { name: 'Male', value: 'Male' },
-              { name: 'Female', value: 'Female' }
+              { name: 'Female', value: 'Female' },
+              { name: 'Undefined', value: 'Undefined' }
             )
         )
         .addStringOption(option =>
@@ -89,7 +90,8 @@ module.exports = {
             .setDescription('The sex of the character.')
             .addChoices(
               { name: 'Male', value: 'Male' },
-              { name: 'Female', value: 'Female' }
+              { name: 'Female', value: 'Female' },
+              { name: 'Undefined', value: 'Undefined' }
             )
         )
         .addStringOption(option =>

@@ -1,5 +1,7 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, roleMention, EmbedBuilder } = require('discord.js');
 const { roles, channels } = require('../../configs/ids.json');
+const { postInLogChannel } = require('../../misc.js')
+
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -37,15 +39,12 @@ module.exports = {
     const message = '*' + text + '*\n||' + roleMention(houseId) + '||';
     doorbellChannel.send({ content: message })
 
-    const logChannel = await interaction.guild.channels.fetch(channels.storytellerLog);
-    const logEmbed = new EmbedBuilder()
-      .setTitle('Doorbell')
-      .setDescription(
-        'Rung by: ' + userMention(interaction.user.id) + '\n' +
-        'Rung House: ' + roleMention(houseId) + '\n' +
-        'Message: `' + text + '`'
-      )
-    logChannel.send({ embeds: [logEmbed] })
+    postInLogChannel(
+      'Doorbell',
+      'Rung by: ' + userMention(interaction.user.id) + '\n' +
+      'Rung House: ' + roleMention(houseId) + '\n' +
+      'Message: `' + text + '`'
+    )
 
     return interaction.reply({ content: 'The doorbell has been rung.', flags: MessageFlags.Ephemeral })
   }

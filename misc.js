@@ -99,4 +99,4 @@ async function postInLogChannel(title, description) {
   logChannel.send({ embeds: [embedLog] });
 }
 
-module.exports = { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer }
+module.exports = { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel }
