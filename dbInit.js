@@ -10,6 +10,7 @@ const sequelize = new Sequelize('database', 'user', 'password', {
   storage: 'database.sqlite',
 });
 
+const Worlds = require('./models/Worlds.js')(sequelize, Sequelize.DataTypes);
 const Affiliations = require('./models/Affiliations.js')(sequelize, Sequelize.DataTypes);
 const SocialClasses = require('./models/SocialClasses.js')(sequelize, Sequelize.DataTypes);
 require('./models/Characters.js')(sequelize, Sequelize.DataTypes);
@@ -18,6 +19,8 @@ require('./models/Players.js')(sequelize, Sequelize.DataTypes);
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 
 sequelize.sync({ force }).then(async () => {
+  await Worlds.create({ name: 'Elstrand', currentYear: 16 });
+
   await Affiliations.create({ id: roles.aetos, name: 'Aetos' });
   await Affiliations.create({ id: roles.ayrin, name: 'Ayrin' });
   await Affiliations.create({ id: roles.dayne, name: 'Dayne' });

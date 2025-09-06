@@ -1,15 +1,14 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention } = require('discord.js');
-const { Players, Characters, Affiliations } = require('../../dbObjects.js');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
+const { Players, Characters, Affiliations, Worlds } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel } = require('../../misc.js');
 
 
-
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('change')
-    .setDescription('Change something about a player or character.')
+    .setDescription('Change something in the Storyteller database.')
     .setContexts(InteractionContextType.Guild)
     .setDefaultMemberPermissions(0)
     .addSubcommand(subcommand =>
@@ -166,7 +165,19 @@ module.exports = {
             .setName('steelbearer_new')
             .setDescription('The new state of whether the character is a steelbearer.')
         )
-    ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('year')
+        .setDescription('Change the current year.')
+        .addNumberOption(option =>
+          option
+            .setName('year_new')
+            .setDescription('The new year.')
+            .setRequired(true)
+        )
+    )
+  ,
   async autocomplete(interaction) {
     const focusedValue = interaction.options.getFocused();
     const characters = await Characters.findAll({
@@ -324,7 +335,8 @@ module.exports = {
           'Player Info Changed',
           '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
           'Player: ' + userMention(user.id) + '\n\n' +
-          playerInfoChangedText.replace(/\n$/, '')
+          playerInfoChangedText.replace(/\n$/, ''),
+          0xD98C00
         )
         playerInfoChangedText = '**The following Player info was changed for ' + userMention(user.id) + ':**\n' + playerInfoChangedText;
       }
@@ -335,7 +347,8 @@ module.exports = {
             'Character Info Changed',
             '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
             'Character: `' + player.character.name + '`\n\n' +
-            characterInfoChangedText.replace(/\n$/, '')
+            characterInfoChangedText.replace(/\n$/, ''),
+            0xD98C00
           )
         }
         const characterName = player.character ? player.character.name : 'N/A';
@@ -478,13 +491,31 @@ module.exports = {
         postInLogChannel(
           'Character Info Changed',
           '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
-          'Character: `' + character.name + '`\n\n' +
-          changedText
+          'Character: ' + inlineCode(character.name) + '\n\n' +
+          changedText,
+          0xD98C00
         )
         changedText = '**The following was changed for `' + character.name + '`:**\n' + changedText;
       }
 
       return interaction.reply({ content: changedText, flags: MessageFlags.Ephemeral })
+    }
+    else if (interaction.options.getSubcommand() === 'year') {
+      const newYear = interaction.options.getNumber('year_new');
+
+      const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+
+      const oldYear = world.currentYear;
+      await world.update({ currentYear: newYear });
+
+      postInLogChannel(
+        'Current Year Changed',
+        '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
+        'Year: ' + inlineCode(oldYear) + ' -> ' + inlineCode(newYear),
+        0xD98C00
+      )
+
+      return interaction.reply({ content: 'The current year has been changed to ' + newYear, flags: MessageFlags.Ephemeral });
     }
 
     return interaction.reply({ content: 'Hmm, whatever you just did shouldn\'t be possible. What did you do?', flags: MessageFlags.Ephemeral })

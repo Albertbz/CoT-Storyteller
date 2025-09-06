@@ -1,5 +1,4 @@
 const { roles } = require('../configs/ids.json');
-const { currentYear } = require('../configs/worldInfo.json');
 
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('characters', {
@@ -27,7 +26,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     yearOfMaturity: {
       type: DataTypes.INTEGER,
-      defaultValue: currentYear,
+      defaultValue: 0,
     },
     role: {
       type: DataTypes.STRING,

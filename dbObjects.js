@@ -8,6 +8,7 @@ const sequelize = new Sequelize('database', 'user', 'password', {
   storage: 'database.sqlite',
 });
 
+const Worlds = require('./models/Worlds.js')(sequelize, Sequelize.DataTypes);
 const Affiliations = require('./models/Affiliations.js')(sequelize, Sequelize.DataTypes);
 const SocialClasses = require('./models/SocialClasses.js')(sequelize, Sequelize.DataTypes);
 const Characters = require('./models/Characters.js')(sequelize, Sequelize.DataTypes);
@@ -19,4 +20,4 @@ Characters.belongsTo(SocialClasses, { foreignKey: 'socialClassId', as: 'socialCl
 Players.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 
 
-module.exports = { Players, Characters, Affiliations, SocialClasses };
+module.exports = { Players, Characters, Affiliations, SocialClasses, Worlds };

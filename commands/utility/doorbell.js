@@ -43,7 +43,8 @@ module.exports = {
       'Doorbell',
       'Rung by: ' + userMention(interaction.user.id) + '\n' +
       'Rung House: ' + roleMention(houseId) + '\n' +
-      'Message: `' + text + '`'
+      'Message: `' + text + '`',
+      0xD6D600
     )
 
     return interaction.reply({ content: 'The doorbell has been rung.', flags: MessageFlags.Ephemeral })

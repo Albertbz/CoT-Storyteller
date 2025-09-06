@@ -235,11 +235,13 @@ module.exports = {
 
       postInLogChannel(
         'Recruitment Post Updated',
-        'Updated by: ' + userMention(interaction.user.id) + '\n\n' +
-        updatedFieldsText
+        '**Updated by: ' + userMention(interaction.user.id) + '**\n\n' +
+        '**House ' + updatedAffiliation.name + '**:\n' +
+        updatedFieldsText,
+        0xD98C00
       );
 
-      return interaction.reply({ content: 'Updated the recruitment post: \n' + updatedFieldsText, flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'Updated the recruitment post for House ' + updatedAffiliation.name + ': \n' + updatedFieldsText, flags: MessageFlags.Ephemeral });
     }
   }
 }

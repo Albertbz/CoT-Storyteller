@@ -1,7 +1,6 @@
 const { EmbedBuilder, userMention } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses } = require('./dbObjects.js');
+const { Players, Characters, Affiliations, SocialClasses, Worlds } = require('./dbObjects.js');
 const { roles, channels } = require('./configs/ids.json');
-// const { client } = require('./index.js');
 
 async function addPlayerToDatabase(id, ign, timezone, storyteller) {
   timezone = timezone === null ? 'Undefined' : timezone;
@@ -18,7 +17,8 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
       'Discord User: ' + userMention(player.id) + '\n' +
       'VS Username: `' + player.ign + '`\n' +
-      'Timezone: `' + player.timezone + '`'
+      'Timezone: `' + player.timezone + '`',
+      0x008000
     )
 
     return player;
@@ -39,11 +39,15 @@ async function addCharacterToDatabase(name, sex, affiliationId, socialClassId, s
   socialClassId = socialClassId === null ? roles.commoner : socialClassId;
 
   try {
+
+    const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+
     const character = await Characters.create({
       name: name,
       sex: sex,
       affiliationId: affiliationId,
       socialClassId: socialClassId,
+      yearOfMaturity: world.currentYear
     })
 
     const affiliation = await Affiliations.findOne({ where: { id: character.affiliationId } });
@@ -55,7 +59,8 @@ async function addCharacterToDatabase(name, sex, affiliationId, socialClassId, s
       'Sex: `' + character.sex + '`\n' +
       'Affiliation: `' + affiliation.name + '`\n' +
       'Social class: `' + socialClass.name + '`\n' +
-      'Year of Maturity: `' + character.yearOfMaturity + '`'
+      'Year of Maturity: `' + character.yearOfMaturity + '`',
+      0x008000
     )
 
     return character;
@@ -108,16 +113,18 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     'Character assigned to Player',
     '**Assigned by: ' + userMention(storyteller.id) + '**\n\n' +
     'Character: `' + character.name + '`\n' +
-    'Player: ' + userMention(playerId)
+    'Player: ' + userMention(playerId),
+    0x0000A3
   )
 
   return playerExists;
 }
 
-async function postInLogChannel(title, description) {
+async function postInLogChannel(title, description, color) {
   const embedLog = new EmbedBuilder()
     .setTitle(title)
     .setDescription(description)
+    .setColor(color)
   const logChannel = await client.channels.fetch(channels.storytellerLog);
   logChannel.send({ embeds: [embedLog] });
 }
