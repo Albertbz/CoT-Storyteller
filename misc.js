@@ -14,7 +14,7 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
     });
 
     postInLogChannel(
-      'Database | Player Created',
+      'Player Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
       'Discord User: ' + userMention(player.id) + '\n' +
       'VS Username: `' + player.ign + '`\n' +
@@ -49,7 +49,7 @@ async function addCharacterToDatabase(name, sex, affiliationId, socialClassId, s
     const affiliation = await Affiliations.findOne({ where: { id: character.affiliationId } });
     const socialClass = await SocialClasses.findOne({ where: { id: character.socialClassId } });
     postInLogChannel(
-      'Database | Character Created',
+      'Character Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
       'Name: `' + character.name + '`\n' +
       'Sex: `' + character.sex + '`\n' +
@@ -81,7 +81,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
 
   if (playerExists) {
     postInLogChannel(
-      'Database | Character assigned to Player',
+      'Character assigned to Player',
       '**Assigned by: ' + userMention(storyteller.id) + '**\n\n' +
       'Character: `' + character.name + '`\n' +
       'Player: ' + userMention(playerId)

@@ -259,7 +259,7 @@ module.exports = {
       // Handle different cases of changed info
       if (playerInfoChangedText !== '') {
         postInLogChannel(
-          'Database | Player Info Changed',
+          'Player Info Changed',
           '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
           'Player: ' + userMention(user.id) + '\n\n' +
           playerInfoChangedText.replace(/\n$/, '')
@@ -269,7 +269,7 @@ module.exports = {
 
       if (characterInfoChangedText !== '') {
         postInLogChannel(
-          'Database | Character Info Changed',
+          'Character Info Changed',
           '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
           'Character: `' + player.character.name + '`\n\n' +
           characterInfoChangedText.replace(/\n$/, '')
@@ -356,7 +356,7 @@ module.exports = {
       }
       else {
         postInLogChannel(
-          'Database | Character Info Changed',
+          'Character Info Changed',
           '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
           'Character: `' + character.name + '`\n\n' +
           changedText
