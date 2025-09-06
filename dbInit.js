@@ -22,8 +22,8 @@ sequelize.sync({ force }).then(async () => {
   await Affiliations.create({ id: roles.ayrin, name: 'Ayrin' });
   await Affiliations.create({ id: roles.dayne, name: 'Dayne' });
   await Affiliations.create({ id: roles.farring, name: 'Farring' });
-  await Affiliations.create({ id: roles.merrick, name: 'Merrick' });
   await Affiliations.create({ id: roles.locke, name: 'Locke' });
+  await Affiliations.create({ id: roles.merrick, name: 'Merrick' });
   await Affiliations.create({ id: roles.wildhart, name: 'Wildhart' });
   await Affiliations.create({ id: roles.wanderer, name: 'Wanderer' });
 

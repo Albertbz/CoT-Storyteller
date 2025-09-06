@@ -88,6 +88,11 @@ module.exports = {
             .setName('role_new')
             .setDescription('The new role.')
         )
+        .addBooleanOption(option =>
+          option
+            .setName('steelbearer_new')
+            .setDescription('The new state of whether the character is a steelbearer.')
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -156,6 +161,11 @@ module.exports = {
             .setName('role_new')
             .setDescription('The new role.')
         )
+        .addBooleanOption(option =>
+          option
+            .setName('steelbearer_new')
+            .setDescription('The new state of whether the character is a steelbearer.')
+        )
     ),
   async autocomplete(interaction) {
     const focusedValue = interaction.options.getFocused();
@@ -179,6 +189,7 @@ module.exports = {
       const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
       const newPvEDeaths = interaction.options.getNumber('pvedeaths_new');
       const newRole = interaction.options.getString('role_new');
+      const newIsSteelbearer = interaction.options.getBoolean('steelbearer_new');
 
       const player = await Players.findOne({
         where: { id: user.id },
@@ -189,34 +200,43 @@ module.exports = {
       if (!player) return interaction.reply({ content: 'The specified player does not exist in the database.', flags: MessageFlags.Ephemeral });
 
       let characterInfoChangedText = '';
+      let characterInfoChanged = false;
+
       let playerInfoChangedText = '';
+      let playerInfoChanged = false;
 
       if (newIgn) {
         const oldIgn = player.ign;
         await player.update({ ign: newIgn });
+        playerInfoChanged = true;
         playerInfoChangedText = playerInfoChangedText + 'IGN: ' + '`' + oldIgn + '` -> `' + newIgn + '`\n';
       }
 
       if (newTimezone) {
         const oldTimezone = player.timezone;
         await player.update({ timezone: newTimezone });
+        playerInfoChanged = true;
         playerInfoChangedText = playerInfoChangedText + 'Timezone: ' + '`' + oldTimezone + '` -> `' + newTimezone + '`\n';
       }
 
       if (player.character) {
         const character = player.character;
 
+        const member = await interaction.guild.members.fetch(player.id);
+
         if (newName) {
           const oldName = character.name;
           await character.update({ name: newName });
-          const member = await interaction.guild.members.fetch(user);
+          // const member = await interaction.guild.members.fetch(user);
           // member.setNickname(newName); // Crashes the bot if used on owner of server
+          characterInfoChanged = true;
           characterInfoChangedText = characterInfoChangedText + 'Name: ' + '`' + oldName + '` -> `' + newName + '`\n';
         }
 
         if (newSex) {
           const oldSex = character.sex;
           await character.update({ sex: newSex });
+          characterInfoChanged = true;
           characterInfoChangedText = characterInfoChangedText + 'Sex: ' + '`' + oldSex + '` -> `' + newSex + '`\n';
         }
 
@@ -224,6 +244,22 @@ module.exports = {
           const oldAffiliationRole = await interaction.guild.roles.fetch(character.affiliationId);
           const newAffiliationRole = await interaction.guild.roles.fetch(newAffiliationId);
           await character.update({ affiliationId: newAffiliationId });
+
+          // Update Discord role
+          await member.roles.remove(oldAffiliationRole);
+          await member.roles.add(newAffiliationRole);
+
+          if (character.socialClassId === roles.commoner) {
+            if (newAffiliationId === roles.wanderer) {
+              member.roles.remove(roles.commoner);
+            }
+            else if (oldAffiliationRole.id = roles.wanderer) {
+              member.roles.add(roles.commoner);
+            }
+          }
+
+          // Update variables for later use
+          characterInfoChanged = true;
           characterInfoChangedText = characterInfoChangedText + 'Affiliation: ' + '`' + oldAffiliationRole.name + '` -> `' + newAffiliationRole.name + '`\n';
         }
 
@@ -231,33 +267,59 @@ module.exports = {
           const oldSocialClassRole = await interaction.guild.roles.fetch(character.socialClassId);
           const newSocialClassRole = await interaction.guild.roles.fetch(newSocialClassId);
           await character.update({ socialClassId: newSocialClassId });
+
+          // Update Discord role
+          await member.roles.remove(oldSocialClassRole);
+
+          if (!(character.affiliationId === roles.wanderer && newSocialClassId === roles.commoner)) {
+            await member.roles.add(newSocialClassRole);
+          }
+
+          // Update varibles for later use
+          characterInfoChanged = true;
           characterInfoChangedText = characterInfoChangedText + 'Social class: ' + '`' + oldSocialClassRole.name + '` -> `' + newSocialClassRole.name + '`\n';
         }
 
         if (newYearOfMaturity) {
           const oldYearOfMaturity = character.yearOfMaturity;
           await character.update({ yearOfMaturity: newYearOfMaturity });
+          characterInfoChanged = true;
           characterInfoChangedText = characterInfoChangedText + 'Year of Maturity: ' + '`' + oldYearOfMaturity + '` -> `' + newYearOfMaturity + '`\n';
         }
 
         if (newPvEDeaths) {
           const oldPvEDeaths = character.pveDeaths;
           await character.update({ pveDeaths: newPvEDeaths });
+          characterInfoChanged = true;
           characterInfoChangedText = characterInfoChangedText + 'PvE Deaths: ' + '`' + oldPvEDeaths + '` -> `' + newPvEDeaths + '`\n';
         }
 
         if (newRole) {
           const oldRole = character.role;
           await character.update({ role: newRole });
+          characterInfoChanged = true;
           characterInfoChangedText = characterInfoChangedText + 'Role: ' + '`' + oldRole + '` -> `' + newRole + '`\n';
         }
+
+        if (newIsSteelbearer !== null) {
+          const oldIsSteelbearer = character.isSteelbearer;
+          await character.update({ isSteelbearer: newIsSteelbearer });
+
+          // Update Discord role
+          await member.roles.remove(roles.steelbearer);
+          if (character.isSteelbearer) await member.roles.add(roles.steelbearer);
+
+          // Update variables for later use
+          characterInfoChanged = true;
+          characterInfoChangedText = characterInfoChangedText + 'Is Steelbearer: ' + '`' + oldIsSteelbearer + '` -> `' + newIsSteelbearer + '`\n';
+        }
       }
-      else if (newName || newSex || newAffiliationId || newSocialClassId || newYearOfMaturity || newPvEDeaths || newRole) {
+      else if (newName || newSex || newAffiliationId || newSocialClassId || newYearOfMaturity || newPvEDeaths || newRole || newIsSteelbearer !== null) {
         characterInfoChangedText = 'This player is currently not playing a character, and as such nothing was changed.'
       }
 
       // Handle different cases of changed info
-      if (playerInfoChangedText !== '') {
+      if (playerInfoChanged) {
         postInLogChannel(
           'Player Info Changed',
           '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
@@ -268,19 +330,26 @@ module.exports = {
       }
 
       if (characterInfoChangedText !== '') {
-        postInLogChannel(
-          'Character Info Changed',
-          '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
-          'Character: `' + player.character.name + '`\n\n' +
-          characterInfoChangedText.replace(/\n$/, '')
-        )
-        characterInfoChangedText = '**The following Character info was changed for `' + player.character.name + '`:**\n' + characterInfoChangedText;
+        if (characterInfoChanged) {
+          postInLogChannel(
+            'Character Info Changed',
+            '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
+            'Character: `' + player.character.name + '`\n\n' +
+            characterInfoChangedText.replace(/\n$/, '')
+          )
+        }
+        const characterName = player.character ? player.character.name : 'N/A';
+        characterInfoChangedText = '**The following Character info was changed for `' + characterName + '`:**\n' + characterInfoChangedText;
       }
 
-
       let changedText = '';
-      if (playerInfoChangedText === '' && characterInfoChangedText === '') {
-        changedText = '**Please specify what to change.**'
+      if (!playerInfoChanged && !characterInfoChanged) {
+        if (characterInfoChangedText !== '') {
+          changedText = characterInfoChangedText;
+        }
+        else {
+          changedText = 'Please specify what to change.'
+        }
       }
       else {
         changedText = playerInfoChangedText + characterInfoChangedText;
@@ -298,11 +367,22 @@ module.exports = {
       const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
       const newPvEDeaths = interaction.options.getNumber('pvedeaths_new');
       const newRole = interaction.options.getString('role_new');
+      const newIsSteelbearer = interaction.options.getBoolean('steelbearer_new');
 
       const character = await Characters.findOne({
         include: { model: Affiliations, as: 'affiliation' },
         where: { id: characterId }
       })
+
+      const player = await Players.findOne({
+        where: { characterId: character.id }
+      })
+
+      const isCurrentlyPlayed = player !== null;
+      let member = null;
+      if (isCurrentlyPlayed) {
+        member = await interaction.guild.members.fetch(player.id);
+      }
 
       let changedText = '';
 
@@ -322,6 +402,24 @@ module.exports = {
         const oldAffiliationRole = await interaction.guild.roles.fetch(character.affiliationId);
         const newAffiliationRole = await interaction.guild.roles.fetch(newAffiliationId);
         await character.update({ affiliationId: newAffiliationId });
+
+        // If currently played, update Discord role
+        if (isCurrentlyPlayed) {
+          await member.roles.remove(oldAffiliationRole);
+          await member.roles.add(newAffiliationRole);
+
+          if (character.socialClassId === roles.commoner) {
+            if (newAffiliationId === roles.wanderer) {
+              member.roles.remove(roles.commoner);
+            }
+            else if (oldAffiliationRole.id = roles.wanderer) {
+              member.roles.add(roles.commoner);
+            }
+          }
+        }
+
+
+
         changedText = changedText + 'Affiliation: ' + '`' + oldAffiliationRole.name + '` -> `' + newAffiliationRole.name + '`\n';
       }
 
@@ -329,6 +427,16 @@ module.exports = {
         const oldSocialClassRole = await interaction.guild.roles.fetch(character.socialClassId);
         const newSocialClassRole = await interaction.guild.roles.fetch(newSocialClassId);
         await character.update({ socialClassId: newSocialClassId });
+
+        // If currently played, update Discord role
+        if (isCurrentlyPlayed) {
+          await member.roles.remove(oldSocialClassRole);
+
+          if (!(character.affiliationId === roles.wanderer && newSocialClassId === roles.commoner)) {
+            await member.roles.add(newSocialClassRole);
+          }
+        }
+
         changedText = changedText + 'Social class: ' + '`' + oldSocialClassRole.name + '` -> `' + newSocialClassRole.name + '`\n';
       }
 
@@ -348,6 +456,18 @@ module.exports = {
         const oldRole = character.role;
         await character.update({ role: newRole });
         changedText = changedText + 'Role: ' + '`' + oldRole + '` -> `' + newRole + '`\n';
+      }
+
+      if (newIsSteelbearer !== null) {
+        const oldIsSteelbearer = character.isSteelbearer;
+        await character.update({ isSteelbearer: newIsSteelbearer });
+
+        if (isCurrentlyPlayed) {
+          await member.roles.remove(roles.steelbearer);
+          if (character.isSteelbearer) await member.roles.add(roles.steelbearer);
+        }
+
+        changedText = changedText + 'Is Steelbearer: ' + '`' + oldIsSteelbearer + '` -> `' + newIsSteelbearer + '`\n';
       }
 
       changedText = changedText.replace(/\n$/, '');

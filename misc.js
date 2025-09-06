@@ -70,23 +70,46 @@ async function addCharacterToDatabase(name, sex, affiliationId, socialClassId, s
 }
 
 async function assignCharacterToPlayer(characterId, playerId, storyteller) {
-  const numberOfUpdated = await Players.update(
-    { characterId: characterId },
-    { where: { id: playerId } }
-  );
+  const guild = await client.guilds.fetch('1410006882772451517');
+  const member = await guild.members.fetch(playerId);
 
-  const playerExists = numberOfUpdated[0] != 0;
+  // Check whether player exists in database
+  const player = await Players.findOne({
+    where: { id: playerId }
+  })
 
-  const character = await Characters.findOne({ where: { id: characterId } });
+  const playerExists = player !== null;
 
-  if (playerExists) {
-    postInLogChannel(
-      'Character assigned to Player',
-      '**Assigned by: ' + userMention(storyteller.id) + '**\n\n' +
-      'Character: `' + character.name + '`\n' +
-      'Player: ' + userMention(playerId)
-    )
+  if (!playerExists) return playerExists;
+
+  // If already playng a character, then remove the roles of said character from member
+  const alreadyPlayingACharacter = player.characterId !== null;
+  if (alreadyPlayingACharacter) {
+    const oldCharacter = await Characters.findOne({
+      where: { id: player.characterId }
+    })
+
+    await member.roles.remove([oldCharacter.affiliationId, oldCharacter.socialClassId, roles.steelbearer]);
   }
+
+  // Update the association
+  await player.update({ characterId: characterId });
+
+  // Get the new character and update the roles of the member
+  const character = await Characters.findOne({ where: { id: characterId } });
+  await member.roles.add(character.affiliationId);
+  // If both a wanderer and a commoner, then this statement is not satisfied
+  if (!(character.affiliationId === roles.wanderer && character.socialClassId === roles.commoner)) {
+    await member.roles.add(character.socialClassId);
+  }
+  if (character.isSteelbearer) await member.roles.add(roles.steelbearer);
+
+  postInLogChannel(
+    'Character assigned to Player',
+    '**Assigned by: ' + userMention(storyteller.id) + '**\n\n' +
+    'Character: `' + character.name + '`\n' +
+    'Player: ' + userMention(playerId)
+  )
 
   return playerExists;
 }

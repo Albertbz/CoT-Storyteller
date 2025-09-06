@@ -151,6 +151,8 @@ module.exports = {
           'Discord User: ' + userMention(player.id) + '\n' +
           'VS Username: `' + player.ign + '`\n' +
           'Timezone: `' + player.timezone + '`';
+
+
         // Create the character if any of the arguments were provided
         if (!creatingCharacter) return interaction.reply({ content: playerCreatedText, flags: MessageFlags.Ephemeral });
 
@@ -198,7 +200,7 @@ module.exports = {
           'Year of Maturity: `' + character.yearOfMaturity + '`'
         if (!linkToUser) return interaction.reply({ content: characterCreatedText, flags: MessageFlags.Ephemeral });
 
-        const playerExists = await assignCharacterToPlayer(character.id, user.id);
+        const playerExists = await assignCharacterToPlayer(character.id, user.id, interaction.user);
 
         if (!playerExists) return interaction.reply({ content: characterCreatedText + '\n\n' + '**Attempted to assign character to the specified player, but the player was not found in the database.**', flags: MessageFlags.Ephemeral })
 

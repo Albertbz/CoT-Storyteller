@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, InteractionContextType, EmbedBuilder, MessageFlags, userMention } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, EmbedBuilder, MessageFlags, userMention, inlineCode } = require('discord.js');
 const { Players, Characters, Affiliations, SocialClasses } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 
@@ -55,9 +55,9 @@ module.exports = {
           { name: '\u200b', value: '\u200b', inline: true },
         )
         .addFields(
-          { name: 'Discord Username', value: '`' + user.username + '`', inline: true },
-          { name: 'VS Username', value: '`' + player.ign + '`', inline: true },
-          { name: 'Timezone', value: '`' + player.timezone + '`', inline: true },
+          { name: 'Discord Username', value: inlineCode(user.username), inline: true },
+          { name: 'VS Username', value: inlineCode(player.ign), inline: true },
+          { name: 'Timezone', value: inlineCode(player.timezone), inline: true },
         )
 
       if (player.character) {
@@ -69,12 +69,15 @@ module.exports = {
             { name: '\u200b', value: '\u200b', inline: true },
           )
           .addFields(
-            { name: 'Name', value: '`' + character.name + '`', inline: true },
-            { name: 'Sex', value: '`' + character.sex + '`', inline: true },
-            { name: 'Affiliation', value: '`' + character.affiliation.name + '`', inline: true },
-            { name: 'Social Class', value: '`' + character.socialClass.name + '`', inline: true },
-            { name: 'Year of Maturity', value: '`' + character.yearOfMaturity + '`', inline: true },
-            { name: 'PvE Deaths', value: '`' + character.pveDeaths + '`', inline: true },
+            { name: 'Name', value: inlineCode(character.name), inline: true },
+            { name: 'Sex', value: inlineCode(character.sex), inline: true },
+            { name: 'Affiliation', value: inlineCode(character.affiliation.name), inline: true },
+            { name: 'Social Class', value: inlineCode(character.socialClass.name), inline: true },
+            { name: 'Year of Maturity', value: inlineCode(character.yearOfMaturity), inline: true },
+            { name: 'PvE Deaths', value: inlineCode(character.pveDeaths), inline: true },
+            { name: 'Role', value: inlineCode(character.role), inline: true },
+            { name: 'Is Steelbearer', value: character.isSteelbearer ? inlineCode('Yes') : inlineCode('No'), inline: true },
+            { name: '\u200b', value: '\u200b', inline: true },
           )
       }
       else {
@@ -110,12 +113,15 @@ module.exports = {
           { name: '\u200b', value: '\u200b', inline: true },
         )
         .addFields(
-          { name: 'Name', value: '`' + character.name + '`', inline: true },
-          { name: 'Sex', value: '`' + character.sex + '`', inline: true },
-          { name: 'Affiliation', value: '`' + character.affiliation.name + '`', inline: true },
-          { name: 'Social Class', value: '`' + character.socialClass.name + '`', inline: true },
-          { name: 'Year of Maturity', value: '`' + character.yearOfMaturity + '`', inline: true },
-          { name: 'PvE Deaths', value: '`' + character.pveDeaths + '`', inline: true },
+          { name: 'Name', value: inlineCode(character.name), inline: true },
+          { name: 'Sex', value: inlineCode(character.sex), inline: true },
+          { name: 'Affiliation', value: inlineCode(character.affiliation.name), inline: true },
+          { name: 'Social Class', value: inlineCode(character.socialClass.name), inline: true },
+          { name: 'Year of Maturity', value: inlineCode(character.yearOfMaturity), inline: true },
+          { name: 'PvE Deaths', value: inlineCode(character.pveDeaths), inline: true },
+          { name: 'Role', value: inlineCode(character.role), inline: true },
+          { name: 'Is Steelbearer', value: character.isSteelbearer ? inlineCode('Yes') : inlineCode('No'), inline: true },
+          { name: '\u200b', value: '\u200b', inline: true },
         )
 
       const player = await Players.findOne({
@@ -132,9 +138,9 @@ module.exports = {
             { name: '\u200b', value: '\u200b', inline: true },
           )
           .addFields(
-            { name: 'Discord Username', value: '`' + user.username + '`', inline: true },
-            { name: 'VS Username', value: '`' + player.ign + '`', inline: true },
-            { name: 'Timezone', value: '`' + player.timezone + '`', inline: true },
+            { name: 'Discord Username', value: inlineCode(user.username), inline: true },
+            { name: 'VS Username', value: inlineCode(player.ign), inline: true },
+            { name: 'Timezone', value: inlineCode(player.timezone), inline: true },
           )
       }
       else {

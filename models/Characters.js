@@ -36,6 +36,10 @@ module.exports = (sequelize, DataTypes) => {
     pveDeaths: {
       type: DataTypes.INTEGER,
       defaultValue: 0
+    },
+    isSteelbearer: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
     }
   });
 }
