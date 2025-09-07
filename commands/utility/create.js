@@ -52,14 +52,14 @@ module.exports = {
             .setName('affiliation')
             .setDescription('The affiliation of the character.')
             .addChoices(
-              { name: 'Aetos', value: roles.aetos },
-              { name: 'Ayrin', value: roles.ayrin },
-              { name: 'Dayne', value: roles.dayne },
-              { name: 'Farring', value: roles.farring },
-              { name: 'Locke', value: roles.locke },
-              { name: 'Merrick', value: roles.merrick },
-              { name: 'Wildhart', value: roles.wildhart },
-              { name: 'Wanderer', value: roles.wanderer }
+              { name: 'Aetos', value: 'Aetos' },
+              { name: 'Ayrin', value: 'Ayrin' },
+              { name: 'Dayne', value: 'Dayne' },
+              { name: 'Farring', value: 'Farring' },
+              { name: 'Locke', value: 'Locke' },
+              { name: 'Merrick', value: 'Merrick' },
+              { name: 'Wildhart', value: 'Wildhart' },
+              { name: 'Wanderer', value: 'Wanderer' }
             )
         )
         .addStringOption(option =>
@@ -67,10 +67,10 @@ module.exports = {
             .setName('socialclass')
             .setDescription('The social class of the character.')
             .addChoices(
-              { name: 'Commoner', value: roles.commoner },
-              { name: 'Notable', value: roles.notable },
-              { name: 'Noble', value: roles.noble },
-              { name: 'Ruler', value: roles.ruler }
+              { name: 'Commoner', value: 'Commoner' },
+              { name: 'Notable', value: 'Notable' },
+              { name: 'Noble', value: 'Noble' },
+              { name: 'Ruler', value: 'Ruler' }
             )
         )
     )
@@ -99,14 +99,14 @@ module.exports = {
             .setName('affiliation')
             .setDescription('The affiliation of the character.')
             .addChoices(
-              { name: 'Aetos', value: roles.aetos },
-              { name: 'Ayrin', value: roles.ayrin },
-              { name: 'Dayne', value: roles.dayne },
-              { name: 'Farring', value: roles.farring },
-              { name: 'Locke', value: roles.locke },
-              { name: 'Merrick', value: roles.merrick },
-              { name: 'Wildhart', value: roles.wildhart },
-              { name: 'Wanderer', value: roles.wanderer }
+              { name: 'Aetos', value: 'Aetos' },
+              { name: 'Ayrin', value: 'Ayrin' },
+              { name: 'Dayne', value: 'Dayne' },
+              { name: 'Farring', value: 'Farring' },
+              { name: 'Locke', value: 'Locke' },
+              { name: 'Merrick', value: 'Merrick' },
+              { name: 'Wildhart', value: 'Wildhart' },
+              { name: 'Wanderer', value: 'Wanderer' }
             )
         )
         .addStringOption(option =>
@@ -114,10 +114,10 @@ module.exports = {
             .setName('socialclass')
             .setDescription('The social class of the character.')
             .addChoices(
-              { name: 'Commoner', value: roles.commoner },
-              { name: 'Notable', value: roles.notable },
-              { name: 'Noble', value: roles.noble },
-              { name: 'Ruler', value: roles.ruler }
+              { name: 'Commoner', value: 'Commoner' },
+              { name: 'Notable', value: 'Notable' },
+              { name: 'Noble', value: 'Noble' },
+              { name: 'Ruler', value: 'Ruler' }
             )
         )
         .addUserOption(option =>
@@ -137,10 +137,10 @@ module.exports = {
       // For creating the character, if one is to be created for the player
       const name = interaction.options.getString('name');
       const sex = interaction.options.getString('sex');
-      const affiliationId = interaction.options.getString('affiliation');
-      const socialClassId = interaction.options.getString('socialclass');
+      const affiliationName = interaction.options.getString('affiliation');
+      const socialClassName = interaction.options.getString('socialclass');
 
-      const creatingCharacter = name || sex || affiliationId || socialClassId;
+      const creatingCharacter = name || sex || affiliationName || socialClassName;
 
       // Create the player
       try {
@@ -156,17 +156,15 @@ module.exports = {
         // Create the character if any of the arguments were provided
         if (!creatingCharacter) return interaction.reply({ content: playerCreatedText, flags: MessageFlags.Ephemeral });
 
-        const character = await addCharacterToDatabase(name, sex, affiliationId, socialClassId, interaction.user);
+        const character = await addCharacterToDatabase(name, sex, affiliationName, socialClassName, interaction.user);
         await assignCharacterToPlayer(character.id, player.id, interaction.user);
 
-        const affiliation = await Affiliations.findOne({ where: { id: character.affiliationId } });
-        const socialClass = await SocialClasses.findOne({ where: { id: character.socialClassId } });
         const characterCreatedText =
           '**Character was created with the following information and set as the Player\'s character:**\n' +
           'Name: `' + character.name + '`\n' +
           'Sex: `' + character.sex + '`\n' +
-          'Affiliation: `' + affiliation.name + '`\n' +
-          'Social class: `' + socialClass.name + '`\n' +
+          'Affiliation: `' + character.affiliationName + '`\n' +
+          'Social class: `' + character.socialClassName + '`\n' +
           'Year of Maturity: `' + character.yearOfMaturity + '`'
         return interaction.reply({ content: playerCreatedText + '\n\n' + characterCreatedText, flags: MessageFlags.Ephemeral });
       }
@@ -178,25 +176,22 @@ module.exports = {
     else if (interaction.options.getSubcommand() === 'character') {
       const name = interaction.options.getString('name');
       const sex = interaction.options.getString('sex');
-      const affiliationId = interaction.options.getString('affiliation');
-      const socialClassId = interaction.options.getString('socialclass');
+      const affiliationName = interaction.options.getString('affiliation');
+      const socialClassName = interaction.options.getString('socialclass');
 
       const user = interaction.options.getUser('player');
 
       const linkToUser = user !== null;
 
       try {
-        const character = await addCharacterToDatabase(name, sex, affiliationId, socialClassId, interaction.user);
+        const character = await addCharacterToDatabase(name, sex, affiliationName, socialClassName, interaction.user);
 
-
-        const affiliation = await Affiliations.findOne({ where: { id: character.affiliationId } });
-        const socialClass = await SocialClasses.findOne({ where: { id: character.socialClassId } });
         const characterCreatedText =
           '**Character was created with the following information:**\n' +
           'Name: `' + character.name + '`\n' +
           'Sex: `' + character.sex + '`\n' +
-          'Affiliation: `' + affiliation.name + '`\n' +
-          'Social class: `' + socialClass.name + '`\n' +
+          'Affiliation: `' + character.affiliationName + '`\n' +
+          'Social class: `' + character.socialClassName + '`\n' +
           'Year of Maturity: `' + character.yearOfMaturity + '`'
         if (!linkToUser) return interaction.reply({ content: characterCreatedText, flags: MessageFlags.Ephemeral });
 

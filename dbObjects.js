@@ -14,8 +14,8 @@ const SocialClasses = require('./models/SocialClasses.js')(sequelize, Sequelize.
 const Characters = require('./models/Characters.js')(sequelize, Sequelize.DataTypes);
 const Players = require('./models/Players.js')(sequelize, Sequelize.DataTypes);
 
-Characters.belongsTo(Affiliations, { foreignKey: 'affiliationId', as: 'affiliation' });
-Characters.belongsTo(SocialClasses, { foreignKey: 'socialClassId', as: 'socialClass' });
+Characters.belongsTo(Affiliations, { foreignKey: 'affiliationName', as: 'affiliation' });
+Characters.belongsTo(SocialClasses, { foreignKey: 'socialClassName', as: 'socialClass' });
 
 Players.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 

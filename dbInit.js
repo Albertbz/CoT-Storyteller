@@ -21,19 +21,19 @@ const force = process.argv.includes('--force') || process.argv.includes('-f');
 sequelize.sync({ force }).then(async () => {
   await Worlds.create({ name: 'Elstrand', currentYear: 16 });
 
-  await Affiliations.create({ id: roles.aetos, name: 'Aetos' });
-  await Affiliations.create({ id: roles.ayrin, name: 'Ayrin' });
-  await Affiliations.create({ id: roles.dayne, name: 'Dayne' });
-  await Affiliations.create({ id: roles.farring, name: 'Farring' });
-  await Affiliations.create({ id: roles.locke, name: 'Locke' });
-  await Affiliations.create({ id: roles.merrick, name: 'Merrick' });
-  await Affiliations.create({ id: roles.wildhart, name: 'Wildhart' });
-  await Affiliations.create({ id: roles.wanderer, name: 'Wanderer' });
+  await Affiliations.create({ roleId: roles.aetos, name: 'Aetos' });
+  await Affiliations.create({ roleId: roles.ayrin, name: 'Ayrin' });
+  await Affiliations.create({ roleId: roles.dayne, name: 'Dayne' });
+  await Affiliations.create({ roleId: roles.farring, name: 'Farring' });
+  await Affiliations.create({ roleId: roles.locke, name: 'Locke' });
+  await Affiliations.create({ roleId: roles.merrick, name: 'Merrick' });
+  await Affiliations.create({ roleId: roles.wildhart, name: 'Wildhart' });
+  await Affiliations.create({ roleId: roles.wanderer, name: 'Wanderer' });
 
-  await SocialClasses.create({ id: roles.commoner, name: 'Commoner' });
-  await SocialClasses.create({ id: roles.notable, name: 'Notable' });
-  await SocialClasses.create({ id: roles.noble, name: 'Noble' });
-  await SocialClasses.create({ id: roles.ruler, name: 'Ruler' });
+  await SocialClasses.create({ roleId: roles.commoner, name: 'Commoner' });
+  await SocialClasses.create({ roleId: roles.notable, name: 'Notable' });
+  await SocialClasses.create({ roleId: roles.noble, name: 'Noble' });
+  await SocialClasses.create({ roleId: roles.ruler, name: 'Ruler' });
 
   console.log('Database synced.');
   sequelize.close();

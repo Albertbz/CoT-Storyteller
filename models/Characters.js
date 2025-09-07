@@ -16,13 +16,13 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       defaultValue: 'Undefined',
     },
-    affiliationId: {
+    affiliationName: {
       type: DataTypes.STRING,
-      defaultValue: roles.wanderer
+      defaultValue: 'Wanderer'
     },
-    socialClassId: {
+    socialClassName: {
       type: DataTypes.STRING,
-      defaultValue: roles.commoner
+      defaultValue: 'Commoner'
     },
     yearOfMaturity: {
       type: DataTypes.INTEGER,

@@ -32,33 +32,30 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
   }
 }
 
-async function addCharacterToDatabase(name, sex, affiliationId, socialClassId, storyteller) {
+async function addCharacterToDatabase(name, sex, affiliationName, socialClassName, storyteller) {
   name = name === null ? 'Unnamed' : name;
   sex = sex === null ? 'Undefined' : sex;
-  affiliationId = affiliationId === null ? roles.wanderer : affiliationId;
-  socialClassId = socialClassId === null ? roles.commoner : socialClassId;
+  affiliationName = affiliationName === null ? 'Wanderer' : affiliationName;
+  socialClassName = socialClassName === null ? 'Commoner' : socialClassName;
 
   try {
-
     const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
 
     const character = await Characters.create({
       name: name,
       sex: sex,
-      affiliationId: affiliationId,
-      socialClassId: socialClassId,
+      affiliationName: affiliationName,
+      socialClassName: socialClassName,
       yearOfMaturity: world.currentYear
     })
 
-    const affiliation = await Affiliations.findOne({ where: { id: character.affiliationId } });
-    const socialClass = await SocialClasses.findOne({ where: { id: character.socialClassId } });
     postInLogChannel(
       'Character Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
       'Name: `' + character.name + '`\n' +
       'Sex: `' + character.sex + '`\n' +
-      'Affiliation: `' + affiliation.name + '`\n' +
-      'Social class: `' + socialClass.name + '`\n' +
+      'Affiliation: `' + character.affiliationName + '`\n' +
+      'Social class: `' + character.socialClassName + '`\n' +
       'Year of Maturity: `' + character.yearOfMaturity + '`',
       0x008000
     )
@@ -87,25 +84,35 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
 
   if (!playerExists) return playerExists;
 
-  // If already playng a character, then remove the roles of said character from member
+  // If already playing a character, then remove the roles of said character from member
   const alreadyPlayingACharacter = player.characterId !== null;
   if (alreadyPlayingACharacter) {
     const oldCharacter = await Characters.findOne({
-      where: { id: player.characterId }
+      where: { id: player.characterId },
+      include: [
+        { model: Affiliations, as: 'affiliation' },
+        { model: SocialClasses, as: 'socialClass' }
+      ]
     })
 
-    await member.roles.remove([oldCharacter.affiliationId, oldCharacter.socialClassId, roles.steelbearer]);
+    await member.roles.remove([oldCharacter.affiliation.roleId, oldCharacter.socialClass.roleId, roles.steelbearer]);
   }
 
   // Update the association
   await player.update({ characterId: characterId });
 
   // Get the new character and update the roles of the member
-  const character = await Characters.findOne({ where: { id: characterId } });
-  await member.roles.add(character.affiliationId);
+  const character = await Characters.findOne({
+    where: { id: characterId },
+    include: [
+      { model: Affiliations, as: 'affiliation' },
+      { model: SocialClasses, as: 'socialClass' }
+    ]
+  });
+  await member.roles.add(character.affiliation.roleId);
   // If both a wanderer and a commoner, then this statement is not satisfied
-  if (!(character.affiliationId === roles.wanderer && character.socialClassId === roles.commoner)) {
-    await member.roles.add(character.socialClassId);
+  if (!(character.affiliation.name === 'Wanderer' && character.socialClass.name === 'Commoner')) {
+    await member.roles.add(character.socialClass.roleId);
   }
   if (character.isSteelbearer) await member.roles.add(roles.steelbearer);
 

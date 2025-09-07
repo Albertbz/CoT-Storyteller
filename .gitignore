@@ -4,3 +4,4 @@ node_modules
 .env
 database.sqlite
 activeCharacters.csv
+cot-storyteller-6781c6d9e0e6.json

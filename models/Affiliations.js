@@ -1,11 +1,11 @@
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('affiliations', {
-    id: {
+    name: {
       type: DataTypes.STRING,
       primaryKey: true,
-      unique: true,
+      unique: true
     },
-    name: {
+    roleId: {
       type: DataTypes.STRING,
       unique: true,
     },

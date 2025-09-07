@@ -1,13 +1,13 @@
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('socialclasses', {
-    id: {
+    roleId: {
       type: DataTypes.STRING,
-      primaryKey: true,
       unique: true,
     },
     name: {
       type: DataTypes.STRING,
       unique: true,
+      primaryKey: true,
     },
   });
 }

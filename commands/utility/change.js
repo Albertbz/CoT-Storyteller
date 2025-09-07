@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, Affiliations, Worlds } = require('../../dbObjects.js');
+const { Players, Characters, Affiliations, SocialClasses, Worlds } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel } = require('../../misc.js');
@@ -51,14 +51,14 @@ module.exports = {
             .setName('affiliation_new')
             .setDescription('The new affiliation.')
             .addChoices(
-              { name: 'Aetos', value: roles.aetos },
-              { name: 'Ayrin', value: roles.ayrin },
-              { name: 'Dayne', value: roles.dayne },
-              { name: 'Farring', value: roles.farring },
-              { name: 'Locke', value: roles.locke },
-              { name: 'Merrick', value: roles.merrick },
-              { name: 'Wildhart', value: roles.wildhart },
-              { name: 'Wanderer', value: roles.wanderer }
+              { name: 'Aetos', value: 'Aetos' },
+              { name: 'Ayrin', value: 'Ayrin' },
+              { name: 'Dayne', value: 'Dayne' },
+              { name: 'Farring', value: 'Farring' },
+              { name: 'Locke', value: 'Locke' },
+              { name: 'Merrick', value: 'Merrick' },
+              { name: 'Wildhart', value: 'Wildhart' },
+              { name: 'Wanderer', value: 'Wanderer' }
             )
         )
         .addStringOption(option =>
@@ -66,10 +66,10 @@ module.exports = {
             .setName('socialclass_new')
             .setDescription('The new social class.')
             .addChoices(
-              { name: 'Commoner', value: roles.commoner },
-              { name: 'Notable', value: roles.notable },
-              { name: 'Noble', value: roles.noble },
-              { name: 'Ruler', value: roles.ruler }
+              { name: 'Commoner', value: 'Commoner' },
+              { name: 'Notable', value: 'Notable' },
+              { name: 'Noble', value: 'Noble' },
+              { name: 'Ruler', value: 'Ruler' }
             )
         )
         .addNumberOption(option =>
@@ -124,14 +124,14 @@ module.exports = {
             .setName('affiliation_new')
             .setDescription('The new affiliation.')
             .addChoices(
-              { name: 'Aetos', value: roles.aetos },
-              { name: 'Ayrin', value: roles.ayrin },
-              { name: 'Dayne', value: roles.dayne },
-              { name: 'Farring', value: roles.farring },
-              { name: 'Locke', value: roles.locke },
-              { name: 'Merrick', value: roles.merrick },
-              { name: 'Wildhart', value: roles.wildhart },
-              { name: 'Wanderer', value: roles.wanderer }
+              { name: 'Aetos', value: 'Aetos' },
+              { name: 'Ayrin', value: 'Ayrin' },
+              { name: 'Dayne', value: 'Dayne' },
+              { name: 'Farring', value: 'Farring' },
+              { name: 'Locke', value: 'Locke' },
+              { name: 'Merrick', value: 'Merrick' },
+              { name: 'Wildhart', value: 'Wildhart' },
+              { name: 'Wanderer', value: 'Wanderer' }
             )
         )
         .addStringOption(option =>
@@ -139,10 +139,10 @@ module.exports = {
             .setName('socialclass_new')
             .setDescription('The new social class.')
             .addChoices(
-              { name: 'Commoner', value: roles.commoner },
-              { name: 'Notable', value: roles.notable },
-              { name: 'Noble', value: roles.noble },
-              { name: 'Ruler', value: roles.ruler }
+              { name: 'Commoner', value: 'Commoner' },
+              { name: 'Notable', value: 'Notable' },
+              { name: 'Noble', value: 'Noble' },
+              { name: 'Ruler', value: 'Ruler' }
             )
         )
         .addNumberOption(option =>
@@ -195,8 +195,8 @@ module.exports = {
 
       const newName = interaction.options.getString('name_new');
       const newSex = interaction.options.getString('sex_new');
-      const newAffiliationId = interaction.options.getString('affiliation_new');
-      const newSocialClassId = interaction.options.getString('socialclass_new');
+      const newAffiliationName = interaction.options.getString('affiliation_new');
+      const newSocialClassName = interaction.options.getString('socialclass_new');
       const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
       const newPvEDeaths = interaction.options.getNumber('pvedeaths_new');
       const newRole = interaction.options.getString('role_new');
@@ -251,44 +251,51 @@ module.exports = {
           characterInfoChangedText = characterInfoChangedText + 'Sex: ' + '`' + oldSex + '` -> `' + newSex + '`\n';
         }
 
-        if (newAffiliationId) {
-          const oldAffiliationRole = await interaction.guild.roles.fetch(character.affiliationId);
-          const newAffiliationRole = await interaction.guild.roles.fetch(newAffiliationId);
-          await character.update({ affiliationId: newAffiliationId });
+        if (newAffiliationName) {
+          const oldAffiliation = await Affiliations.findOne({ where: { name: character.affiliationName } });
+          const oldAffiliationRole = await interaction.guild.roles.fetch(oldAffiliation.roleId);
+
+          const newAffiliation = await Affiliations.findOne({ where: { name: newAffiliationName } });
+          const newAffiliationRole = await interaction.guild.roles.fetch(newAffiliation.roleId);
+
+          await character.update({ affiliationName: newAffiliationName });
 
           // Update Discord role
           await member.roles.remove(oldAffiliationRole);
           await member.roles.add(newAffiliationRole);
 
-          if (character.socialClassId === roles.commoner) {
-            if (newAffiliationId === roles.wanderer) {
+          if (character.socialClassName === 'Commoner') {
+            if (newAffiliationName === 'Wanderer') {
               member.roles.remove(roles.commoner);
             }
-            else if (oldAffiliationRole.id = roles.wanderer) {
+            else if (oldAffiliation.name === 'Wanderer') {
               member.roles.add(roles.commoner);
             }
           }
 
           // Update variables for later use
           characterInfoChanged = true;
-          characterInfoChangedText = characterInfoChangedText + 'Affiliation: ' + '`' + oldAffiliationRole.name + '` -> `' + newAffiliationRole.name + '`\n';
+          characterInfoChangedText = characterInfoChangedText + 'Affiliation: ' + inlineCode(oldAffiliation.name) + ' -> ' + inlineCode(newAffiliation.name) + '\n';
         }
 
-        if (newSocialClassId) {
-          const oldSocialClassRole = await interaction.guild.roles.fetch(character.socialClassId);
-          const newSocialClassRole = await interaction.guild.roles.fetch(newSocialClassId);
-          await character.update({ socialClassId: newSocialClassId });
+        if (newSocialClassName) {
+          const oldSocialClass = await SocialClasses.findOne({ where: { name: character.socialClassName } });
+          const oldSocialClassRole = await interaction.guild.roles.fetch(oldSocialClass.roleId);
+
+          const newSocialClass = await SocialClasses.findOne({ where: { name: newSocialClassName } });
+          const newSocialClassRole = await interaction.guild.roles.fetch(newSocialClass.roleId);
+          await character.update({ socialClassName: newSocialClassName });
 
           // Update Discord role
           await member.roles.remove(oldSocialClassRole);
 
-          if (!(character.affiliationId === roles.wanderer && newSocialClassId === roles.commoner)) {
+          if (!(character.affiliationName === 'Wanderer' && newSocialClassName === 'Commoner')) {
             await member.roles.add(newSocialClassRole);
           }
 
           // Update varibles for later use
           characterInfoChanged = true;
-          characterInfoChangedText = characterInfoChangedText + 'Social class: ' + '`' + oldSocialClassRole.name + '` -> `' + newSocialClassRole.name + '`\n';
+          characterInfoChangedText = characterInfoChangedText + 'Social class: ' + inlineCode(oldSocialClass.name) + ' -> ' + inlineCode(newSocialClass.name) + '\n';
         }
 
         if (newYearOfMaturity) {
@@ -325,7 +332,7 @@ module.exports = {
           characterInfoChangedText = characterInfoChangedText + 'Is Steelbearer: ' + '`' + oldIsSteelbearer + '` -> `' + newIsSteelbearer + '`\n';
         }
       }
-      else if (newName || newSex || newAffiliationId || newSocialClassId || newYearOfMaturity || newPvEDeaths || newRole || newIsSteelbearer !== null) {
+      else if (newName || newSex || newAffiliationName || newSocialClassName || newYearOfMaturity || newPvEDeaths || newRole || newIsSteelbearer !== null) {
         characterInfoChangedText = 'This player is currently not playing a character, and as such nothing was changed.'
       }
 
@@ -375,8 +382,8 @@ module.exports = {
       const characterId = interaction.options.getString('name');
       const newName = interaction.options.getString('name_new');
       const newSex = interaction.options.getString('sex_new');
-      const newAffiliationId = interaction.options.getString('affiliation_new');
-      const newSocialClassId = interaction.options.getString('socialclass_new');
+      const newAffiliationName = interaction.options.getString('affiliation_new');
+      const newSocialClassName = interaction.options.getString('socialclass_new');
       const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
       const newPvEDeaths = interaction.options.getNumber('pvedeaths_new');
       const newRole = interaction.options.getString('role_new');
@@ -411,46 +418,51 @@ module.exports = {
         changedText = changedText + 'Sex: ' + '`' + oldSex + '` -> `' + newSex + '`\n';
       }
 
-      if (newAffiliationId) {
-        const oldAffiliationRole = await interaction.guild.roles.fetch(character.affiliationId);
-        const newAffiliationRole = await interaction.guild.roles.fetch(newAffiliationId);
-        await character.update({ affiliationId: newAffiliationId });
+      if (newAffiliationName) {
+        const oldAffiliation = await Affiliations.findOne({ where: { name: character.affiliationName } });
+        const oldAffiliationRole = await interaction.guild.roles.fetch(oldAffiliation.roleId);
+
+        const newAffiliation = await Affiliations.findOne({ where: { name: newAffiliationName } });
+        const newAffiliationRole = await interaction.guild.roles.fetch(newAffiliation.roleId);
+
+        await character.update({ affiliationName: newAffiliationName });
 
         // If currently played, update Discord role
         if (isCurrentlyPlayed) {
           await member.roles.remove(oldAffiliationRole);
           await member.roles.add(newAffiliationRole);
 
-          if (character.socialClassId === roles.commoner) {
-            if (newAffiliationId === roles.wanderer) {
+          if (character.socialClassName === 'Commoner') {
+            if (newAffiliationName === 'Wanderer') {
               member.roles.remove(roles.commoner);
             }
-            else if (oldAffiliationRole.id = roles.wanderer) {
+            else if (oldAffiliation.name === 'Wanderer') {
               member.roles.add(roles.commoner);
             }
           }
         }
 
-
-
-        changedText = changedText + 'Affiliation: ' + '`' + oldAffiliationRole.name + '` -> `' + newAffiliationRole.name + '`\n';
+        changedText = changedText + 'Affiliation: ' + inlineCode(oldAffiliation.name) + ' -> ' + inlineCode(newAffiliation.name) + '\n';
       }
 
-      if (newSocialClassId) {
-        const oldSocialClassRole = await interaction.guild.roles.fetch(character.socialClassId);
-        const newSocialClassRole = await interaction.guild.roles.fetch(newSocialClassId);
-        await character.update({ socialClassId: newSocialClassId });
+      if (newSocialClassName) {
+        const oldSocialClass = await SocialClasses.findOne({ where: { name: character.socialClassName } });
+        const oldSocialClassRole = await interaction.guild.roles.fetch(oldSocialClass.roleId);
+
+        const newSocialClass = await SocialClasses.findOne({ where: { name: newSocialClassName } });
+        const newSocialClassRole = await interaction.guild.roles.fetch(newSocialClass.roleId);
+        await character.update({ socialClassName: newSocialClassName });
 
         // If currently played, update Discord role
         if (isCurrentlyPlayed) {
           await member.roles.remove(oldSocialClassRole);
 
-          if (!(character.affiliationId === roles.wanderer && newSocialClassId === roles.commoner)) {
+          if (!(character.affiliationName === `Wanderer` && newSocialClassName === 'Commoner')) {
             await member.roles.add(newSocialClassRole);
           }
         }
 
-        changedText = changedText + 'Social class: ' + '`' + oldSocialClassRole.name + '` -> `' + newSocialClassRole.name + '`\n';
+        changedText = changedText + 'Social class: ' + inlineCode(oldSocialClass.name) + ' -> ' + inlineCode(newSocialClass.name) + '\n';
       }
 
       if (newYearOfMaturity) {
