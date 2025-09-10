@@ -8,6 +8,7 @@ module.exports = {
     .setName('doorbell')
     .setDescription('Ring the doorbell of one of the Houses.')
     .setContexts(InteractionContextType.Guild)
+    .setDefaultMemberPermissions(0)
     .addStringOption(option =>
       option
         .setName('house')

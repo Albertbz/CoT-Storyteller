@@ -7,6 +7,7 @@ module.exports = {
     .setName('info')
     .setDescription('Get info about a player or a character.')
     .setContexts(InteractionContextType.Guild)
+    .setDefaultMemberPermissions(0)
     .addSubcommand(subcommand =>
       subcommand
         .setName('player')

@@ -39,6 +39,10 @@ module.exports = (sequelize, DataTypes) => {
     isSteelbearer: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
+    },
+    comments: {
+      type: DataTypes.STRING,
+      defaultValue: 'Undefined'
     }
   });
 }
