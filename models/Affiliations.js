@@ -1,13 +1,22 @@
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('affiliations', {
+    id: {
+      type: DataTypes.UUID,
+      primaryKey: true,
+      unique: true,
+      defaultValue: DataTypes.UUIDV4
+    },
     name: {
       type: DataTypes.STRING,
-      primaryKey: true,
       unique: true
     },
     roleId: {
       type: DataTypes.STRING,
       unique: true,
+    },
+    emojiName: {
+      type: DataTypes.STRING,
+      unique: true
     },
     state: {
       type: DataTypes.STRING,

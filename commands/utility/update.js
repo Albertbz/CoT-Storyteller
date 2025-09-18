@@ -19,15 +19,7 @@ module.exports = {
             .setName('house')
             .setDescription('The House to update the recruitment of.')
             .setRequired(true)
-            .addChoices(
-              { name: 'Aetos', value: 'Aetos' },
-              { name: 'Ayrin', value: 'Ayrin' },
-              { name: 'Dayne', value: 'Dayne' },
-              { name: 'Farring', value: 'Farring' },
-              { name: 'Locke', value: 'Locke' },
-              { name: 'Merrick', value: 'Merrick' },
-              { name: 'Wildhart', value: 'Wildhart' }
-            )
+            .setAutocomplete(true)
         )
         .addStringOption(option =>
           option
@@ -101,6 +93,18 @@ module.exports = {
             )
         )
     ),
+  async autocomplete(interaction) {
+    const focusedValue = interaction.options.getFocused();
+
+    const affilations = await Affiliations.findAll({
+      where: { name: { [Op.startsWith]: focusedValue } },
+      attributes: ['name']
+    })
+
+    choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.name }));
+
+    await interaction.respond(choices);
+  },
   async execute(interaction) {
     if (interaction.options.getSubcommand() === 'recruitment') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -186,7 +190,7 @@ module.exports = {
         const guildEmojis = await interaction.guild.emojis.fetch();
         let housesText = ''
         houses.forEach(house => {
-          const houseEmoji = guildEmojis.find(emoji => emoji.name === house.name.toLowerCase());
+          const houseEmoji = guildEmojis.find(emoji => emoji.name === house.emojiName);
           const houseText = houseEmoji.toString() + bold('House ' + house.name) + houseEmoji.toString();
           let rolesText = 'Need: ' + house.role1 + ', ' + house.role2 + ', ' + house.role3;
 

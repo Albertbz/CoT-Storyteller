@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags } = require('discord.js');
-const { Players, Characters, Worlds } = require('../../dbObjects.js');
+const { Players, Characters, Worlds, Affiliations } = require('../../dbObjects.js');
 const { spreadsheetDoc } = require('../../sheets.js');
 const { GoogleSpreadsheetRow } = require('google-spreadsheet');
 
@@ -17,14 +17,11 @@ module.exports = {
 
     // Make a map of all sheets
     const affiliationSheets = new Map();
-    affiliationSheets.set('Aetos', spreadsheetDoc.sheetsByTitle['Aetos']);
-    affiliationSheets.set('Ayrin', spreadsheetDoc.sheetsByTitle['Ayrin']);
-    affiliationSheets.set('Dayne', spreadsheetDoc.sheetsByTitle['Dayne']);
-    affiliationSheets.set('Farring', spreadsheetDoc.sheetsByTitle['Farring']);
-    affiliationSheets.set('Locke', spreadsheetDoc.sheetsByTitle['Locke']);
-    affiliationSheets.set('Merrick', spreadsheetDoc.sheetsByTitle['Merrick']);
-    affiliationSheets.set('Wildhart', spreadsheetDoc.sheetsByTitle['Wildhart']);
-    affiliationSheets.set('Wanderer', spreadsheetDoc.sheetsByTitle['Wanderer']);
+
+    const affiliations = await Affiliations.findAll();
+    for (const affiliation of affiliations) {
+      affiliationSheets.set(affiliation, spreadsheetDoc.sheetsByTitle[affiliation.name]);
+    }
 
     try {
       const activePlayers = await Players.findAll({
@@ -40,9 +37,9 @@ module.exports = {
       socialClassToRank.set('Notable', 2);
       socialClassToRank.set('Commoner', 1);
 
-      affiliationSheets.forEach(async (affiliationSheet, affiliationName, _) => {
+      affiliationSheets.forEach(async (affiliationSheet, affiliation, _) => {
         await affiliationSheet.loadHeaderRow()
-        const affiliationPlayers = activePlayers.filter(activePlayer => activePlayer.character.affiliationName === affiliationName);
+        const affiliationPlayers = activePlayers.filter(activePlayer => activePlayer.character.affiliationId === affiliation.id);
 
         affiliationPlayers.sort((playerA, playerB) => {
           const socialClassCompare = socialClassToRank.get(playerB.character.socialClassName) - socialClassToRank.get(playerA.character.socialClassName);
@@ -57,7 +54,7 @@ module.exports = {
         await affiliationSheet.clearRows();
 
         const affiliationRows = affiliationPlayers.map(player => {
-          if (player.character.socialClassName === 'Commoner' && affiliationName !== 'Wanderer') {
+          if (player.character.socialClassName === 'Commoner' && affiliation.name !== 'Wanderer') {
             return ({
               'Social Class': player.character.socialClassName,
               'Role': player.character.role === 'Undefined' ? '' : player.character.role,

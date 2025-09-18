@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags } = require('discord.js');
-const { Players, Characters } = require('../../dbObjects.js');
+const { Players, Characters, Affiliations } = require('../../dbObjects.js');
 const { notableOffspringDoc, citizenryRegistryDoc } = require('../../sheets.js');
+const { Op } = require('sequelize');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,13 +21,11 @@ module.exports = {
     // Load citizenry registry document
     await citizenryRegistryDoc.loadInfo();
     const houseSheetsRows = new Map();
-    houseSheetsRows.set('Aetos', await citizenryRegistryDoc.sheetsByTitle['Aetos'].getRows());
-    houseSheetsRows.set('Ayrin', await citizenryRegistryDoc.sheetsByTitle['Ayrin'].getRows());
-    houseSheetsRows.set('Dayne', await citizenryRegistryDoc.sheetsByTitle['Dayne'].getRows());
-    houseSheetsRows.set('Farring', await citizenryRegistryDoc.sheetsByTitle['Farring'].getRows());
-    houseSheetsRows.set('Locke', await citizenryRegistryDoc.sheetsByTitle['Locke'].getRows());
-    houseSheetsRows.set('Merrick', await citizenryRegistryDoc.sheetsByTitle['Merrick'].getRows());
-    houseSheetsRows.set('Wildhart', await citizenryRegistryDoc.sheetsByTitle['Wildhart'].getRows());
+
+    const affiliations = await Affiliations.findAll({ where: { name: { [Op.not]: 'Wanderer' } } });
+    for (const affiliation of affiliations) {
+      houseSheetsRows.set(affiliation.name, await citizenryRegistryDoc.sheetsByTitle[affiliation.name].getRows());
+    }
 
     const members = await interaction.guild.members.fetch();
 
@@ -80,6 +79,9 @@ module.exports = {
       }
 
       try {
+        const affiliation = await Affiliations.findOne({ where: { name: ageRow.get('Affiliation') } });
+
+
         if (!isWanderer) {
           const socialClassName = houseRow.get('Social Class');
           const comments = houseRow.get('Comments') === '' ? undefined : houseRow.get('Comments');
@@ -88,7 +90,7 @@ module.exports = {
 
           character = await Characters.create({
             name: ageRow.get('Character Name'),
-            affiliationName: ageRow.get('Affiliation'),
+            affiliationId: affiliation.id,
             socialClassName: socialClassName,
             pveDeaths: ageRow.get('PvE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
@@ -102,7 +104,7 @@ module.exports = {
 
           character = await Characters.create({
             name: ageRow.get('Character Name'),
-            affiliationName: ageRow.get('Affiliation'),
+            affiliationId: affiliation.id,
             pveDeaths: ageRow.get('PvE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
             socialClassName: socialClassName
@@ -163,9 +165,11 @@ module.exports = {
           const role = commonerRow.get('Role') === '' ? undefined : commonerRow.get('Role');
           const comments = commonerRow.get('Comments') === '' ? undefined : commonerRow.get('Comments');
 
+          const affiliation = await Affiliations.findOne({ where: { name: houseName } });
+
           character = await Characters.create({
             name: commonerRow.get('Character Name'),
-            affiliationName: houseName,
+            affiliationId: affiliation.id,
             role: role,
             comments: comments
           })

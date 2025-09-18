@@ -19,15 +19,15 @@ require('./models/Players.js')(sequelize, Sequelize.DataTypes);
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 
 sequelize.sync({ force }).then(async () => {
-  await Worlds.create({ name: 'Elstrand', currentYear: 16 });
+  await Worlds.create({ name: 'Elstrand', currentYear: 17 });
 
-  await Affiliations.create({ roleId: roles.aetos, name: 'Aetos' });
-  await Affiliations.create({ roleId: roles.ayrin, name: 'Ayrin' });
-  await Affiliations.create({ roleId: roles.dayne, name: 'Dayne' });
-  await Affiliations.create({ roleId: roles.farring, name: 'Farring' });
-  await Affiliations.create({ roleId: roles.locke, name: 'Locke' });
-  await Affiliations.create({ roleId: roles.merrick, name: 'Merrick' });
-  await Affiliations.create({ roleId: roles.wildhart, name: 'Wildhart' });
+  await Affiliations.create({ roleId: roles.dayne, name: 'Dayne', emojiName: 'dayne', state: 'Almost Full', role1: 'Builders', role2: 'Miners', role3: 'Clockmakers' });
+  await Affiliations.create({ roleId: roles.ayrin, name: 'Du Vēzos', emojiName: 'duvezos', state: 'Open', role1: 'Hunters', role2: 'Soldiers', role3: 'Carpenters' });
+  await Affiliations.create({ roleId: roles.farring, name: 'Farring', emojiName: 'farring', state: 'Urgent', role1: 'Builders', role2: 'Miners', role3: 'Soldiers' });
+  await Affiliations.create({ roleId: roles.locke, name: 'Locke', emojiName: 'locke', state: 'Almost Full', role1: 'Builders', role2: 'Lumberjacks', role3: 'Farmers' });
+  await Affiliations.create({ roleId: roles.merrick, name: 'Merrick', emojiName: 'merrick', state: 'Open', role1: 'Lumberjacks', role2: 'Builders', role3: 'Soldiers' });
+  await Affiliations.create({ roleId: roles.aetos, name: 'Stout', emojiName: 'stout', state: 'Urgent', role1: 'Tailors', role2: 'Miners', role3: 'Soldiers' });
+  await Affiliations.create({ roleId: roles.wildhart, name: 'Wildhart', emojiName: 'wildhart', state: 'Open', role1: 'Builders', role2: 'Miners', role3: 'Farmers' });
   await Affiliations.create({ roleId: roles.wanderer, name: 'Wanderer' });
 
   await SocialClasses.create({ roleId: roles.commoner, name: 'Commoner' });

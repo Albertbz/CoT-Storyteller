@@ -16,9 +16,8 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       defaultValue: 'Undefined',
     },
-    affiliationName: {
-      type: DataTypes.STRING,
-      defaultValue: 'Wanderer'
+    affiliationId: {
+      type: DataTypes.UUID,
     },
     socialClassName: {
       type: DataTypes.STRING,

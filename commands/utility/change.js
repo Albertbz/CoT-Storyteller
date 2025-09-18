@@ -50,16 +50,7 @@ module.exports = {
           option
             .setName('affiliation_new')
             .setDescription('The new affiliation.')
-            .addChoices(
-              { name: 'Aetos', value: 'Aetos' },
-              { name: 'Ayrin', value: 'Ayrin' },
-              { name: 'Dayne', value: 'Dayne' },
-              { name: 'Farring', value: 'Farring' },
-              { name: 'Locke', value: 'Locke' },
-              { name: 'Merrick', value: 'Merrick' },
-              { name: 'Wildhart', value: 'Wildhart' },
-              { name: 'Wanderer', value: 'Wanderer' }
-            )
+            .setAutocomplete(true)
         )
         .addStringOption(option =>
           option
@@ -123,16 +114,7 @@ module.exports = {
           option
             .setName('affiliation_new')
             .setDescription('The new affiliation.')
-            .addChoices(
-              { name: 'Aetos', value: 'Aetos' },
-              { name: 'Ayrin', value: 'Ayrin' },
-              { name: 'Dayne', value: 'Dayne' },
-              { name: 'Farring', value: 'Farring' },
-              { name: 'Locke', value: 'Locke' },
-              { name: 'Merrick', value: 'Merrick' },
-              { name: 'Wildhart', value: 'Wildhart' },
-              { name: 'Wanderer', value: 'Wanderer' }
-            )
+            .setAutocomplete(true)
         )
         .addStringOption(option =>
           option
@@ -177,14 +159,79 @@ module.exports = {
             .setRequired(true)
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('affiliation')
+        .setDescription('Change something about an affiliation.')
+        .addStringOption(option =>
+          option
+            .setName('name')
+            .setDescription('The name of the affiliation to change something about.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('name_new')
+            .setDescription('The new name of the affiliation.')
+        )
+    )
   ,
   async autocomplete(interaction) {
-    const focusedValue = interaction.options.getFocused();
-    const characters = await Characters.findAll({
-      where: { name: { [Op.startsWith]: focusedValue } },
-      attributes: ['name', 'id']
-    });
-    await interaction.respond(characters.splice(0, 25).map(character => ({ name: character.name, value: character.id })))
+    let choices;
+
+    if (interaction.options.getSubcommand() === 'player') {
+      const focusedOption = interaction.options.getFocused(true);
+
+      if (focusedOption.name === 'affiliation_new') {
+        const focusedValue = interaction.options.getFocused();
+
+        const affilations = await Affiliations.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
+          attributes: ['name', 'id']
+        })
+
+        choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+      }
+    }
+
+    if (interaction.options.getSubcommand() === 'character') {
+      const focusedOption = interaction.options.getFocused(true);
+
+      if (focusedOption.name === 'name') {
+        const focusedValue = interaction.options.getFocused();
+
+        const characters = await Characters.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
+          attributes: ['name', 'id']
+        });
+
+        choices = characters.splice(0, 25).map(character => ({ name: character.name, value: character.id }));
+      }
+
+      if (focusedOption.name === 'affiliation_new') {
+        const focusedValue = interaction.options.getFocused();
+
+        const affilations = await Affiliations.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
+          attributes: ['name', 'id']
+        })
+
+        choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+      }
+    }
+
+    if (interaction.options.getSubcommand() === 'affiliation') {
+      const focusedValue = interaction.options.getFocused();
+
+      const affilations = await Affiliations.findAll({
+        where: { name: { [Op.startsWith]: focusedValue } },
+        attributes: ['name', 'id']
+      })
+
+      choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+    }
+    await interaction.respond(choices);
   },
   async execute(interaction) {
     // Change player info
@@ -195,7 +242,7 @@ module.exports = {
 
       const newName = interaction.options.getString('name_new');
       const newSex = interaction.options.getString('sex_new');
-      const newAffiliationName = interaction.options.getString('affiliation_new');
+      const newAffiliationId = interaction.options.getString('affiliation_new');
       const newSocialClassName = interaction.options.getString('socialclass_new');
       const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
       const newPvEDeaths = interaction.options.getNumber('pvedeaths_new');
@@ -251,21 +298,21 @@ module.exports = {
           characterInfoChangedText = characterInfoChangedText + 'Sex: ' + '`' + oldSex + '` -> `' + newSex + '`\n';
         }
 
-        if (newAffiliationName) {
-          const oldAffiliation = await Affiliations.findOne({ where: { name: character.affiliationName } });
+        if (newAffiliationId) {
+          const oldAffiliation = await Affiliations.findOne({ where: { id: character.affiliationId } });
           const oldAffiliationRole = await interaction.guild.roles.fetch(oldAffiliation.roleId);
 
-          const newAffiliation = await Affiliations.findOne({ where: { name: newAffiliationName } });
+          const newAffiliation = await Affiliations.findOne({ where: { name: newAffiliationId } });
           const newAffiliationRole = await interaction.guild.roles.fetch(newAffiliation.roleId);
 
-          await character.update({ affiliationName: newAffiliationName });
+          await character.update({ affiliationId: newAffiliationId });
 
           // Update Discord role
           await member.roles.remove(oldAffiliationRole);
           await member.roles.add(newAffiliationRole);
 
           if (character.socialClassName === 'Commoner') {
-            if (newAffiliationName === 'Wanderer') {
+            if (newAffiliation.name === 'Wanderer') {
               member.roles.remove(roles.commoner);
             }
             else if (oldAffiliation.name === 'Wanderer') {
@@ -289,7 +336,8 @@ module.exports = {
           // Update Discord role
           await member.roles.remove(oldSocialClassRole);
 
-          if (!(character.affiliationName === 'Wanderer' && newSocialClassName === 'Commoner')) {
+          const affiliation = await Affiliations.findOne({ where: { id: character.affilationId } });
+          if (!(affiliation.name === 'Wanderer' && newSocialClassName === 'Commoner')) {
             await member.roles.add(newSocialClassRole);
           }
 
@@ -332,7 +380,7 @@ module.exports = {
           characterInfoChangedText = characterInfoChangedText + 'Is Steelbearer: ' + '`' + oldIsSteelbearer + '` -> `' + newIsSteelbearer + '`\n';
         }
       }
-      else if (newName || newSex || newAffiliationName || newSocialClassName || newYearOfMaturity || newPvEDeaths || newRole || newIsSteelbearer !== null) {
+      else if (newName || newSex || newAffiliationId || newSocialClassName || newYearOfMaturity || newPvEDeaths || newRole || newIsSteelbearer !== null) {
         characterInfoChangedText = 'This player is currently not playing a character, and as such nothing was changed.'
       }
 
@@ -382,7 +430,7 @@ module.exports = {
       const characterId = interaction.options.getString('name');
       const newName = interaction.options.getString('name_new');
       const newSex = interaction.options.getString('sex_new');
-      const newAffiliationName = interaction.options.getString('affiliation_new');
+      const newAffiliationId = interaction.options.getString('affiliation_new');
       const newSocialClassName = interaction.options.getString('socialclass_new');
       const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
       const newPvEDeaths = interaction.options.getNumber('pvedeaths_new');
@@ -418,14 +466,14 @@ module.exports = {
         changedText = changedText + 'Sex: ' + '`' + oldSex + '` -> `' + newSex + '`\n';
       }
 
-      if (newAffiliationName) {
-        const oldAffiliation = await Affiliations.findOne({ where: { name: character.affiliationName } });
+      if (newAffiliationId) {
+        const oldAffiliation = await Affiliations.findOne({ where: { id: character.affiliationId } });
         const oldAffiliationRole = await interaction.guild.roles.fetch(oldAffiliation.roleId);
 
-        const newAffiliation = await Affiliations.findOne({ where: { name: newAffiliationName } });
+        const newAffiliation = await Affiliations.findOne({ where: { id: newAffiliationId } });
         const newAffiliationRole = await interaction.guild.roles.fetch(newAffiliation.roleId);
 
-        await character.update({ affiliationName: newAffiliationName });
+        await character.update({ affiliationId: newAffiliationId });
 
         // If currently played, update Discord role
         if (isCurrentlyPlayed) {
@@ -433,7 +481,7 @@ module.exports = {
           await member.roles.add(newAffiliationRole);
 
           if (character.socialClassName === 'Commoner') {
-            if (newAffiliationName === 'Wanderer') {
+            if (newAffiliation.name === 'Wanderer') {
               member.roles.remove(roles.commoner);
             }
             else if (oldAffiliation.name === 'Wanderer') {
@@ -457,7 +505,7 @@ module.exports = {
         if (isCurrentlyPlayed) {
           await member.roles.remove(oldSocialClassRole);
 
-          if (!(character.affiliationName === `Wanderer` && newSocialClassName === 'Commoner')) {
+          if (!(character.affiliation.name === 'Wanderer' && newSocialClassName === 'Commoner')) {
             await member.roles.add(newSocialClassRole);
           }
         }
@@ -528,6 +576,25 @@ module.exports = {
       )
 
       return interaction.reply({ content: 'The current year has been changed to ' + newYear, flags: MessageFlags.Ephemeral });
+    }
+    else if (interaction.options.getSubcommand() === 'affiliation') {
+      const affilationId = interaction.options.getString('name');
+      const newAffiliationName = interaction.options.getString('name_new');
+
+      if (!newAffiliationName) interaction.reply({ content: 'Please specify what to change.' });
+
+      const affiliation = await Affiliations.findOne({ where: { id: affilationId } });
+      const oldAffiliationName = affiliation.name;
+      await affiliation.update({ name: newAffiliationName });
+
+      postInLogChannel(
+        'Affiliation Changed',
+        '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
+        'Name: ' + inlineCode(oldAffiliationName) + ' -> ' + inlineCode(newAffiliationName),
+        0xD98C00
+      )
+
+      return interaction.reply({ content: 'The name has been changed from ' + inlineCode(oldAffiliationName) + ' to ' + inlineCode(newAffiliationName) + '.', flags: MessageFlags.Ephemeral });
     }
 
     return interaction.reply({ content: 'Hmm, whatever you just did shouldn\'t be possible. What did you do?', flags: MessageFlags.Ephemeral })

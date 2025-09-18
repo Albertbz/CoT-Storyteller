@@ -51,16 +51,7 @@ module.exports = {
           option
             .setName('affiliation')
             .setDescription('The affiliation of the character.')
-            .addChoices(
-              { name: 'Aetos', value: 'Aetos' },
-              { name: 'Ayrin', value: 'Ayrin' },
-              { name: 'Dayne', value: 'Dayne' },
-              { name: 'Farring', value: 'Farring' },
-              { name: 'Locke', value: 'Locke' },
-              { name: 'Merrick', value: 'Merrick' },
-              { name: 'Wildhart', value: 'Wildhart' },
-              { name: 'Wanderer', value: 'Wanderer' }
-            )
+            .setAutocomplete(true)
         )
         .addStringOption(option =>
           option
@@ -98,16 +89,7 @@ module.exports = {
           option
             .setName('affiliation')
             .setDescription('The affiliation of the character.')
-            .addChoices(
-              { name: 'Aetos', value: 'Aetos' },
-              { name: 'Ayrin', value: 'Ayrin' },
-              { name: 'Dayne', value: 'Dayne' },
-              { name: 'Farring', value: 'Farring' },
-              { name: 'Locke', value: 'Locke' },
-              { name: 'Merrick', value: 'Merrick' },
-              { name: 'Wildhart', value: 'Wildhart' },
-              { name: 'Wanderer', value: 'Wanderer' }
-            )
+            .setAutocomplete(true)
         )
         .addStringOption(option =>
           option
@@ -125,8 +107,21 @@ module.exports = {
             .setName('player')
             .setDescription('The player to set the character to.')
         )
-    )
-  ,
+    ),
+  async autocomplete(interaction) {
+    let choices;
+
+    const focusedValue = interaction.options.getFocused();
+
+    const affilations = await Affiliations.findAll({
+      where: { name: { [Op.startsWith]: focusedValue } },
+      attributes: ['name', 'id']
+    })
+
+    choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+
+    await interaction.respond(choices);
+  },
   async execute(interaction) {
     if (interaction.options.getSubcommand() === 'player') {
       // For creating the player
@@ -137,10 +132,10 @@ module.exports = {
       // For creating the character, if one is to be created for the player
       const name = interaction.options.getString('name');
       const sex = interaction.options.getString('sex');
-      const affiliationName = interaction.options.getString('affiliation');
+      const affiliationId = interaction.options.getString('affiliation');
       const socialClassName = interaction.options.getString('socialclass');
 
-      const creatingCharacter = name || sex || affiliationName || socialClassName;
+      const creatingCharacter = name || sex || affiliationId || socialClassName;
 
       // Create the player
       try {
@@ -156,14 +151,16 @@ module.exports = {
         // Create the character if any of the arguments were provided
         if (!creatingCharacter) return interaction.reply({ content: playerCreatedText, flags: MessageFlags.Ephemeral });
 
-        const character = await addCharacterToDatabase(name, sex, affiliationName, socialClassName, interaction.user);
+        const character = await addCharacterToDatabase(name, sex, affiliationId, socialClassName, interaction.user);
         await assignCharacterToPlayer(character.id, player.id, interaction.user);
+
+        const affiliation = await Affiliations.findOne({ where: { id: affiliationId } });
 
         const characterCreatedText =
           '**Character was created with the following information and set as the Player\'s character:**\n' +
           'Name: `' + character.name + '`\n' +
           'Sex: `' + character.sex + '`\n' +
-          'Affiliation: `' + character.affiliationName + '`\n' +
+          'Affiliation: `' + affiliation.name + '`\n' +
           'Social class: `' + character.socialClassName + '`\n' +
           'Year of Maturity: `' + character.yearOfMaturity + '`'
         return interaction.reply({ content: playerCreatedText + '\n\n' + characterCreatedText, flags: MessageFlags.Ephemeral });
@@ -176,7 +173,7 @@ module.exports = {
     else if (interaction.options.getSubcommand() === 'character') {
       const name = interaction.options.getString('name');
       const sex = interaction.options.getString('sex');
-      const affiliationName = interaction.options.getString('affiliation');
+      const affiliationId = interaction.options.getString('affiliation');
       const socialClassName = interaction.options.getString('socialclass');
 
       const user = interaction.options.getUser('player');
@@ -184,13 +181,16 @@ module.exports = {
       const linkToUser = user !== null;
 
       try {
-        const character = await addCharacterToDatabase(name, sex, affiliationName, socialClassName, interaction.user);
+        console.log(affiliationId)
+        const character = await addCharacterToDatabase(name, sex, affiliationId, socialClassName, interaction.user);
+
+        const affiliation = await Affiliations.findOne({ where: { id: affiliationId } });
 
         const characterCreatedText =
           '**Character was created with the following information:**\n' +
           'Name: `' + character.name + '`\n' +
           'Sex: `' + character.sex + '`\n' +
-          'Affiliation: `' + character.affiliationName + '`\n' +
+          'Affiliation: `' + affiliation.name + '`\n' +
           'Social class: `' + character.socialClassName + '`\n' +
           'Year of Maturity: `' + character.yearOfMaturity + '`'
         if (!linkToUser) return interaction.reply({ content: characterCreatedText, flags: MessageFlags.Ephemeral });

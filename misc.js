@@ -1,6 +1,6 @@
 const { EmbedBuilder, userMention } = require('discord.js');
 const { Players, Characters, Affiliations, SocialClasses, Worlds } = require('./dbObjects.js');
-const { roles, channels } = require('./configs/ids.json');
+const { roles, channels, guilds } = require('./configs/ids.json');
 
 async function addPlayerToDatabase(id, ign, timezone, storyteller) {
   timezone = timezone === null ? 'Undefined' : timezone;
@@ -32,10 +32,10 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
   }
 }
 
-async function addCharacterToDatabase(name, sex, affiliationName, socialClassName, storyteller) {
+async function addCharacterToDatabase(name, sex, affiliationId, socialClassName, storyteller) {
   name = name === null ? 'Unnamed' : name;
-  sex = sex === null ? 'Undefined' : sex;
-  affiliationName = affiliationName === null ? 'Wanderer' : affiliationName;
+  sex = sex === null ? undefined : sex;
+  affiliationId = affiliationId === null ? undefined : affiliationId;
   socialClassName = socialClassName === null ? 'Commoner' : socialClassName;
 
   try {
@@ -44,17 +44,21 @@ async function addCharacterToDatabase(name, sex, affiliationName, socialClassNam
     const character = await Characters.create({
       name: name,
       sex: sex,
-      affiliationName: affiliationName,
+      affiliationId: affiliationId,
       socialClassName: socialClassName,
       yearOfMaturity: world.currentYear
     })
+
+    console.log(affiliationId);
+
+    const affiliation = await Affiliations.findOne({ where: { id: affiliationId } });
 
     postInLogChannel(
       'Character Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
       'Name: `' + character.name + '`\n' +
       'Sex: `' + character.sex + '`\n' +
-      'Affiliation: `' + character.affiliationName + '`\n' +
+      'Affiliation: `' + affiliation.name + '`\n' +
       'Social class: `' + character.socialClassName + '`\n' +
       'Year of Maturity: `' + character.yearOfMaturity + '`',
       0x008000
@@ -66,13 +70,15 @@ async function addCharacterToDatabase(name, sex, affiliationName, socialClassNam
     if (error.name === 'SequelizeUniqueConstraintError') {
       throw new Error('That character already exists.');
     }
-
-    throw new Error('Something went wrong with creating the character.');
+    else {
+      console.log(error);
+      throw new Error('Something went wrong with creating the character.');
+    }
   }
 }
 
 async function assignCharacterToPlayer(characterId, playerId, storyteller) {
-  const guild = await client.guilds.fetch('1410006882772451517');
+  const guild = await client.guilds.fetch(guilds.cot);
   const member = await guild.members.fetch(playerId);
 
   // Check whether player exists in database
