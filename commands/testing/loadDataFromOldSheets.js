@@ -1,7 +1,28 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags } = require('discord.js');
-const { Players, Characters, Affiliations, Relationships, Deceased } = require('../../dbObjects.js');
+const { Players, Characters, Affiliations, Relationships, Deceased, PlayableChildren } = require('../../dbObjects.js');
 const { notableOffspringDoc, citizenryRegistryDoc, offspringDoc } = require('../../sheets.js');
 const { Op } = require('sequelize');
+
+function getIdFromXelaLogs(username, log) {
+  try {
+    const message = log.find(message => {
+      const hasDescription = message.embeds[0].description;
+      if (hasDescription) {
+        return message.embeds[0].description.includes(username);
+      }
+    })
+
+    if (message) {
+      const description = message.embeds[0].description;
+
+      const foundMemberId = description.split('(')[1].split(')')[0]
+      return foundMemberId;
+    }
+  }
+  catch (error) {
+    console.log(error);
+  }
+}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -257,24 +278,7 @@ module.exports = {
         let member = members.find(member => member.user.username === deceasedRow.get('Player Name'));
         let memberId = null;
         if (!member) {
-          try {
-            const message = leftMessages.find(message => {
-              const hasDescription = message.embeds[0].description;
-              if (hasDescription) {
-                return message.embeds[0].description.includes(deceasedRow.get('Player Name'));
-              }
-            })
-
-            if (message) {
-              const description = message.embeds[0].description;
-
-              const foundMemberId = description.split('(')[1].split(')')[0]
-              memberId = foundMemberId;
-            }
-          }
-          catch (error) {
-            console.log(error);
-          }
+          memberId = getIdFromXelaLogs(deceasedRow.get('Player Name'), leftMessages)
         }
         else {
           memberId = member.id;
@@ -384,39 +388,98 @@ module.exports = {
     // Load playable children
     const playableChildrenRows = await offspringDoc.sheetsByTitle['Playable Children'].getRows();
 
-    for (const playableChildrenRow of playableChildrenRows) {
+    for (const playableChildRow of playableChildrenRows) {
       try {
-        let affiliation = await Affiliations.findOne({ where: { name: playableChildrenRow.get('Affiliation') } })
+        let affiliation = await Affiliations.findOne({ where: { name: playableChildRow.get('Affiliation') } })
         if (!affiliation) {
           affiliation = await Affiliations.findOne({ where: { name: 'Wanderer' } });
         }
 
-        const socialClassName = playableChildrenRow.get('Inherited title') === 'None' ? 'Notable' : playableChildrenRow.get('Inherited title');
+        const socialClassName = playableChildRow.get('Inherited title') === 'None' ? 'Notable' : playableChildRow.get('Inherited title');
 
         const character = await Characters.create({
-          name: playableChildrenRow.get('Character Name'),
-          sex: playableChildrenRow.get('Sex'),
-          yearOfMaturity: playableChildrenRow.get('Year of Maturity'),
+          name: playableChildRow.get('Character Name'),
+          sex: playableChildRow.get('Sex'),
+          yearOfMaturity: playableChildRow.get('Year of Maturity'),
           affiliationId: affiliation.id,
           socialClassName: socialClassName,
         })
 
-        const parentNames = playableChildrenRow.get('Parents').split(', ')
-        console.log(parentNames)
+        const parentNames = playableChildRow.get('Parents').split(', ')
+        // console.log(parentNames)
 
-        const parent1Character = await Characters.findOne({ where: { name: parentNames[0] } });
+        const [parent1Character, _] = await Characters.findOrCreate({ where: { name: parentNames[0] } });
         if (parent1Character) {
           await character.update({ parent1Id: parent1Character.id });
         }
+        else {
+          console.log('Could not find parent: ' + parentNames[0]);
+        }
 
         if (parentNames.length > 1) {
-          const parent2Character = await Characters.findOne({ where: { name: parentNames[1] } });
+          const [parent2Character, _] = await Characters.findOrCreate({ where: { name: parentNames[1] } });
           if (parent2Character) {
             await character.update({ parent2Id: parent2Character.id });
           }
+          else {
+            console.log('Could not find parent: ' + parentNames[1]);
+          }
         }
 
-        // TODO
+
+        let contact1Snowflake = undefined;
+        let contact2Snowflake = undefined;
+        if (playableChildRow.get('Contacts') === undefined) {
+          if (character.parent1Id !== undefined) {
+            const parent1Player = await Players.findOne({ where: { characterId: character.parent1Id } })
+
+            if (parent1Player) {
+              contact1Snowflake = parent1Player.id;
+            }
+          }
+
+          if (character.parent2Id !== undefined) {
+            const parent2Player = await Players.findOne({ where: { characterId: character.parent2Id } })
+
+            if (parent2Player) {
+              contact2Snowflake = parent2Player.id
+
+            }
+          }
+        }
+        else {
+          const contacts = playableChildRow.get('Contacts').split(', ')
+          const contact1Member = members.find(member => member.user.username === contacts[0]);
+          if (!contact1Member) {
+            contact1Snowflake = getIdFromXelaLogs(contacts[0], leftMessages)
+          }
+          else {
+            contact1Snowflake = contact1Member.id;
+          }
+
+          if (contacts.length > 1) {
+            const contact2Member = members.find(member => member.user.username === contacts[1]);
+            if (!contact2Member) {
+              contact2Snowflake = getIdFromXelaLogs(contacts[1], leftMessages);
+            }
+            else {
+              contact2Snowflake = contact2Member.id;
+            }
+          }
+        }
+
+        // console.log(contact1Snowflake)
+        // console.log(contact2Snowflake)
+        // console.log()
+
+        const playableChild = await PlayableChildren.create({
+          characterId: character.id,
+          legitimacy: playableChildRow.get('Legitimacy'),
+          comments: playableChildRow.get('Comments'),
+          contact1Snowflake: contact1Snowflake,
+          contact2Snowflake: contact2Snowflake
+        })
+
       }
       catch (error) {
         console.log(error);

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags } = require('discord.js');
-const { Players, Characters, Worlds, Affiliations, Deceased, Relationships } = require('../../dbObjects.js');
+const { Players, Characters, Worlds, Affiliations, Deceased, Relationships, PlayableChildren } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 const { citizensDoc, offspringDoc } = require('../../sheets.js');
 const { GoogleSpreadsheetRow } = require('google-spreadsheet');
@@ -28,6 +28,10 @@ module.exports = {
     .setDefaultMemberPermissions(0),
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    // Load world
+    const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+
 
     // Write offspring sheets
     await offspringDoc.loadInfo();
@@ -97,6 +101,77 @@ module.exports = {
     }
     await bastardRollsSheet.saveUpdatedCells()
 
+    // Write playable children
+    const playableChildren = await PlayableChildren.findAll({
+      include: {
+        model: Characters, as: 'character',
+        include: [
+          { model: Characters, as: 'parent1' },
+          { model: Characters, as: 'parent2' },
+          { model: Affiliations, as: 'affiliation' }
+        ]
+      }
+    })
+
+    const playableChildrenSheet = offspringDoc.sheetsByTitle['Playable Children'];
+    await playableChildrenSheet.resize({ rowCount: playableChildren.length + 1 });
+    await playableChildrenSheet.loadCells();
+
+    for (const [i, playableChild] of playableChildren.entries()) {
+      const nameCell = playableChildrenSheet.getCell(i + 1, 0)
+      const yearOfMaturityCell = playableChildrenSheet.getCell(i + 1, 1)
+      const ageCell = playableChildrenSheet.getCell(i + 1, 2)
+      const sexCell = playableChildrenSheet.getCell(i + 1, 3)
+      const affilationCell = playableChildrenSheet.getCell(i + 1, 4)
+      const legitimacyCell = playableChildrenSheet.getCell(i + 1, 5)
+      const titleCell = playableChildrenSheet.getCell(i + 1, 6)
+      const commentsCell = playableChildrenSheet.getCell(i + 1, 7)
+      const parentsCell = playableChildrenSheet.getCell(i + 1, 8)
+      const contactsCell = playableChildrenSheet.getCell(i + 1, 9)
+
+      nameCell.value = playableChild.character.name;
+      yearOfMaturityCell.value = playableChild.character.yearOfMaturity;
+      ageCell.value = world.currentYear - playableChild.character.yearOfMaturity;
+      sexCell.value = playableChild.character.sex;
+
+      const affiliation = playableChild.character.affiliation.name;
+      affilationCell.value = affiliation === 'Wanderer' ? undefined : affiliation;
+
+      legitimacyCell.value = playableChild.legitimacy;
+
+      if (playableChild.legitimacy !== 'Illegitimate') {
+        titleCell.value = playableChild.character.socialClassName === 'Noble' ? 'Noble' : 'None';
+      }
+      else {
+        titleCell.value = ''
+      }
+      commentsCell.value = playableChild.comments;
+
+      // console.log(playableChild.character)
+
+      const parentNames = []
+      parentNames.push(playableChild.character.parent1.name)
+
+      if (playableChild.character.parent2 !== null) {
+        parentNames.push(playableChild.character.parent2.name);
+      }
+      parentsCell.value = parentNames.join(', ')
+
+      const contacts = []
+      if (playableChild.contact1Snowflake !== null) {
+        contacts.push((await client.users.fetch(playableChild.contact1Snowflake)).username);
+      }
+
+      if (playableChild.contact2Snowflake !== null) {
+        contacts.push((await client.users.fetch(playableChild.contact2Snowflake)).username);
+      }
+
+      // console.log(contacts)
+      contactsCell.value = contacts.join(', ')
+    }
+    await playableChildrenSheet.saveUpdatedCells();
+
+
     // Load in the citizens spreadsheet
     await citizensDoc.loadInfo();
 
@@ -116,8 +191,6 @@ module.exports = {
         where: { isActive: true },
         include: { model: Characters, as: 'character' }
       });
-
-      const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
 
       const socialClassToRank = new Map();
       socialClassToRank.set('Ruler', 4);

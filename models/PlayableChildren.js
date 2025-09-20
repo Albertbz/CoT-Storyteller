@@ -15,5 +15,11 @@ module.exports = (sequelize, DataTypes) => {
     contact2Snowflake: {
       type: DataTypes.STRING
     },
+    comments: {
+      type: DataTypes.STRING
+    },
+    legitimacy: {
+      type: DataTypes.STRING
+    }
   });
 }
