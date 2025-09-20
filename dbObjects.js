@@ -21,8 +21,8 @@ Characters.belongsTo(SocialClasses, { foreignKey: 'socialClassName', as: 'social
 Characters.belongsTo(Characters, { foreignKey: 'parent1Id', as: 'parent1' })
 Characters.belongsTo(Characters, { foreignKey: 'parent2Id', as: 'parent2' })
 
-Relationships.belongsTo(Characters, { foreignKey: 'bearingCharacterId', as: 'bearingCharacter' });
-Relationships.belongsTo(Characters, { foreignKey: 'conceivingCharacterId', as: 'conceivingCharacter' });
+Relationships.belongsTo(Characters, { foreignKey: 'bearingCharacterId', as: 'bearingCharacter' })
+Relationships.belongsTo(Characters, { foreignKey: 'conceivingCharacterId', as: 'conceivingCharacter' })
 
 Deceased.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 Deceased.belongsTo(Players, { foreignKey: 'playedById', as: 'playedBy' });

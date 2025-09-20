@@ -12,6 +12,7 @@ module.exports = {
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
+    console.log('Loading spreadsheets.')
     // Load notable/offspring document
     await notableOffspringDoc.loadInfo();
     const ageSheet = notableOffspringDoc.sheetsByTitle['Age'];
@@ -21,6 +22,7 @@ module.exports = {
     // Load citizenry registry document
     await citizenryRegistryDoc.loadInfo();
     const houseSheetsRows = new Map();
+    console.log('Finished loading spreadsheets.')
 
     const affiliations = await Affiliations.findAll({ where: { name: { [Op.not]: 'Wanderer' } } });
     for (const affiliation of affiliations) {
@@ -30,6 +32,7 @@ module.exports = {
     const members = await interaction.guild.members.fetch();
 
     // Sync all aging people
+    console.log('Syncing all aging characters.')
     for (const ageRow of ageSheetRows) {
       let player = null;
       let character = null;
@@ -37,7 +40,7 @@ module.exports = {
       const member = members.find(member => member.user.username === ageRow.get('Discord Username'));
       if (!member) {
         console.log('User not found: ' + ageRow.get('Discord Username'))
-        return 0;
+        continue;
       }
 
 
@@ -104,7 +107,7 @@ module.exports = {
           character = await Characters.create({
             name: ageRow.get('Character Name'),
             affiliationId: affiliation.id,
-            pveDeaths: ageRow.get('PvE Deaths'),
+            pveDeaths: ageRow.get('PVE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
             socialClassName: socialClassName
           })
@@ -124,8 +127,10 @@ module.exports = {
 
       await player.update({ characterId: character.id });
     }
+    console.log('Sync successful.')
 
     // Sync all commoners
+    console.log('Syncing all commoners')
     for (const [houseName, houseRows] of houseSheetsRows) {
       const houseCommonerRows = houseRows.filter(houseRow => houseRow.get('Social Class') === 'Commoner');
 
@@ -188,12 +193,15 @@ module.exports = {
         await player.update({ characterId: character.id })
       }
     }
+    console.log('Sync successful.')
 
     // Load dead characters
+    console.log('Syncing all dead characters.')
     const deceasedSheetRows = await notableOffspringDoc.sheetsByTitle['Deceased'].getRows();
     const deceasedWanderersSheetRows = await notableOffspringDoc.sheetsByTitle['Deceased Wanderers'].getRows();
 
     // Get xela log for players that have left
+    console.log('Loading all xela log messages.')
     const xelaLogChannel = interaction.client.channels.cache.get('1368236461832274142');
     const messages = []
     // Create message pointer
@@ -226,8 +234,10 @@ module.exports = {
         console.log(error)
       }
     })
+    console.log('Finished loading all messages.')
 
     // Deceased from Houses
+    console.log('Syncing deceased from houses.')
     for (const deceasedRow of deceasedSheetRows) {
       try {
         const [affiliation, _] = await Affiliations.findOrCreate({
@@ -265,15 +275,27 @@ module.exports = {
           catch (error) {
             console.log(error);
           }
-
         }
         else {
           memberId = member.id;
         }
 
+        if (memberId === null) {
+          console.log('Did not find id: ' + deceasedRow.get('Player Name'))
+        }
+
+        const yearSplit = deceasedRow.get('Date of Death').split(', \'');
+        const yearOfDeath = Number(yearSplit[1]);
+
+        const monthSplit = yearSplit[0].split(' ');
+        const monthOfDeath = monthSplit[1];
+        const dayOfDeath = Number(monthSplit[0].replace(/\D/g, ""));
+
         const deceased = await Deceased.create({
           characterId: character.id,
-          dateOfDeath: deceasedRow.get('Date of Death'),
+          dayOfDeath: dayOfDeath,
+          monthOfDeath: monthOfDeath,
+          yearOfDeath: yearOfDeath,
           playedById: memberId,
           causeOfDeath: deceasedRow.get('Cause of Death'),
           ageOfDeath: deceasedRow.get('Age of Death')
@@ -284,8 +306,10 @@ module.exports = {
         console.log('Error for: ' + deceasedRow.get('Player Name') + error)
       }
     }
+    console.log('Finished syncing deceaseds from houses.')
 
     // Deceased Wanderers
+    console.log('Syncing all dead wanderers.')
     for (const deceasedRow of deceasedWanderersSheetRows) {
       try {
         const wandererAffiliation = await Affiliations.findOne({ where: { name: 'Wanderer' } });
@@ -321,7 +345,6 @@ module.exports = {
           catch (error) {
             console.log(error);
           }
-
         }
         else {
           memberId = member.id;
@@ -330,9 +353,19 @@ module.exports = {
         if (memberId === null) {
           console.log('Did not find id: ' + deceasedRow.get('Player Name'))
         }
+
+        const yearSplit = deceasedRow.get('Date of Death').split(', \'');
+        const yearOfDeath = Number(yearSplit[1]);
+
+        const monthSplit = yearSplit[0].split(' ');
+        const monthOfDeath = monthSplit[1];
+        const dayOfDeath = Number(monthSplit[0].replace(/\D/g, ""));
+
         const deceased = await Deceased.create({
           characterId: character.id,
-          dateOfDeath: deceasedRow.get('Date of Death'),
+          dayOfDeath: dayOfDeath,
+          monthOfDeath: monthOfDeath,
+          yearOfDeath: yearOfDeath,
           playedById: memberId,
           causeOfDeath: deceasedRow.get('Cause of Death'),
           ageOfDeath: deceasedRow.get('Age of Death')
@@ -343,6 +376,7 @@ module.exports = {
         console.log('Error for: ' + deceasedRow.get('Player Name') + error)
       }
     }
+    console.log('Finished syncing dead wanderers.')
 
     // Load offspring stuff
     await offspringDoc.loadInfo();
@@ -392,6 +426,7 @@ module.exports = {
 
 
     // Load relationships
+    console.log('Syncing relationships.')
     const relationshipsRows = await offspringDoc.sheetsByTitle['Relationships'].getRows();
 
     for (const relationshipRow of relationshipsRows) {
@@ -438,6 +473,23 @@ module.exports = {
         console.log('Error creating relationship for ' + bearingCharacterName + ' and ' + conceivingCharacterName + ':\n' + error);
       }
     }
+    console.log('Finished syncing relationships.')
+
+    // Load bastard rolls
+    console.log('Syncing bastard rolls.')
+    const bastardRollsRows = await offspringDoc.sheetsByTitle['Bastard rolls'].getRows();
+    try {
+      for (const row of bastardRollsRows) {
+        await Characters.update(
+          { isRollingForBastards: true },
+          { where: { name: row.get('Character Name') } }
+        )
+      }
+    }
+    catch (error) {
+      console.log('Issue with loading of bastards:', error);
+    }
+    console.log('Finished syncing bastard rolls.')
 
     console.log('Finished loading data from old sheets.')
 

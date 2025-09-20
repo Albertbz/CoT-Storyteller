@@ -44,6 +44,10 @@ module.exports = (sequelize, DataTypes) => {
     },
     parent2Id: {
       type: DataTypes.UUID
+    },
+    isRollingForBastards: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
     }
   });
 }

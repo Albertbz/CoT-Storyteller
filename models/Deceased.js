@@ -10,8 +10,23 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.UUID,
       unique: true
     },
+    dayOfDeath: {
+      type: DataTypes.INTEGER
+    },
+    monthOfDeath: {
+      type: DataTypes.STRING
+    },
+    yearOfDeath: {
+      type: DataTypes.INTEGER
+    },
     dateOfDeath: {
-      type: DataTypes.STRING,
+      type: DataTypes.VIRTUAL,
+      get() {
+        return `${this.dayOfDeath} ${this.monthOfDeath}, '${this.yearOfDeath}`
+      },
+      set(value) {
+        throw new Error('Do not try to set the dateOfDeath value!')
+      }
     },
     causeOfDeath: {
       type: DataTypes.STRING
