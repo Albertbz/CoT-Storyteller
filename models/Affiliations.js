@@ -10,13 +10,15 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       unique: true
     },
+    isRuling: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
     roleId: {
       type: DataTypes.STRING,
-      unique: true,
     },
     emojiName: {
       type: DataTypes.STRING,
-      unique: true
     },
     state: {
       type: DataTypes.STRING,

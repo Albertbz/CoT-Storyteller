@@ -14,6 +14,7 @@ const serviceAccountAuth = new JWT({
 const notableOffspringDoc = new GoogleSpreadsheet('1J47mELEQAWMexPopWatUe15EUrcIkZbAo1ChgwgquxE', serviceAccountAuth);
 const citizenryRegistryDoc = new GoogleSpreadsheet('1vPk2oXTCj5I6gMtMKNL6LpmL-qFX5LqM2J5oQHK-ZSo', serviceAccountAuth);
 
-const spreadsheetDoc = new GoogleSpreadsheet('1GSWM4WNu6Af_83PK0b3oVwRAQo1oloxe45FKgnSM9jA', serviceAccountAuth);
+const citizensDoc = new GoogleSpreadsheet('1GSWM4WNu6Af_83PK0b3oVwRAQo1oloxe45FKgnSM9jA', serviceAccountAuth);
+const offspringDoc = new GoogleSpreadsheet('12-X5-Am78611BmY5OwSk9lmuZJjhEz-jY55ZebH4Quc', serviceAccountAuth);
 
-module.exports = { notableOffspringDoc, citizenryRegistryDoc, spreadsheetDoc }
+module.exports = { notableOffspringDoc, citizenryRegistryDoc, citizensDoc, offspringDoc }

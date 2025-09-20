@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, EmbedBuilder, MessageFlags, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses } = require('../../dbObjects.js');
+const { Players, Characters, Affiliations, SocialClasses, Worlds } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 
 module.exports = {
@@ -29,6 +29,8 @@ module.exports = {
     await interaction.respond(characters.splice(0, 25).map(character => ({ name: character.name, value: character.id })))
   },
   async execute(interaction) {
+    const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+
     if (interaction.options.getSubcommand() === 'player') {
       const user = interaction.options.getUser('user');
       const player = await Players.findOne({
@@ -74,12 +76,18 @@ module.exports = {
             { name: 'Sex', value: inlineCode(character.sex), inline: true },
             { name: 'Affiliation', value: inlineCode(character.affiliation.name), inline: true },
             { name: 'Social Class', value: inlineCode(character.socialClass.name), inline: true },
-            { name: 'Year of Maturity', value: inlineCode(character.yearOfMaturity), inline: true },
-            { name: 'PvE Deaths', value: inlineCode(character.pveDeaths), inline: true },
             { name: 'Role', value: inlineCode(character.role), inline: true },
-            { name: 'Is Steelbearer', value: character.isSteelbearer ? inlineCode('Yes') : inlineCode('No'), inline: true },
-            { name: '\u200b', value: '\u200b', inline: true },
-          )
+            { name: 'Comments', value: inlineCode(character.comments), inline: true }
+          );
+
+        if (character.socialClass.name !== 'Commoner' && character.affiliation.name !== 'Wanderer') {
+          embed
+            .addFields(
+              { name: 'PvE Deaths', value: inlineCode(character.pveDeaths), inline: true },
+              { name: 'Year of Maturity', value: inlineCode(character.yearOfMaturity), inline: true },
+              { name: 'Age', value: inlineCode(world.currentYear - character.yearOfMaturity), inline: true },
+            );
+        }
       }
       else {
         embed
@@ -107,7 +115,8 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setTitle('Result')
-        .setDescription('Info about: ' + character.name)
+        .setDescription('Info about: ' + character.name);
+      embed
         .addFields(
           { name: '\u200b', value: '\u200b', inline: true },
           { name: '\u200b', value: '***Character Info***', inline: true },
@@ -118,12 +127,18 @@ module.exports = {
           { name: 'Sex', value: inlineCode(character.sex), inline: true },
           { name: 'Affiliation', value: inlineCode(character.affiliation.name), inline: true },
           { name: 'Social Class', value: inlineCode(character.socialClass.name), inline: true },
-          { name: 'Year of Maturity', value: inlineCode(character.yearOfMaturity), inline: true },
-          { name: 'PvE Deaths', value: inlineCode(character.pveDeaths), inline: true },
           { name: 'Role', value: inlineCode(character.role), inline: true },
-          { name: 'Is Steelbearer', value: character.isSteelbearer ? inlineCode('Yes') : inlineCode('No'), inline: true },
-          { name: '\u200b', value: '\u200b', inline: true },
-        )
+          { name: 'Comments', value: inlineCode(character.comments), inline: true }
+        );
+
+      if (character.socialClass.name !== 'Commoner' && character.affiliation.name !== 'Wanderer') {
+        embed
+          .addFields(
+            { name: 'PvE Deaths', value: inlineCode(character.pveDeaths), inline: true },
+            { name: 'Year of Maturity', value: inlineCode(character.yearOfMaturity), inline: true },
+            { name: 'Age', value: inlineCode(world.currentYear - character.yearOfMaturity), inline: true },
+          );
+      }
 
       const player = await Players.findOne({
         where: { characterId: character.id }

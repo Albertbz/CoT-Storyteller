@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  return sequelize.define('deceased', {
+  return sequelize.define('playablechildren', {
     id: {
       type: DataTypes.UUID,
       primaryKey: true,
@@ -7,20 +7,13 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.UUIDV4
     },
     characterId: {
-      type: DataTypes.UUID,
-      unique: true
+      type: DataTypes.UUID
     },
-    dateOfDeath: {
-      type: DataTypes.STRING,
-    },
-    causeOfDeath: {
+    contact1Snowflake: {
       type: DataTypes.STRING
     },
-    ageOfDeath: {
-      type: DataTypes.INTEGER
-    },
-    playedById: {
+    contact2Snowflake: {
       type: DataTypes.STRING
-    }
+    },
   });
 }

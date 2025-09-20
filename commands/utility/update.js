@@ -97,7 +97,7 @@ module.exports = {
     const focusedValue = interaction.options.getFocused();
 
     const affilations = await Affiliations.findAll({
-      where: { name: { [Op.startsWith]: focusedValue } },
+      where: { name: { [Op.startsWith]: focusedValue }, isRuling: true },
       attributes: ['name']
     })
 
@@ -184,7 +184,7 @@ module.exports = {
 
         // Get all affiliations with their recruitment info
         const houses = await Affiliations.findAll({
-          where: { name: { [Op.not]: 'Wanderer' } }
+          where: { name: { isRuling: true } }
         })
 
         const guildEmojis = await interaction.guild.emojis.fetch();

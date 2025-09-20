@@ -35,13 +35,15 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       defaultValue: 0
     },
-    isSteelbearer: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false
-    },
     comments: {
       type: DataTypes.STRING,
       defaultValue: 'Undefined'
+    },
+    parent1Id: {
+      type: DataTypes.UUID,
+    },
+    parent2Id: {
+      type: DataTypes.UUID
     }
   });
 }

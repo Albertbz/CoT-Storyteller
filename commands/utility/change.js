@@ -187,7 +187,7 @@ module.exports = {
         const focusedValue = interaction.options.getFocused();
 
         const affilations = await Affiliations.findAll({
-          where: { name: { [Op.startsWith]: focusedValue } },
+          where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
           attributes: ['name', 'id']
         })
 
@@ -213,7 +213,7 @@ module.exports = {
         const focusedValue = interaction.options.getFocused();
 
         const affilations = await Affiliations.findAll({
-          where: { name: { [Op.startsWith]: focusedValue } },
+          where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
           attributes: ['name', 'id']
         })
 
