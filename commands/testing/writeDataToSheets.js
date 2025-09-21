@@ -179,7 +179,7 @@ module.exports = {
     const affiliationSheets = new Map();
 
     const affiliations = await Affiliations.findAll({
-      where: { [Op.or]: [{ isRuling: true, name: 'Wanderer' }] }
+      where: { [Op.or]: { isRuling: true, name: 'Wanderer' } }
     });
 
     for (const affiliation of affiliations) {

@@ -45,7 +45,7 @@ module.exports = {
     const houseSheetsRows = new Map();
     console.log('Finished loading spreadsheets.')
 
-    const affiliations = await Affiliations.findAll({ where: { name: { [Op.not]: 'Wanderer' } } });
+    const affiliations = await Affiliations.findAll({ where: { isRuling: true } });
     for (const affiliation of affiliations) {
       houseSheetsRows.set(affiliation.name, await citizenryRegistryDoc.sheetsByTitle[affiliation.name].getRows());
     }
@@ -92,13 +92,12 @@ module.exports = {
       catch (error) {
         if (error.name === 'SequelizeUniqueConstraintError') {
           console.log('Player already exists: ' + ageRow.get('Discord Username'));
-          return 0;
+          continue;
         }
         else {
           console.log('Something went wrong with creating the player: ' + ageRow.get('Discord Username'));
           console.log(error)
-
-          return 0;
+          continue;
         }
       }
 
@@ -128,7 +127,7 @@ module.exports = {
           character = await Characters.create({
             name: ageRow.get('Character Name'),
             affiliationId: affiliation.id,
-            pveDeaths: ageRow.get('PVE Deaths'),
+            pveDeaths: ageRow.get('PvE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
             socialClassName: socialClassName
           })
@@ -137,12 +136,12 @@ module.exports = {
       catch (error) {
         if (error.name === 'SequelizeUniqueConstraintError') {
           console.log('Character already exists: ' + ageRow.get('Character Name'));
-          return 0;
+          continue;
         }
         else {
           console.log('Something went wrong with creating the character: ' + ageRow.get('Character Name'));
           console.log(error);
-          return 0;
+          continue;
         }
       }
 
@@ -151,70 +150,75 @@ module.exports = {
     console.log('Sync successful.')
 
     // Sync all commoners
-    console.log('Syncing all commoners')
-    for (const [houseName, houseRows] of houseSheetsRows) {
-      const houseCommonerRows = houseRows.filter(houseRow => houseRow.get('Social Class') === 'Commoner');
+    try {
+      console.log('Syncing all commoners')
+      for (const [houseName, houseRows] of houseSheetsRows) {
+        const houseCommonerRows = houseRows.filter(houseRow => houseRow.get('Social Class') === 'Commoner');
 
-      for (const commonerRow of houseCommonerRows) {
-        const user = members.find(member => member.user.username === commonerRow.get('Discord Username'));
-        if (!user) {
-          console.log('User not found: ' + commonerRow.get('Discord Username'))
-          return 0;
-        }
-
-        let player = null;
-        try {
-          const timezone = commonerRow.get('Timezone') === '' ? undefined : commonerRow.get('Timezone');
-
-          player = await Players.create({
-            id: user.id,
-            ign: commonerRow.get('VS Username'),
-            timezone: timezone
-          });
-
-        }
-        catch (error) {
-          if (error.name === 'SequelizeUniqueConstraintError') {
-            console.log('Player already exists: ' + commonerRow.get('Discord Username'));
-            return 0;
+        for (const commonerRow of houseCommonerRows) {
+          const user = members.find(member => member.user.username === commonerRow.get('Discord Username'));
+          if (!user) {
+            console.log('User not found: ' + commonerRow.get('Discord Username'))
+            continue;
           }
-          else {
-            console.log('Something went wrong with creating the player: ' + commonerRow.get('Discord Username'));
-            console.log(error)
-            return 0;
+
+          let player = null;
+          try {
+            const timezone = commonerRow.get('Timezone') === '' ? undefined : commonerRow.get('Timezone');
+
+            player = await Players.create({
+              id: user.id,
+              ign: commonerRow.get('VS Username'),
+              timezone: timezone
+            });
+
           }
-        }
-
-        let character = null;
-        try {
-          const role = commonerRow.get('Role') === '' ? undefined : commonerRow.get('Role');
-          const comments = commonerRow.get('Comments') === '' ? undefined : commonerRow.get('Comments');
-
-          const affiliation = await Affiliations.findOne({ where: { name: houseName } });
-
-          character = await Characters.create({
-            name: commonerRow.get('Character Name'),
-            affiliationId: affiliation.id,
-            role: role,
-            comments: comments
-          })
-        }
-        catch (error) {
-          if (error.name === 'SequelizeUniqueConstraintError') {
-            console.log('Character already exists: ' + commonerRow.get('Character Name'));
-            return 0;
+          catch (error) {
+            if (error.name === 'SequelizeUniqueConstraintError') {
+              console.log('Player already exists: ' + commonerRow.get('Discord Username'));
+              continue;
+            }
+            else {
+              console.log('Something went wrong with creating the player: ' + commonerRow.get('Discord Username'));
+              console.log(error)
+              continue;
+            }
           }
-          else {
-            console.log('Something went wrong with creating the character: ' + commonerRow.get('Character Name'));
-            console.log(error);
-            return 0;
-          }
-        }
 
-        await player.update({ characterId: character.id })
+          let character = null;
+          try {
+            const role = commonerRow.get('Role') === '' ? undefined : commonerRow.get('Role');
+            const comments = commonerRow.get('Comments') === '' ? undefined : commonerRow.get('Comments');
+
+            const affiliation = await Affiliations.findOne({ where: { name: houseName } });
+
+            character = await Characters.create({
+              name: commonerRow.get('Character Name'),
+              affiliationId: affiliation.id,
+              role: role,
+              comments: comments
+            })
+          }
+          catch (error) {
+            if (error.name === 'SequelizeUniqueConstraintError') {
+              console.log('Character already exists: ' + commonerRow.get('Character Name'));
+              continue;
+            }
+            else {
+              console.log('Something went wrong with creating the character: ' + commonerRow.get('Character Name'));
+              console.log(error);
+              continue;
+            }
+          }
+
+          await player.update({ characterId: character.id })
+        }
       }
+      console.log('Sync successful.')
     }
-    console.log('Sync successful.')
+    catch (error) {
+      console.log(error)
+    }
 
     // Load dead characters
     console.log('Syncing all dead characters.')
