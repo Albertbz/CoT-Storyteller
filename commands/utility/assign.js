@@ -34,24 +34,27 @@ module.exports = {
     });
 
     choices = characters.splice(0, 25).map(character => ({ name: character.name, value: character.id }));
+    await interaction.respond(choices);
   },
   async execute(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     const characterId = interaction.options.getString('character');
     const user = interaction.options.getUser('player');
 
     try {
-      const character = Characters.findOne({ where: { id: characterId } });
+      const character = await Characters.findOne({ where: { id: characterId } });
 
       const playerExists = assignCharacterToPlayer(characterId, user.id, interaction.user);
 
-      if (!playerExists) return interaction.reply({ content: characterCreatedText + '\n\n' + '**Attempted to assign character to the specified player, but the player was not found in the database.**', flags: MessageFlags.Ephemeral });
+      if (!playerExists) return interaction.editReply({ content: characterCreatedText + '\n\n' + '**Attempted to assign character to the specified player, but the player was not found in the database.**', flags: MessageFlags.Ephemeral });
 
-      const replyText = 'The character ' + inlineCode(character.name) + ' was assigned to ' + userMention(user) + '.';
-      return interaction.reply({ content: replyText, flags: MessageFlags.Ephemeral });
+      const replyText = 'The character ' + inlineCode(character.name) + ' was assigned to ' + userMention(user.id) + '.';
+      return interaction.editReply({ content: replyText, flags: MessageFlags.Ephemeral });
     }
     catch (error) {
       console.log(error);
-      return interaction.reply({ content: 'Something went wrong with assigning the character to the player.', flags: MessageFlags.Ephemeral });
+      return interaction.editReply({ content: 'Something went wrong with assigning the character to the player.', flags: MessageFlags.Ephemeral });
     }
   }
 }

@@ -239,6 +239,8 @@ module.exports = {
     await interaction.respond(choices);
   },
   async execute(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     // Change player info
     if (interaction.options.getSubcommand() === 'player') {
       const user = interaction.options.getUser('user');
@@ -260,7 +262,7 @@ module.exports = {
       }
       );
 
-      if (!player) return interaction.reply({ content: 'The specified player does not exist in the database.', flags: MessageFlags.Ephemeral });
+      if (!player) return interaction.editReply({ content: 'The specified player does not exist in the database.', flags: MessageFlags.Ephemeral });
 
       const characterInfoChangedText = [];
       // let characterInfoChangedText = '';
@@ -421,7 +423,7 @@ module.exports = {
         changedText = playerInfoChangedText.join('\n') + '\n' + characterInfoChangedText.join('\n');
       }
 
-      return interaction.reply({ content: changedText, flags: MessageFlags.Ephemeral })
+      return interaction.editReply({ content: changedText, flags: MessageFlags.Ephemeral })
     }
     else if (interaction.options.getSubcommand() === 'character') {
       const characterId = interaction.options.getString('name');
@@ -547,7 +549,7 @@ module.exports = {
         changedText.unshift('**The following was changed for ' + inlineCode(character.name) + ':**');
       }
 
-      return interaction.reply({ content: changedText.join('\n'), flags: MessageFlags.Ephemeral })
+      return interaction.editReply({ content: changedText.join('\n'), flags: MessageFlags.Ephemeral })
     }
     else if (interaction.options.getSubcommand() === 'year') {
       const newYear = interaction.options.getNumber('year_new');
@@ -564,14 +566,14 @@ module.exports = {
         0xD98C00
       )
 
-      return interaction.reply({ content: 'The current year has been changed to ' + newYear, flags: MessageFlags.Ephemeral });
+      return interaction.editReply({ content: 'The current year has been changed to ' + newYear, flags: MessageFlags.Ephemeral });
     }
     else if (interaction.options.getSubcommand() === 'affiliation') {
       const affilationId = interaction.options.getString('name');
       const newAffiliationName = interaction.options.getString('name_new');
       const newEmojiName = interaction.options.getString('emoji_new');
 
-      if (!(newAffiliationName || newEmojiName)) interaction.reply({ content: 'Please specify what to change.' });
+      if (!(newAffiliationName || newEmojiName)) interaction.editReply({ content: 'Please specify what to change.' });
 
       const affiliation = await Affiliations.findOne({ where: { id: affilationId } });
 
@@ -600,9 +602,9 @@ module.exports = {
       )
 
       changes.unshift('**The following was changed for ' + inlineCode(affiliation.name) + ':**');
-      return interaction.reply({ content: changes.join('\n'), flags: MessageFlags.Ephemeral });
+      return interaction.editReply({ content: changes.join('\n'), flags: MessageFlags.Ephemeral });
     }
 
-    return interaction.reply({ content: 'Hmm, whatever you just did shouldn\'t be possible. What did you do?', flags: MessageFlags.Ephemeral })
+    return interaction.editReply({ content: 'Hmm, whatever you just did shouldn\'t be possible. What did you do?', flags: MessageFlags.Ephemeral })
   }
 }

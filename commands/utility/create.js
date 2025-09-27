@@ -123,6 +123,8 @@ module.exports = {
     await interaction.respond(choices);
   },
   async execute(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     if (interaction.options.getSubcommand() === 'player') {
       // For creating the player
       const user = interaction.options.getUser('user');
@@ -149,7 +151,7 @@ module.exports = {
 
 
         // Create the character if any of the arguments were provided
-        if (!creatingCharacter) return interaction.reply({ content: playerCreatedText, flags: MessageFlags.Ephemeral });
+        if (!creatingCharacter) return interaction.editReply({ content: playerCreatedText, flags: MessageFlags.Ephemeral });
 
         const character = await addCharacterToDatabase(name, sex, affiliationId, socialClassName, interaction.user);
         await assignCharacterToPlayer(character.id, player.id, interaction.user);
@@ -163,10 +165,10 @@ module.exports = {
           'Affiliation: `' + affiliation.name + '`\n' +
           'Social class: `' + character.socialClassName + '`\n' +
           'Year of Maturity: `' + character.yearOfMaturity + '`'
-        return interaction.reply({ content: playerCreatedText + '\n\n' + characterCreatedText, flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ content: playerCreatedText + '\n\n' + characterCreatedText, flags: MessageFlags.Ephemeral });
       }
       catch (error) {
-        return interaction.reply({ content: error.message, flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
       }
 
     }
@@ -192,17 +194,17 @@ module.exports = {
           'Affiliation: `' + affiliation.name + '`\n' +
           'Social class: `' + character.socialClassName + '`\n' +
           'Year of Maturity: `' + character.yearOfMaturity + '`'
-        if (!linkToUser) return interaction.reply({ content: characterCreatedText, flags: MessageFlags.Ephemeral });
+        if (!linkToUser) return interaction.editReply({ content: characterCreatedText, flags: MessageFlags.Ephemeral });
 
         const playerExists = await assignCharacterToPlayer(character.id, user.id, interaction.user);
 
-        if (!playerExists) return interaction.reply({ content: characterCreatedText + '\n\n' + '**Attempted to assign character to the specified player, but the player was not found in the database.**', flags: MessageFlags.Ephemeral })
+        if (!playerExists) return interaction.editReply({ content: characterCreatedText + '\n\n' + '**Attempted to assign character to the specified player, but the player was not found in the database.**', flags: MessageFlags.Ephemeral })
 
-        return interaction.reply({ content: characterCreatedText + '\n\n' + '**Aditionally, the character was assigned to:** ' + userMention(user.id), flags: MessageFlags.Ephemeral })
+        return interaction.editReply({ content: characterCreatedText + '\n\n' + '**Aditionally, the character was assigned to:** ' + userMention(user.id), flags: MessageFlags.Ephemeral })
       }
       catch (error) {
         console.log(error);
-        return interaction.reply({ content: 'Something went wrong.', flags: MessageFlags.Ephemeral })
+        return interaction.editReply({ content: 'Something went wrong.', flags: MessageFlags.Ephemeral })
       }
     }
 

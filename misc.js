@@ -80,58 +80,64 @@ async function addCharacterToDatabase(name, sex, affiliationId, socialClassName,
 }
 
 async function assignCharacterToPlayer(characterId, playerId, storyteller) {
-  const guild = await client.guilds.fetch(guilds.cot);
-  const member = await guild.members.fetch(playerId);
+  try {
+    const guild = await client.guilds.fetch(guilds.cot);
+    const member = await guild.members.fetch(playerId);
 
-  // Check whether player exists in database
-  const player = await Players.findOne({
-    where: { id: playerId }
-  })
+    // Check whether player exists in database
+    const player = await Players.findOne({
+      where: { id: playerId }
+    })
 
-  const playerExists = player !== null;
+    const playerExists = player !== null;
 
-  if (!playerExists) return playerExists;
+    if (!playerExists) return playerExists;
 
-  // Remove all roles that they could have had
-  await member.roles.remove([roles.commoner, roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados]);
+    // Remove all roles that they could have had
+    await member.roles.remove([roles.commoner, roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
 
-  // Update the association
-  await player.update({ characterId: characterId });
+    // Update the association
+    await player.update({ characterId: characterId });
 
-  // Get the new character and update the roles of the member
-  const character = await Characters.findOne({
-    where: { id: characterId },
-    include: [
-      { model: Affiliations, as: 'affiliation' },
-      { model: SocialClasses, as: 'socialClass' }
-    ]
-  });
+    // Get the new character and update the roles of the member
+    const character = await Characters.findOne({
+      where: { id: characterId },
+      include: [
+        { model: Affiliations, as: 'affiliation' },
+        { model: SocialClasses, as: 'socialClass' }
+      ]
+    });
 
-  await member.roles.add(character.affiliation.roleId);
+    await member.roles.add(character.affiliation.roleId);
 
-  if (character.socialClass.name === 'Ruler') {
-    await member.roles.add([roles.notable, roles.noble, roles.ruler]);
+    if (character.socialClass.name === 'Ruler') {
+      await member.roles.add([roles.notable, roles.noble, roles.ruler]);
+    }
+    else if (character.socialClass.name === 'Noble') {
+      await member.roles.add([roles.notable, roles.noble]);
+    }
+    else if (character.socialClass.name === 'Notable') {
+      await member.roles.add(roles.notable);
+    }
+
+    if (character.isSteelbearer) {
+      await member.roles.add(roles.steelbearer);
+    }
+
+    postInLogChannel(
+      'Character assigned to Player',
+      '**Assigned by: ' + userMention(storyteller.id) + '**\n\n' +
+      'Character: `' + character.name + '`\n' +
+      'Player: ' + userMention(playerId),
+      0x0000A3
+    )
+
+    return playerExists;
   }
-  else if (character.socialClass.name === 'Noble') {
-    await member.roles.add([roles.notable, roles.noble]);
+  catch (error) {
+    console.log(error)
+    return false;
   }
-  else if (character.socialClass.name === 'Notable') {
-    await member.roles.add(roles.notable);
-  }
-
-  if (character.isSteelbearer) {
-    await member.roles.add(roles.steelbearer);
-  }
-
-  postInLogChannel(
-    'Character assigned to Player',
-    '**Assigned by: ' + userMention(storyteller.id) + '**\n\n' +
-    'Character: `' + character.name + '`\n' +
-    'Player: ' + userMention(playerId),
-    0x0000A3
-  )
-
-  return playerExists;
 }
 
 async function postInLogChannel(title, description, color) {
