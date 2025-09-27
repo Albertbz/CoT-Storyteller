@@ -175,6 +175,11 @@ module.exports = {
             .setName('name_new')
             .setDescription('The new name of the affiliation.')
         )
+        .addStringOption(option =>
+          option
+            .setName('emoji_new')
+            .setDescription('The new name of the emoji for the affiliation.')
+        )
     )
   ,
   async autocomplete(interaction) {
@@ -257,24 +262,26 @@ module.exports = {
 
       if (!player) return interaction.reply({ content: 'The specified player does not exist in the database.', flags: MessageFlags.Ephemeral });
 
-      let characterInfoChangedText = '';
+      const characterInfoChangedText = [];
+      // let characterInfoChangedText = '';
       let characterInfoChanged = false;
 
-      let playerInfoChangedText = '';
+      const playerInfoChangedText = [];
+      // let playerInfoChangedText = '';
       let playerInfoChanged = false;
 
       if (newIgn) {
         const oldIgn = player.ign;
         await player.update({ ign: newIgn });
         playerInfoChanged = true;
-        playerInfoChangedText = playerInfoChangedText + 'IGN: ' + '`' + oldIgn + '` -> `' + newIgn + '`\n';
+        playerInfoChangedText.push('IGN: ' + inlineCode(oldIgn) + ' -> ' + inlineCode(newIgn));
       }
 
       if (newTimezone) {
         const oldTimezone = player.timezone;
         await player.update({ timezone: newTimezone });
         playerInfoChanged = true;
-        playerInfoChangedText = playerInfoChangedText + 'Timezone: ' + '`' + oldTimezone + '` -> `' + newTimezone + '`\n';
+        playerInfoChangedText.push('Timezone: ' + inlineCode(oldTimezone) + ' -> ' + inlineCode(newTimezone))
       }
 
       if (player.character) {
@@ -288,83 +295,74 @@ module.exports = {
           // const member = await interaction.guild.members.fetch(user);
           // member.setNickname(newName); // Crashes the bot if used on owner of server
           characterInfoChanged = true;
-          characterInfoChangedText = characterInfoChangedText + 'Name: ' + '`' + oldName + '` -> `' + newName + '`\n';
+          characterInfoChangedText.push('Name: ' + inlineCode(oldName) + ' -> ' + inlineCode(newName))
         }
 
         if (newSex) {
           const oldSex = character.sex;
           await character.update({ sex: newSex });
           characterInfoChanged = true;
-          characterInfoChangedText = characterInfoChangedText + 'Sex: ' + '`' + oldSex + '` -> `' + newSex + '`\n';
+          characterInfoChangedText.push('Sex: ' + inlineCode(oldSex) + ' -> ' + inlineCode(newSex))
         }
 
         if (newAffiliationId) {
           const oldAffiliation = await Affiliations.findOne({ where: { id: character.affiliationId } });
-          const oldAffiliationRole = await interaction.guild.roles.fetch(oldAffiliation.roleId);
-
-          const newAffiliation = await Affiliations.findOne({ where: { name: newAffiliationId } });
-          const newAffiliationRole = await interaction.guild.roles.fetch(newAffiliation.roleId);
+          const newAffiliation = await Affiliations.findOne({ where: { id: newAffiliationId } });
 
           await character.update({ affiliationId: newAffiliationId });
 
           // Update Discord role
-          await member.roles.remove(oldAffiliationRole);
-          await member.roles.add(newAffiliationRole);
-
-          if (character.socialClassName === 'Commoner') {
-            if (newAffiliation.name === 'Wanderer') {
-              member.roles.remove(roles.commoner);
-            }
-            else if (oldAffiliation.name === 'Wanderer') {
-              member.roles.add(roles.commoner);
-            }
-          }
+          await member.roles.remove([roles.eshaeryn, roles.firstLanding, roles.riverhelm, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
+          await member.roles.add(newAffiliation.roleId);
 
           // Update variables for later use
           characterInfoChanged = true;
-          characterInfoChangedText = characterInfoChangedText + 'Affiliation: ' + inlineCode(oldAffiliation.name) + ' -> ' + inlineCode(newAffiliation.name) + '\n';
+          characterInfoChangedText.push('Affiliation: ' + inlineCode(oldAffiliation.name) + ' -> ' + inlineCode(newAffiliation.name));
         }
 
         if (newSocialClassName) {
           const oldSocialClass = await SocialClasses.findOne({ where: { name: character.socialClassName } });
-          const oldSocialClassRole = await interaction.guild.roles.fetch(oldSocialClass.roleId);
-
           const newSocialClass = await SocialClasses.findOne({ where: { name: newSocialClassName } });
-          const newSocialClassRole = await interaction.guild.roles.fetch(newSocialClass.roleId);
+
           await character.update({ socialClassName: newSocialClassName });
 
           // Update Discord role
-          await member.roles.remove(oldSocialClassRole);
+          await member.roles.remove([roles.notable, roles.noble, roles.ruler]);
 
-          const affiliation = await Affiliations.findOne({ where: { id: character.affilationId } });
-          if (!(affiliation.name === 'Wanderer' && newSocialClassName === 'Commoner')) {
-            await member.roles.add(newSocialClassRole);
+          if (newSocialClass.name === 'Ruler') {
+            await member.roles.add([roles.notable, roles.noble, roles.ruler]);
+          }
+          else if (newSocialClass.name === 'Noble') {
+            await member.roles.add([roles.notable, roles.noble]);
+          }
+          else if (newSocialClass.name === 'Notable') {
+            await member.roles.add(roles.notable);
           }
 
           // Update varibles for later use
           characterInfoChanged = true;
-          characterInfoChangedText = characterInfoChangedText + 'Social class: ' + inlineCode(oldSocialClass.name) + ' -> ' + inlineCode(newSocialClass.name) + '\n';
+          characterInfoChangedText.push('Social class: ' + inlineCode(oldSocialClass.name) + ' -> ' + inlineCode(newSocialClass.name));
         }
 
         if (newYearOfMaturity) {
           const oldYearOfMaturity = character.yearOfMaturity;
           await character.update({ yearOfMaturity: newYearOfMaturity });
           characterInfoChanged = true;
-          characterInfoChangedText = characterInfoChangedText + 'Year of Maturity: ' + '`' + oldYearOfMaturity + '` -> `' + newYearOfMaturity + '`\n';
+          characterInfoChangedText.push('Year of Maturity: ' + inlineCode(oldYearOfMaturity) + ' -> ' + inlineCode(newYearOfMaturity));
         }
 
         if (newPvEDeaths) {
           const oldPvEDeaths = character.pveDeaths;
           await character.update({ pveDeaths: newPvEDeaths });
           characterInfoChanged = true;
-          characterInfoChangedText = characterInfoChangedText + 'PvE Deaths: ' + '`' + oldPvEDeaths + '` -> `' + newPvEDeaths + '`\n';
+          characterInfoChangedText.push('PvE Deaths: ' + inlineCode(oldPvEDeaths) + ' -> ' + inlineCode(newPvEDeaths));
         }
 
         if (newRole) {
           const oldRole = character.role;
           await character.update({ role: newRole });
           characterInfoChanged = true;
-          characterInfoChangedText = characterInfoChangedText + 'Role: ' + '`' + oldRole + '` -> `' + newRole + '`\n';
+          characterInfoChangedText.push('Role: ' + inlineCode(oldRole) + ' -> ' + inlineCode(newRole));
         }
 
         if (newIsSteelbearer !== null) {
@@ -377,11 +375,11 @@ module.exports = {
 
           // Update variables for later use
           characterInfoChanged = true;
-          characterInfoChangedText = characterInfoChangedText + 'Is Steelbearer: ' + '`' + oldIsSteelbearer + '` -> `' + newIsSteelbearer + '`\n';
+          characterInfoChangedText.push('Is Steelbearer: ' + inlineCode(oldIsSteelbearer) + ' -> ' + inlineCode(newIsSteelbearer));
         }
       }
       else if (newName || newSex || newAffiliationId || newSocialClassName || newYearOfMaturity || newPvEDeaths || newRole || newIsSteelbearer !== null) {
-        characterInfoChangedText = 'This player is currently not playing a character, and as such nothing was changed.'
+        characterInfoChangedText.push('This player is currently not playing a character, and as such nothing was changed.')
       }
 
       // Handle different cases of changed info
@@ -390,29 +388,29 @@ module.exports = {
           'Player Info Changed',
           '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
           'Player: ' + userMention(user.id) + '\n\n' +
-          playerInfoChangedText.replace(/\n$/, ''),
+          playerInfoChangedText.join('\n'),
           0xD98C00
         )
-        playerInfoChangedText = '**The following Player info was changed for ' + userMention(user.id) + ':**\n' + playerInfoChangedText;
+        playerInfoChangedText.unshift('**The following Player info was changed for ' + userMention(user.id) + ':**')
       }
 
-      if (characterInfoChangedText !== '') {
+      if (characterInfoChangedText.length !== 0) {
         if (characterInfoChanged) {
           postInLogChannel(
             'Character Info Changed',
             '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
             'Character: `' + player.character.name + '`\n\n' +
-            characterInfoChangedText.replace(/\n$/, ''),
+            characterInfoChangedText.join('\n'),
             0xD98C00
           )
         }
         const characterName = player.character ? player.character.name : 'N/A';
-        characterInfoChangedText = '**The following Character info was changed for `' + characterName + '`:**\n' + characterInfoChangedText;
+        characterInfoChangedText.unshift('**The following Character info was changed for ' + inlineCode(characterName) + ':**');
       }
 
       let changedText = '';
       if (!playerInfoChanged && !characterInfoChanged) {
-        if (characterInfoChangedText !== '') {
+        if (characterInfoChangedText.length !== 0) {
           changedText = characterInfoChangedText;
         }
         else {
@@ -420,9 +418,8 @@ module.exports = {
         }
       }
       else {
-        changedText = playerInfoChangedText + characterInfoChangedText;
+        changedText = playerInfoChangedText.join('\n') + '\n' + characterInfoChangedText.join('\n');
       }
-      changedText = changedText.replace(/\n$/, '');
 
       return interaction.reply({ content: changedText, flags: MessageFlags.Ephemeral })
     }
@@ -452,83 +449,76 @@ module.exports = {
         member = await interaction.guild.members.fetch(player.id);
       }
 
-      let changedText = '';
+      let changedText = [];
 
       if (newName) {
         const oldName = character.name;
         await character.update({ name: newName });
-        changedText = changedText + 'Name: ' + '`' + oldName + '` -> `' + newName + '`\n';
+        changedText.push('Name: ' + inlineCode(oldName) + ' -> ' + inlineCode(newName));
       }
 
       if (newSex) {
         const oldSex = character.sex;
         await character.update({ sex: newSex });
-        changedText = changedText + 'Sex: ' + '`' + oldSex + '` -> `' + newSex + '`\n';
+        changedText.push('Sex: ' + inlineCode(oldSex) + ' -> ' + inlineCode(newSex));
       }
 
       if (newAffiliationId) {
         const oldAffiliation = await Affiliations.findOne({ where: { id: character.affiliationId } });
-        const oldAffiliationRole = await interaction.guild.roles.fetch(oldAffiliation.roleId);
-
         const newAffiliation = await Affiliations.findOne({ where: { id: newAffiliationId } });
-        const newAffiliationRole = await interaction.guild.roles.fetch(newAffiliation.roleId);
 
         await character.update({ affiliationId: newAffiliationId });
 
         // If currently played, update Discord role
         if (isCurrentlyPlayed) {
-          await member.roles.remove(oldAffiliationRole);
-          await member.roles.add(newAffiliationRole);
-
-          if (character.socialClassName === 'Commoner') {
-            if (newAffiliation.name === 'Wanderer') {
-              member.roles.remove(roles.commoner);
-            }
-            else if (oldAffiliation.name === 'Wanderer') {
-              member.roles.add(roles.commoner);
-            }
-          }
+          // Update Discord role
+          await member.roles.remove([roles.eshaeryn, roles.firstLanding, roles.riverhelm, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
+          await member.roles.add(newAffiliation.roleId);
         }
 
-        changedText = changedText + 'Affiliation: ' + inlineCode(oldAffiliation.name) + ' -> ' + inlineCode(newAffiliation.name) + '\n';
+        changedText.push('Affiliation: ' + inlineCode(oldAffiliation.name) + ' -> ' + inlineCode(newAffiliation.name));
       }
 
       if (newSocialClassName) {
         const oldSocialClass = await SocialClasses.findOne({ where: { name: character.socialClassName } });
-        const oldSocialClassRole = await interaction.guild.roles.fetch(oldSocialClass.roleId);
-
         const newSocialClass = await SocialClasses.findOne({ where: { name: newSocialClassName } });
-        const newSocialClassRole = await interaction.guild.roles.fetch(newSocialClass.roleId);
+
         await character.update({ socialClassName: newSocialClassName });
 
         // If currently played, update Discord role
         if (isCurrentlyPlayed) {
-          await member.roles.remove(oldSocialClassRole);
+          await member.roles.remove([roles.notable, roles.noble, roles.ruler]);
 
-          if (!(character.affiliation.name === 'Wanderer' && newSocialClassName === 'Commoner')) {
-            await member.roles.add(newSocialClassRole);
+          if (newSocialClass.name === 'Ruler') {
+            await member.roles.add([roles.notable, roles.noble, roles.ruler]);
+          }
+          else if (newSocialClass.name === 'Noble') {
+            await member.roles.add([roles.notable, roles.noble]);
+          }
+          else if (newSocialClass.name === 'Notable') {
+            await member.roles.add(roles.notable);
           }
         }
 
-        changedText = changedText + 'Social class: ' + inlineCode(oldSocialClass.name) + ' -> ' + inlineCode(newSocialClass.name) + '\n';
+        changedText.push('Social class: ' + inlineCode(oldSocialClass.name) + ' -> ' + inlineCode(newSocialClass.name));
       }
 
       if (newYearOfMaturity) {
         const oldYearOfMaturity = character.yearOfMaturity;
         await character.update({ yearOfMaturity: newYearOfMaturity });
-        changedText = changedText + 'Year of Maturity: ' + '`' + oldYearOfMaturity + '` -> `' + newYearOfMaturity + '`\n';
+        changedText.push('Year of Maturity: ' + inlineCode(oldYearOfMaturity) + ' -> ' + inlineCode(newYearOfMaturity));
       }
 
       if (newPvEDeaths) {
         const oldPvEDeaths = character.pveDeaths;
         await character.update({ pveDeaths: newPvEDeaths });
-        changedText = changedText + 'PvE Deaths: ' + '`' + oldPvEDeaths + '` -> `' + newPvEDeaths + '`\n';
+        changedText.push('PvE Deaths: ' + inlineCode(oldPvEDeaths) + ' -> ' + inlineCode(newPvEDeaths));
       }
 
       if (newRole) {
         const oldRole = character.role;
         await character.update({ role: newRole });
-        changedText = changedText + 'Role: ' + '`' + oldRole + '` -> `' + newRole + '`\n';
+        changedText.push('Role: ' + inlineCode(oldRole) + ' -> ' + inlineCode(newRole));
       }
 
       if (newIsSteelbearer !== null) {
@@ -540,25 +530,24 @@ module.exports = {
           if (character.isSteelbearer) await member.roles.add(roles.steelbearer);
         }
 
-        changedText = changedText + 'Is Steelbearer: ' + '`' + oldIsSteelbearer + '` -> `' + newIsSteelbearer + '`\n';
+        changedText.push('Is Steelbearer: ' + inlineCode(oldIsSteelbearer) + ' -> ' + inlineCode(newIsSteelbearer));
       }
 
-      changedText = changedText.replace(/\n$/, '');
-      if (changedText === '') {
-        changedText = 'Please specify what to change.'
+      if (changedText.length === 0) {
+        changedText.push('Please specify what to change.');
       }
       else {
         postInLogChannel(
           'Character Info Changed',
           '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
           'Character: ' + inlineCode(character.name) + '\n\n' +
-          changedText,
+          changedText.join('\n'),
           0xD98C00
         )
-        changedText = '**The following was changed for `' + character.name + '`:**\n' + changedText;
+        changedText.unshift('**The following was changed for ' + inlineCode(character.name) + ':**');
       }
 
-      return interaction.reply({ content: changedText, flags: MessageFlags.Ephemeral })
+      return interaction.reply({ content: changedText.join('\n'), flags: MessageFlags.Ephemeral })
     }
     else if (interaction.options.getSubcommand() === 'year') {
       const newYear = interaction.options.getNumber('year_new');
@@ -580,21 +569,38 @@ module.exports = {
     else if (interaction.options.getSubcommand() === 'affiliation') {
       const affilationId = interaction.options.getString('name');
       const newAffiliationName = interaction.options.getString('name_new');
+      const newEmojiName = interaction.options.getString('emoji_new');
 
-      if (!newAffiliationName) interaction.reply({ content: 'Please specify what to change.' });
+      if (!(newAffiliationName || newEmojiName)) interaction.reply({ content: 'Please specify what to change.' });
 
       const affiliation = await Affiliations.findOne({ where: { id: affilationId } });
-      const oldAffiliationName = affiliation.name;
-      await affiliation.update({ name: newAffiliationName });
+
+      const changes = []
+
+      if (newAffiliationName) {
+        const oldAffiliationName = affiliation.name;
+        await affiliation.update({ name: newAffiliationName });
+
+        changes.push('Name: ' + inlineCode(oldAffiliationName) + ' -> ' + inlineCode(newAffiliationName));
+      }
+
+      if (newEmojiName) {
+        const oldEmojiName = affiliation.emojiName;
+        await affiliation.update({ emojiName: newEmojiName });
+
+        changes.push('Emoji name: ' + inlineCode(oldEmojiName) + ' -> ' + inlineCode(newEmojiName));
+      }
 
       postInLogChannel(
         'Affiliation Changed',
         '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
-        'Name: ' + inlineCode(oldAffiliationName) + ' -> ' + inlineCode(newAffiliationName),
+        'Affiliation: ' + inlineCode(affiliation.name) + '\n\n' +
+        changes.join('\n'),
         0xD98C00
       )
 
-      return interaction.reply({ content: 'The name has been changed from ' + inlineCode(oldAffiliationName) + ' to ' + inlineCode(newAffiliationName) + '.', flags: MessageFlags.Ephemeral });
+      changes.unshift('**The following was changed for ' + inlineCode(affiliation.name) + ':**');
+      return interaction.reply({ content: changes.join('\n'), flags: MessageFlags.Ephemeral });
     }
 
     return interaction.reply({ content: 'Hmm, whatever you just did shouldn\'t be possible. What did you do?', flags: MessageFlags.Ephemeral })

@@ -114,7 +114,7 @@ module.exports = {
     const focusedValue = interaction.options.getFocused();
 
     const affilations = await Affiliations.findAll({
-      where: { name: { [Op.startsWith]: focusedValue } },
+      where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
       attributes: ['name', 'id']
     })
 
@@ -181,10 +181,9 @@ module.exports = {
       const linkToUser = user !== null;
 
       try {
-        console.log(affiliationId)
         const character = await addCharacterToDatabase(name, sex, affiliationId, socialClassName, interaction.user);
 
-        const affiliation = await Affiliations.findOne({ where: { id: affiliationId } });
+        const affiliation = character.getAffiliation();
 
         const characterCreatedText =
           '**Character was created with the following information:**\n' +
@@ -202,7 +201,8 @@ module.exports = {
         return interaction.reply({ content: characterCreatedText + '\n\n' + '**Aditionally, the character was assigned to:** ' + userMention(user.id), flags: MessageFlags.Ephemeral })
       }
       catch (error) {
-        return interaction.reply({ content: error.message, flags: MessageFlags.Ephemeral })
+        console.log(error);
+        return interaction.reply({ content: 'Something went wrong.', flags: MessageFlags.Ephemeral })
       }
     }
 

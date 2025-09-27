@@ -34,9 +34,13 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
 
 async function addCharacterToDatabase(name, sex, affiliationId, socialClassName, storyteller) {
   name = name === null ? 'Unnamed' : name;
-  sex = sex === null ? undefined : sex;
-  affiliationId = affiliationId === null ? undefined : affiliationId;
   socialClassName = socialClassName === null ? 'Commoner' : socialClassName;
+  sex = sex === null ? undefined : sex;
+
+  if (!affiliationId) {
+    const wandererAffiliation = await Affiliations.findOne({ where: { name: 'Wanderer' } });
+    affiliationId = wandererAffiliation.id;
+  }
 
   try {
     const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
@@ -48,8 +52,6 @@ async function addCharacterToDatabase(name, sex, affiliationId, socialClassName,
       socialClassName: socialClassName,
       yearOfMaturity: world.currentYear
     })
-
-    console.log(affiliationId);
 
     const affiliation = await Affiliations.findOne({ where: { id: affiliationId } });
 
@@ -90,19 +92,8 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
 
   if (!playerExists) return playerExists;
 
-  // If already playing a character, then remove the roles of said character from member
-  const alreadyPlayingACharacter = player.characterId !== null;
-  if (alreadyPlayingACharacter) {
-    const oldCharacter = await Characters.findOne({
-      where: { id: player.characterId },
-      include: [
-        { model: Affiliations, as: 'affiliation' },
-        { model: SocialClasses, as: 'socialClass' }
-      ]
-    })
-
-    await member.roles.remove([oldCharacter.affiliation.roleId, oldCharacter.socialClass.roleId, roles.steelbearer]);
-  }
+  // Remove all roles that they could have had
+  await member.roles.remove([roles.commoner, roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados]);
 
   // Update the association
   await player.update({ characterId: characterId });
@@ -115,12 +106,22 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       { model: SocialClasses, as: 'socialClass' }
     ]
   });
+
   await member.roles.add(character.affiliation.roleId);
-  // If both a wanderer and a commoner, then this statement is not satisfied
-  if (!(character.affiliation.name === 'Wanderer' && character.socialClass.name === 'Commoner')) {
-    await member.roles.add(character.socialClass.roleId);
+
+  if (character.socialClass.name === 'Ruler') {
+    await member.roles.add([roles.notable, roles.noble, roles.ruler]);
   }
-  if (character.isSteelbearer) await member.roles.add(roles.steelbearer);
+  else if (character.socialClass.name === 'Noble') {
+    await member.roles.add([roles.notable, roles.noble]);
+  }
+  else if (character.socialClass.name === 'Notable') {
+    await member.roles.add(roles.notable);
+  }
+
+  if (character.isSteelbearer) {
+    await member.roles.add(roles.steelbearer);
+  }
 
   postInLogChannel(
     'Character assigned to Player',

@@ -184,7 +184,7 @@ module.exports = {
 
         // Get all affiliations with their recruitment info
         const houses = await Affiliations.findAll({
-          where: { name: { isRuling: true } }
+          where: { isRuling: true }
         })
 
         const guildEmojis = await interaction.guild.emojis.fetch();
