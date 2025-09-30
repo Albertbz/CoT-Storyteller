@@ -399,7 +399,7 @@ module.exports = {
           affiliation = await Affiliations.findOne({ where: { name: 'Wanderer' } });
         }
 
-        const socialClassName = playableChildRow.get('Inherited title') === 'None' ? 'Notable' : playableChildRow.get('Inherited title');
+        const socialClassName = playableChildRow.get('Inherited title') === 'None' || '' ? 'Notable' : playableChildRow.get('Inherited title');
 
         const character = await Characters.create({
           name: playableChildRow.get('Character Name'),

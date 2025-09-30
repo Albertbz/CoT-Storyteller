@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses, Worlds } = require('../../dbObjects.js');
+const { Players, Characters, Affiliations, SocialClasses, Worlds, PlayableChildren } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel } = require('../../misc.js');
@@ -181,6 +181,73 @@ module.exports = {
             .setDescription('The new name of the emoji for the affiliation.')
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('child')
+        .setDescription('Change something about a playable child.')
+        .addStringOption(option =>
+          option
+            .setName('name')
+            .setDescription('The name of the child.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('name_new')
+            .setDescription('The new name of the child.')
+        )
+        .addIntegerOption(option =>
+          option
+            .setName('yearofmaturity_new')
+            .setDescription('The new year of maturity of the child.')
+        )
+        .addStringOption(option =>
+          option
+            .setName('sex_new')
+            .setDescription('The new sex of the child.')
+        )
+        .addStringOption(option =>
+          option
+            .setName('affiliation_new')
+            .setDescription('The new affiliation of the child.')
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('legitimacy_new')
+            .setDescription('The new legitimacy of the child.')
+            .addChoices(
+              { name: 'Illegitimate', value: 'Illegitimate' },
+              { name: 'Legitimate', value: 'Legitimate' },
+              { name: 'Legitimised', value: 'Legitimised' }
+            )
+        )
+        .addStringOption(option =>
+          option
+            .setName('inheritedtitle_new')
+            .setDescription('The new inherited title of the child.')
+            .addChoices(
+              { name: 'None', value: 'None' },
+              { name: 'Noble', value: 'Noble' }
+            )
+        )
+        .addStringOption(option =>
+          option
+            .setName('comments_new')
+            .setDescription('The new comments of the child.')
+        )
+        .addUserOption(option =>
+          option
+            .setName('contact1_new')
+            .setDescription('The new first contact of the child.')
+        )
+        .addUserOption(option =>
+          option
+            .setName('contact2_new')
+            .setDescription('The new second contact of the child.')
+        )
+    )
   ,
   async autocomplete(interaction) {
     let choices;
@@ -235,6 +302,54 @@ module.exports = {
       })
 
       choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+    }
+
+    if (interaction.options.getSubcommand() === 'child') {
+      const focusedOption = interaction.options.getFocused(true);
+
+      if (focusedOption.name === 'name') {
+        const focusedValue = interaction.options.getFocused();
+
+        const children = await PlayableChildren.findAll({
+          include: {
+            model: Characters, as: 'character',
+            include: [
+              { model: Characters, as: 'parent1' },
+              { model: Characters, as: 'parent2' }
+            ],
+            where: { name: { [Op.startsWith]: focusedValue } },
+          },
+          attributes: ['id']
+        });
+
+        choices = children.splice(0, 25).map(child => {
+          const parentNames = []
+          parentNames.push(child.character.parent1.name)
+
+          if (child.character.parent2) {
+            parentNames.push(child.character.parent2.name)
+          }
+
+          return ({
+            name: child.character.name + ' | ' + parentNames.join(' - '),
+            value: child.id
+          })
+        }
+        );
+      }
+
+      if (focusedOption.name === 'affiliation_new') {
+        const focusedValue = interaction.options.getFocused();
+
+        const affilations = await Affiliations.findAll({
+          where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
+          attributes: ['name', 'id']
+        })
+
+        choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+      }
+
+
     }
     await interaction.respond(choices);
   },
