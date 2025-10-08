@@ -48,6 +48,9 @@ module.exports = (sequelize, DataTypes) => {
     isRollingForBastards: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
+    },
+    steelbearerState: {
+      type: DataTypes.STRING,
     }
   });
 }

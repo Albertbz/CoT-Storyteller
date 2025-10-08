@@ -78,10 +78,16 @@ module.exports = {
             .setName('role_new')
             .setDescription('The new role.')
         )
-        .addBooleanOption(option =>
+        .addStringOption(option =>
           option
             .setName('steelbearer_new')
-            .setDescription('The new state of whether the character is a steelbearer.')
+            .setDescription('The type of steelbearer to change the character to.')
+            .addChoices(
+              { name: 'Ruler', value: 'Ruler' },
+              { name: 'Duchy', value: 'Duchy' },
+              { name: 'General-purpose', value: 'General-purpose' },
+              { name: 'None', value: 'None' },
+            )
         )
     )
     .addSubcommand(subcommand =>
@@ -142,10 +148,16 @@ module.exports = {
             .setName('role_new')
             .setDescription('The new role.')
         )
-        .addBooleanOption(option =>
+        .addStringOption(option =>
           option
             .setName('steelbearer_new')
-            .setDescription('The new state of whether the character is a steelbearer.')
+            .setDescription('The type of steelbearer to change the character to.')
+            .addChoices(
+              { name: 'Ruler', value: 'Ruler' },
+              { name: 'Duchy', value: 'Duchy' },
+              { name: 'General-purpose', value: 'General-purpose' },
+              { name: 'None', value: 'None' },
+            )
         )
     )
     .addSubcommand(subcommand =>
@@ -369,7 +381,7 @@ module.exports = {
       const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
       const newPvEDeaths = interaction.options.getNumber('pvedeaths_new');
       const newRole = interaction.options.getString('role_new');
-      const newIsSteelbearer = interaction.options.getBoolean('steelbearer_new');
+      const newSteelbearer = interaction.options.getString('steelbearer_new');
 
       const player = await Players.findOne({
         where: { id: user.id },
@@ -482,20 +494,26 @@ module.exports = {
           characterInfoChangedText.push('Role: ' + inlineCode(oldRole) + ' -> ' + inlineCode(newRole));
         }
 
-        if (newIsSteelbearer !== null) {
-          const oldIsSteelbearer = character.isSteelbearer;
-          await character.update({ isSteelbearer: newIsSteelbearer });
+        if (newSteelbearer !== null) {
+          const oldSteelbearer = character.steelbearer;
+
+          if (newSteelbearer === 'None') {
+            await character.update({ steelbearer: null })
+          }
+          else {
+            await character.update({ steelbearer: newSteelbearer });
+          }
 
           // Update Discord role
           await member.roles.remove(roles.steelbearer);
-          if (character.isSteelbearer) await member.roles.add(roles.steelbearer);
+          if (character.steelbearer) await member.roles.add(roles.steelbearer);
 
           // Update variables for later use
           characterInfoChanged = true;
-          characterInfoChangedText.push('Is Steelbearer: ' + inlineCode(oldIsSteelbearer) + ' -> ' + inlineCode(newIsSteelbearer));
+          characterInfoChangedText.push('Steelbearer: ' + inlineCode(oldSteelbearer) + ' -> ' + inlineCode(newSteelbearer));
         }
       }
-      else if (newName || newSex || newAffiliationId || newSocialClassName || newYearOfMaturity || newPvEDeaths || newRole || newIsSteelbearer !== null) {
+      else if (newName || newSex || newAffiliationId || newSocialClassName || newYearOfMaturity || newPvEDeaths || newRole || newSteelbearer !== null) {
         characterInfoChangedText.push('This player is currently not playing a character, and as such nothing was changed.')
       }
 
@@ -549,7 +567,7 @@ module.exports = {
       const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
       const newPvEDeaths = interaction.options.getNumber('pvedeaths_new');
       const newRole = interaction.options.getString('role_new');
-      const newIsSteelbearer = interaction.options.getBoolean('steelbearer_new');
+      const newSteelbearer = interaction.options.getString('steelbearer_new');
 
       const character = await Characters.findOne({
         include: { model: Affiliations, as: 'affiliation' },
@@ -638,16 +656,22 @@ module.exports = {
         changedText.push('Role: ' + inlineCode(oldRole) + ' -> ' + inlineCode(newRole));
       }
 
-      if (newIsSteelbearer !== null) {
-        const oldIsSteelbearer = character.isSteelbearer;
-        await character.update({ isSteelbearer: newIsSteelbearer });
+      if (newSteelbearer !== null) {
+        const oldSteelbearer = character.steelbearer;
+
+        if (newSteelbearer === 'None') {
+          await character.update({ steelbearer: null });
+        }
+        else {
+          await character.update({ steelbearer: newSteelbearer });
+        }
 
         if (isCurrentlyPlayed) {
           await member.roles.remove(roles.steelbearer);
-          if (character.isSteelbearer) await member.roles.add(roles.steelbearer);
+          if (character.steelbearer) await member.roles.add(roles.steelbearer);
         }
 
-        changedText.push('Is Steelbearer: ' + inlineCode(oldIsSteelbearer) + ' -> ' + inlineCode(newIsSteelbearer));
+        changedText.push('Steelbearer: ' + inlineCode(oldSteelbearer) + ' -> ' + inlineCode(newSteelbearer));
       }
 
       if (changedText.length === 0) {

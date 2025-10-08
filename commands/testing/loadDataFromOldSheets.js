@@ -107,7 +107,18 @@ module.exports = {
         if (!isWanderer) {
           const socialClassName = houseRow.get('Social Class');
           const comments = houseRow.get('Comments') === '' ? undefined : houseRow.get('Comments');
-          const isSteelbearer = comments ? comments.includes('Steelbearer') : false;
+          let steelbearer = null;
+          if (comments && comments.includes('Steelbearer')) {
+            if (comments.includes('(Ruler)')) {
+              steelbearer = 'Ruler'
+            }
+            else if (comments.includes('(Duchy)')) {
+              steelbearer = 'Duchy'
+            }
+            else if (comments.includes('(General-purpose)')) {
+              steelbearer = 'General-purpose'
+            }
+          }
           const role = houseRow.get('Role') === '' ? undefined : houseRow.get('Role');
 
           character = await Characters.create({
@@ -116,7 +127,7 @@ module.exports = {
             socialClassName: socialClassName,
             pveDeaths: ageRow.get('PvE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
-            isSteelbearer: isSteelbearer,
+            steelbearer: steelbearer,
             role: role,
             comments: comments
           })
@@ -508,6 +519,12 @@ module.exports = {
         if (!bearingCharacter) {
           console.log('Could not find: ' + bearingCharacterName)
         }
+        else {
+          const deceasedCharacter = await Deceased.findOne({ where: { characterId: bearingCharacter.id } })
+          if (deceasedCharacter) {
+            console.log('The following character is dead: ' + bearingCharacterName)
+          }
+        }
       }
       catch (error) {
         console.log('Something went wrong with: ' + bearingCharacterName + '\n' + error);
@@ -517,6 +534,12 @@ module.exports = {
         conceivingCharacter = await Characters.findOne({ where: { name: conceivingCharacterName } });
         if (!conceivingCharacter) {
           console.log('Could not find: ' + conceivingCharacterName)
+        }
+        else {
+          const deceasedCharacter = await Deceased.findOne({ where: { characterId: conceivingCharacter.id } })
+          if (deceasedCharacter) {
+            console.log('The following character is dead: ' + conceivingCharacterName)
+          }
         }
       }
       catch (error) {
@@ -547,10 +570,18 @@ module.exports = {
     const bastardRollsRows = await offspringDoc.sheetsByTitle['Bastard rolls'].getRows();
     try {
       for (const row of bastardRollsRows) {
-        await Characters.update(
-          { isRollingForBastards: true },
-          { where: { name: row.get('Character Name') } }
-        )
+        const character = await Characters.findOne({ where: { name: row.get('Character Name') } })
+
+        if (!character) console.log('Could not find: ' + row.get('Character Name'))
+
+        const deceasedCharacter = await Deceased.findOne({ where: { characterId: character.id } })
+        if (deceasedCharacter) {
+          console.log('The following character is dead: ' + row.get('Character Name'))
+        }
+        else {
+          await character.update({ isRollingForBastards: true })
+        }
+
       }
     }
     catch (error) {

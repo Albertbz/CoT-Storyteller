@@ -32,7 +32,7 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
   }
 }
 
-async function addCharacterToDatabase(name, sex, affiliationId, socialClassName, storyteller) {
+async function addCharacterToDatabase(name, sex, affiliationId, socialClassName, storytellerUser) {
   name = name === null ? 'Unnamed' : name;
   socialClassName = socialClassName === null ? 'Commoner' : socialClassName;
   sex = sex === null ? undefined : sex;
@@ -120,7 +120,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       await member.roles.add(roles.notable);
     }
 
-    if (character.isSteelbearer) {
+    if (character.steelbearer) {
       await member.roles.add(roles.steelbearer);
     }
 
@@ -149,4 +149,11 @@ async function postInLogChannel(title, description, color) {
   logChannel.send({ embeds: [embedLog] });
 }
 
-module.exports = { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel }
+function ageToFertilityModifier(age) {
+  if (age >= 7) return 0;
+  if (age >= 6) return 0.3;
+  if (age >= 5) return 0.5;
+  if (age < 5) return 1;
+}
+
+module.exports = { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, ageToFertilityModifier }

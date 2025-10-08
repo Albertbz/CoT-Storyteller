@@ -23,7 +23,7 @@ module.exports = {
 
     const response = await fetch(attachment.attachment);
     const data = await response.text();
-    const dataArray = data.split('\r\n')
+    const dataArray = data.split('\n')
 
     const whitelistChannel = interaction.client.channels.cache.get('1327928742080675870');
     let messages = [];
@@ -103,21 +103,21 @@ module.exports = {
       console.log(member.member.user.username);
     }
 
-    // const playersWithCharacters = [];
-    // for (const member of filteredExistingMembers) {
-    //   const roleNames = member.roles.map(role => role.name);
-    //   console.log(member.member.user.username + ': ' + roleNames);
+    const playersWithCharacters = [];
+    for (const member of filteredExistingMembers) {
+      const roleNames = member.roles.map(role => role.name);
+      console.log(member.member.user.username + ': ' + roleNames);
 
-    //   const player = await Players.findOne({ where: { id: member.member.id } });
-    //   if (player) {
-    //     playersWithCharacters.push(player);
-    //   }
-    // }
+      const player = await Players.findOne({ where: { id: member.member.id } });
+      if (player) {
+        playersWithCharacters.push(player);
+      }
+    }
 
-    // console.log('\nPlayers to be removed from spreadsheets:')
-    // for (const player of playersWithCharacters) {
-    //   console.log(player.ign)
-    // }
+    console.log('\nPlayers to be removed from spreadsheets:')
+    for (const player of playersWithCharacters) {
+      console.log(player.ign)
+    }
 
 
 
