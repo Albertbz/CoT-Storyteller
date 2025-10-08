@@ -223,7 +223,12 @@ module.exports = {
           const pveDeathsCell = affiliationSheet.getCell(i + 1, 5);
           const yearOfMaturityCell = affiliationSheet.getCell(i + 1, 6);
           const ageCell = affiliationSheet.getCell(i + 1, 7);
-          const snowflakeCell = affiliationSheet.getCell(i + 1, 8);
+          const deathRoll1Cell = affiliationSheet.getCell(i + 1, 8);
+          const deathRoll2Cell = affiliationSheet.getCell(i + 1, 9);
+          const deathRoll3Cell = affiliationSheet.getCell(i + 1, 10);
+          const deathRoll4Cell = affiliationSheet.getCell(i + 1, 11);
+          const deathRoll5Cell = affiliationSheet.getCell(i + 1, 12);
+          const snowflakeCell = affiliationSheet.getCell(i + 1, 13);
 
 
           socialClassCell.value = player.character.socialClassName;
@@ -237,7 +242,36 @@ module.exports = {
             pveDeathsCell.value = player.character.pveDeaths;
             yearOfMaturityCell.value = player.character.yearOfMaturity;
             ageCell.value = world.currentYear - player.character.yearOfMaturity;
+            deathRoll1Cell.value = player.character.deathRoll1;
+            deathRoll2Cell.value = player.character.deathRoll2;
+            deathRoll3Cell.value = player.character.deathRoll3;
+            deathRoll4Cell.value = player.character.deathRoll4;
+            deathRoll5Cell.value = player.character.deathRoll5;
           }
+          else {
+            pveDeathsCell.value = '';
+            yearOfMaturityCell.value = '';
+            ageCell.value = '';
+            deathRoll1Cell.value = '';
+            deathRoll2Cell.value = '';
+            deathRoll3Cell.value = '';
+            deathRoll4Cell.value = '';
+            deathRoll5Cell.value = '';
+          }
+
+          const borderLeft = {
+            left: {
+              style: 'SOLID', width: 1, color: {}, colorStyle: { rgbColor: {} }
+            }
+          }
+          // Add formatting (mainly borders)
+          pveDeathsCell.borders = borderLeft;
+          deathRoll1Cell.borders = borderLeft;
+          deathRoll2Cell.borders = borderLeft;
+          deathRoll3Cell.borders = borderLeft;
+          deathRoll4Cell.borders = borderLeft;
+          deathRoll5Cell.borders = borderLeft;
+          snowflakeCell.borders = borderLeft;
         }
 
         await affiliationSheet.saveUpdatedCells();

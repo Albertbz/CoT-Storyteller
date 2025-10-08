@@ -129,7 +129,12 @@ module.exports = {
             yearOfMaturity: ageRow.get('Year of Maturity'),
             steelbearer: steelbearer,
             role: role,
-            comments: comments
+            comments: comments,
+            deathRoll1: ageRow.get('Year 4'),
+            deathRoll2: ageRow.get('Year 5'),
+            deathRoll3: ageRow.get('Year 6'),
+            deathRoll4: ageRow.get('Year 7'),
+            deathRoll5: ageRow.get('Year 8'),
           })
         }
         else {
@@ -140,7 +145,12 @@ module.exports = {
             affiliationId: affiliation.id,
             pveDeaths: ageRow.get('PvE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
-            socialClassName: socialClassName
+            socialClassName: socialClassName,
+            deathRoll1: ageRow.get('Year 4'),
+            deathRoll2: ageRow.get('Year 5'),
+            deathRoll3: ageRow.get('Year 6'),
+            deathRoll4: ageRow.get('Year 7'),
+            deathRoll5: ageRow.get('Year 8'),
           })
         }
       }

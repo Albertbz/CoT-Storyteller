@@ -51,6 +51,21 @@ module.exports = (sequelize, DataTypes) => {
     },
     steelbearerState: {
       type: DataTypes.STRING,
-    }
+    },
+    deathRoll1: {
+      type: DataTypes.INTEGER
+    },
+    deathRoll2: {
+      type: DataTypes.INTEGER
+    },
+    deathRoll3: {
+      type: DataTypes.INTEGER
+    },
+    deathRoll4: {
+      type: DataTypes.INTEGER
+    },
+    deathRoll5: {
+      type: DataTypes.INTEGER
+    },
   });
 }
