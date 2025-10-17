@@ -60,6 +60,68 @@ function calculateRoll({ age1, age2 = 0, isBastardRoll = false } = {}) {
   }
 }
 
+// --- Helper utilities to reduce duplication ---
+function buildOffspringPairLine(bearingName, conceivingName, rollRes) {
+  return inlineCode(bearingName) + ' & ' + inlineCode(conceivingName) + ': ' + rollRes.join(', ')
+}
+
+function formatOffspringCounts(rollRes) {
+  let amountOfSons = 0
+  let amountOfDaughters = 0
+  for (const r of rollRes) {
+    if (r === 'Son') amountOfSons++;
+    if (r === 'Daughter') amountOfDaughters++;
+  }
+
+  const childrenText = [];
+  if (amountOfSons > 1) childrenText.push(amountOfSons + ' Sons');
+  else if (amountOfSons === 1) childrenText.push(amountOfSons + ' Son');
+
+  if (amountOfDaughters > 1) childrenText.push(amountOfDaughters + ' Daughters');
+  else if (amountOfDaughters === 1) childrenText.push(amountOfDaughters + ' Daughter');
+
+  return { amountOfSons, amountOfDaughters, text: childrenText.join(' and ') };
+}
+
+async function getPlayerSnowflakeForCharacter(characterId) {
+  const player = await Players.findOne({ where: { characterId } });
+  return player ? player.id : null;
+}
+
+function pickRandomElement(arr) {
+  if (!arr || arr.length === 0) return null;
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function splitMessageIntoChunks(text, maxLen = 2000) {
+  const lines = text.split('\n');
+  const chunks = [];
+  let current = '';
+
+  for (const line of lines) {
+    // +1 for the newline when joining
+    if ((current.length + line.length + 1) > maxLen) {
+      if (current.length === 0) {
+        // single line too big (unlikely), hard split
+        chunks.push(line.slice(0, maxLen));
+        let rest = line.slice(maxLen);
+        while (rest.length > 0) {
+          chunks.push(rest.slice(0, maxLen));
+          rest = rest.slice(maxLen);
+        }
+        current = '';
+      } else {
+        chunks.push(current);
+        current = line;
+      }
+    } else {
+      current = current.length === 0 ? line : (current + '\n' + line);
+    }
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks;
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('start_rolls')
@@ -127,24 +189,37 @@ module.exports = {
     }
 
 
-    const embed = new EmbedBuilder()
-      .setTitle('**Offspring rolls**')
-      .setDescription(
-        '**The following couples are rolling for children:**\n' +
-        relationshipRollsText.join('\n') + '\n\n' +
-        '**The following characters are rolling for bastards with an NPC:**\n' +
-        bastardRollsTexs.join('\n') + '\n\n' +
-        'Please press Start when you are ready to start the offspring rolls.'
-      )
-      .setColor(0x0000FF)
+    // Split listing into two embeds: relationships and bastards
+    const relationshipsDescription = '**The following couples are rolling for children:**\n' +
+      (relationshipRollsText.length > 0 ? relationshipRollsText.join('\n') : '*None*');
+
+    const bastardsDescription = '**The following characters are rolling for bastards with an NPC:**\n' +
+      (bastardRollsTexs.length > 0 ? bastardRollsTexs.join('\n') : '*None*');
+
+    const relEmbed = new EmbedBuilder()
+      .setTitle('**Offspring rolls — Relationships**')
+      .setDescription(relationshipsDescription)
+      .setColor(0x0000FF);
+
+    const bastEmbed = new EmbedBuilder()
+      .setTitle('**Offspring rolls — Bastards**')
+      .setDescription(bastardsDescription)
+      .setColor(0x0000FF);
+
+    const controlEmbed = new EmbedBuilder()
+      .setTitle('Ready to start')
+      .setDescription('Please press Start when you are ready to start the offspring rolls.')
+      .setColor(0x0000FF);
 
     const response = await interaction.reply({
-      embeds: [embed],
+      embeds: [relEmbed, bastEmbed, controlEmbed],
       components: [startRow],
       withResponse: true
     });
 
     const collectorFilter = i => i.user.id === interaction.user.id;
+    const finalRelationshipSummaries = [];
+    const finalBastardSummaries = [];
 
     try {
       const start = await response.resource.message.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
@@ -176,7 +251,7 @@ module.exports = {
             .setColor(0x0000FF)
 
           const rollMessage = await interaction.editReply({
-            embeds: [embed],
+            embeds: [relEmbed, bastEmbed, embed],
             components: [rollRow],
             withResponse: true
           })
@@ -199,12 +274,7 @@ module.exports = {
               }
 
               const offspringRollsText = offspringResults.map(({ rollRes, conceivingCharacter }, _) => {
-                if (conceivingCharacter) {
-                  return inlineCode(bearingCharacter.name) + ' & ' + inlineCode(conceivingCharacter.name) + ': ' + rollRes.join(', ')
-                }
-                else {
-                  return inlineCode(bearingCharacter.name) + ' & ' + inlineCode('NPC') + ': ' + rollRes.join(', ')
-                }
+                return buildOffspringPairLine(bearingCharacter.name, conceivingCharacter ? conceivingCharacter.name : 'NPC', rollRes)
               })
 
               const successfulRolls = []
@@ -223,9 +293,9 @@ module.exports = {
 
               if (successfulRolls.length > 0) {
                 color = 0x00FF00
-                const numberSuccessful = randomInteger(successfulRolls.length) - 1
-                const rollRes = successfulRolls[numberSuccessful].rollRes;
-                const conceivingCharacter = successfulRolls[numberSuccessful].conceivingCharacter;
+                const chosen = pickRandomElement(successfulRolls)
+                const rollRes = chosen.rollRes
+                const conceivingCharacter = chosen.conceivingCharacter
 
 
                 // Update offspringResult
@@ -250,31 +320,7 @@ module.exports = {
                 offspringResult.rolls = rollRes
 
 
-                // Calculate number of sons and daughters for text
-                let amountOfSons = 0
-                let amountOfDaughters = 0
-                let childrenText = [];
-
-                for (const roll of rollRes) {
-                  if (roll === 'Son') amountOfSons++;
-                  if (roll === 'Daughter') amountOfDaughters++;
-                }
-
-                if (amountOfSons > 1) {
-                  childrenText.push(amountOfSons + ' Sons');
-                }
-                else if (amountOfSons === 1) {
-                  childrenText.push(amountOfSons + ' Son');
-                }
-
-                if (amountOfDaughters > 1) {
-                  childrenText.push(amountOfDaughters + ' Daughters');
-                }
-                else if (amountOfDaughters === 1) {
-                  childrenText.push(amountOfDaughters + ' Daughter');
-                }
-
-                const offspringText = childrenText.join(' and ');
+                const { amountOfSons, amountOfDaughters, text: offspringText } = formatOffspringCounts(rollRes)
 
                 if (conceivingCharacter) {
                   offspringResultText = inlineCode(bearingCharacter.name) + ' got pregnant with ' + inlineCode(conceivingCharacter.name) + ', and got:\n' + offspringText
@@ -289,10 +335,19 @@ module.exports = {
                 .setDescription(offspringRollsText.join('\n') + '\n\n' + offspringResultText)
                 .setColor(color)
 
+              // Save compact summary for final report (relationships only if children were produced)
+              const partnerName = (offspringResult.relationship && offspringResult.relationship.conceivingCharacter)
+                ? offspringResult.relationship.conceivingCharacter.name
+                : 'NPC';
+              const offspringTextCompact = (offspringResult.rolls && offspringResult.rolls.length) ? formatOffspringCounts(offspringResult.rolls).text : 'No children';
+              if (offspringTextCompact !== 'No children') {
+                finalRelationshipSummaries.push(inlineCode(bearingCharacter.name) + ' & ' + inlineCode(partnerName) + ': ' + offspringTextCompact);
+              }
+
               await roll.update({});
 
               const resultMessage = await roll.editReply({
-                embeds: [embed],
+                embeds: [relEmbed, bastEmbed, embed],
                 components: [continueRow],
                 withResponse: true
               })
@@ -334,24 +389,24 @@ module.exports = {
 
                     // Make the playable child
                     try {
-                      const parent1Player = await Players.findOne({ where: { characterId: bearingCharacter.id } })
-                      let parent1Snowflake = parent1Player ? parent1Player.id : null;
+                      // Resolve player snowflakes for both parents (may be null)
+                      const parent1Snowflake = offspringResult.relationship
+                        ? await getPlayerSnowflakeForCharacter(offspringResult.relationship.bearingCharacter.id)
+                        : await getPlayerSnowflakeForCharacter(bearingCharacter.id);
 
-                      let parent2Snowflake = null;
+                      const parent2Snowflake = offspringResult.relationship
+                        ? await getPlayerSnowflakeForCharacter(offspringResult.relationship.conceivingCharacter.id)
+                        : null;
 
-                      if (offspringResult.relationship) {
-                        const parent1Player = await Players.findOne({ where: { characterId: offspringResult.relationship.bearingCharacter.id } });
-                        parent1Snowflake = parent1Player ? parent1Player.id : null
-
-                        const parent2Player = await Players.findOne({ where: { characterId: offspringResult.relationship.conceivingCharacter.id } });
-                        parent2Snowflake = parent2Player ? parent2Player.id : null
-                      }
+                      // Ensure contact1Snowflake holds an existing snowflake even if it's the second parent only
+                      const contact1Snowflake = parent1Snowflake ?? parent2Snowflake ?? null;
+                      const contact2Snowflake = (parent1Snowflake && parent2Snowflake) ? parent2Snowflake : null;
 
                       const playableChild = await PlayableChildren.create({
                         characterId: childCharacter.id,
                         legitimacy: offspringResult.relationship ? (offspringResult.relationship.isCommitted ? 'Legitimate' : 'Illegitimate') : 'Illegitimate',
-                        contact1Snowflake: parent1Snowflake,
-                        contact2Snowflake: parent2Snowflake,
+                        contact1Snowflake: contact1Snowflake,
+                        contact2Snowflake: contact2Snowflake,
                       })
 
                       await postInLogChannel(
@@ -361,7 +416,7 @@ module.exports = {
                         'Legitimacy: ' + inlineCode(playableChild.legitimacy) + '\n' +
                         'Parent1: ' + inlineCode(bearingCharacter.name) + '\n' +
                         'Parent2: ' + inlineCode(offspringResult.relationship ? offspringResult.relationship.conceivingCharacter.name : 'NPC') + '\n' +
-                        'Contact1: ' + userMention(playableChild.contact1Snowflake) + '\n' +
+                        'Contact1: ' + (playableChild.contact1Snowflake ? userMention(playableChild.contact1Snowflake) : 'None') + '\n' +
                         'Contact2: ' + (playableChild.contact2Snowflake ? userMention(playableChild.contact2Snowflake) : 'None'),
                         0x008000
                       )
@@ -398,7 +453,7 @@ module.exports = {
 
 
           const rollMessage = await start.editReply({
-            embeds: [embed],
+            embeds: [relEmbed, bastEmbed, embed],
             components: [rollRow],
             withResponse: true
           })
@@ -418,30 +473,7 @@ module.exports = {
               if (successfulRoll) {
                 color = 0x00FF00;
 
-                let amountOfSons = 0
-                let amountOfDaughters = 0
-                let finalText = [];
-
-                for (const roll of rollRes) {
-                  if (roll === 'Son') amountOfSons++;
-                  if (roll === 'Daughter') amountOfDaughters++;
-                }
-
-                if (amountOfSons > 1) {
-                  finalText.push(amountOfSons + ' Sons');
-                }
-                else if (amountOfSons === 1) {
-                  finalText.push(amountOfSons + ' Son');
-                }
-
-                if (amountOfDaughters > 1) {
-                  finalText.push(amountOfDaughters + ' Daughters');
-                }
-                else if (amountOfDaughters === 1) {
-                  finalText.push(amountOfDaughters + ' Daughter');
-                }
-
-                const offspringText = finalText.join(' and ');
+                const { amountOfSons, amountOfDaughters, text: offspringText } = formatOffspringCounts(rollRes)
 
                 offspringResultText = inlineCode(character.name) + ' got the following with an NPC:\n' + offspringText
               }
@@ -451,10 +483,16 @@ module.exports = {
                 .setDescription(offspringRollsText + '\n\n' + offspringResultText)
                 .setColor(color)
 
+              // Save compact summary for final report (bastards only if children were produced)
+              const offspringTextCompactBastard = successfulRoll ? formatOffspringCounts(rollRes).text : 'No children';
+              if (offspringTextCompactBastard !== 'No children') {
+                finalBastardSummaries.push(inlineCode(character.name) + ': ' + offspringTextCompactBastard);
+              }
+
               await roll.update({});
 
               const resultMessage = await roll.editReply({
-                embeds: [embed],
+                embeds: [relEmbed, bastEmbed, embed],
                 components: [continueRow],
                 withResponse: true
               })
@@ -491,7 +529,7 @@ module.exports = {
 
                       // Make the playable child
                       try {
-                        const parent1Snowflake = (await Players.findOne({ where: { characterId: character.id } })).id
+                        const parent1Snowflake = await getPlayerSnowflakeForCharacter(character.id)
 
                         const playableChild = await PlayableChildren.create({
                           characterId: childCharacter.id,
@@ -537,6 +575,32 @@ module.exports = {
       console.log(error)
       return interaction.editReply({ content: 'Confirmation not received within 5 minutes, cancelling.', components: [], embeds: [] });
     }
-    return interaction.editReply({ content: 'Finished offspring rolls.', components: [], embeds: [] });
+    if (finalRelationshipSummaries.length === 0 && finalBastardSummaries.length === 0) {
+      return interaction.editReply({ content: 'Finished offspring rolls. No children were produced.', components: [], embeds: [] });
+    }
+
+    // Build embeds array and send both summaries in the same message
+    const embedsToSend = [];
+    if (finalRelationshipSummaries.length > 0) {
+      const relSummaryEmbed = new EmbedBuilder()
+        .setTitle('Offspring summary — Relationships')
+        .setDescription(finalRelationshipSummaries.join('\n'))
+        .setColor(0x0000FF);
+      embedsToSend.push(relSummaryEmbed);
+    }
+
+    if (finalBastardSummaries.length > 0) {
+      const bastSummaryEmbed = new EmbedBuilder()
+        .setTitle('Offspring summary — Bastards')
+        .setDescription(finalBastardSummaries.join('\n'))
+        .setColor(0x0000FF);
+      embedsToSend.push(bastSummaryEmbed);
+    }
+
+    if (embedsToSend.length > 0) {
+      await interaction.editReply({ embeds: embedsToSend, components: [] });
+    }
+
+    return null;
   }
 }

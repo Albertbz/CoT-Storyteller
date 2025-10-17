@@ -30,6 +30,12 @@ module.exports = {
         return;
       }
 
+      // Guard: only call autocomplete if the command exports it
+      if (typeof command.autocomplete !== 'function') {
+        // Nothing to do for this command's autocomplete
+        return;
+      }
+
       try {
         await command.autocomplete(interaction);
       } catch (error) {
