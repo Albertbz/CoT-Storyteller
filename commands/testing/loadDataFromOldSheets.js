@@ -300,17 +300,17 @@ module.exports = {
           pveDeaths: 3
         })
 
-        let member = members.find(member => member.user.username === deceasedRow.get('Player Name'));
+        let member = members.find(member => member.user.username === deceasedRow.get('Discord Username'));
         let memberId = null;
         if (!member) {
-          memberId = getIdFromXelaLogs(deceasedRow.get('Player Name'), leftMessages)
+          memberId = getIdFromXelaLogs(deceasedRow.get('Discord Username'), leftMessages)
         }
         else {
           memberId = member.id;
         }
 
         if (memberId === null) {
-          console.log('Did not find id: ' + deceasedRow.get('Player Name'))
+          console.log('Did not find id: ' + deceasedRow.get('Discord Username'))
         }
 
         const yearSplit = deceasedRow.get('Date of Death').split(', \'');
@@ -332,7 +332,7 @@ module.exports = {
 
       }
       catch (error) {
-        console.log('Error for: ' + deceasedRow.get('Player Name') + error)
+        console.log('Error for: ' + deceasedRow.get('Discord Username') + error)
       }
     }
     console.log('Finished syncing deceaseds from houses.')
@@ -353,14 +353,14 @@ module.exports = {
           pveDeaths: 3
         })
 
-        let member = members.find(member => member.user.username === deceasedRow.get('Player Name'));
+        let member = members.find(member => member.user.username === deceasedRow.get('Discord Username'));
         let memberId = null;
         if (!member) {
           try {
             const message = leftMessages.find(message => {
               const hasDescription = message.embeds[0].description;
               if (hasDescription) {
-                return message.embeds[0].description.includes(deceasedRow.get('Player Name'));
+                return message.embeds[0].description.includes(deceasedRow.get('Discord Username'));
               }
             })
 
@@ -380,7 +380,7 @@ module.exports = {
         }
 
         if (memberId === null) {
-          console.log('Did not find id: ' + deceasedRow.get('Player Name'))
+          console.log('Did not find id: ' + deceasedRow.get('Discord Username'))
         }
 
         const yearSplit = deceasedRow.get('Date of Death').split(', \'');
@@ -402,7 +402,7 @@ module.exports = {
 
       }
       catch (error) {
-        console.log('Error for: ' + deceasedRow.get('Player Name') + error)
+        console.log('Error for: ' + deceasedRow.get('Discord Username') + error)
       }
     }
     console.log('Finished syncing dead wanderers.')

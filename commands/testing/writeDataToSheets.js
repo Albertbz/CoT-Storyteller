@@ -242,21 +242,21 @@ module.exports = {
             pveDeathsCell.value = player.character.pveDeaths;
             yearOfMaturityCell.value = player.character.yearOfMaturity;
             ageCell.value = world.currentYear - player.character.yearOfMaturity;
-            deathRoll1Cell.value = player.character.deathRoll1;
-            deathRoll2Cell.value = player.character.deathRoll2;
-            deathRoll3Cell.value = player.character.deathRoll3;
-            deathRoll4Cell.value = player.character.deathRoll4;
-            deathRoll5Cell.value = player.character.deathRoll5;
+            deathRoll1Cell.value = player.character.deathRoll1 ? player.character.deathRoll1 : '-';
+            deathRoll2Cell.value = player.character.deathRoll2 ? player.character.deathRoll2 : '-';
+            deathRoll3Cell.value = player.character.deathRoll3 ? player.character.deathRoll3 : '-';
+            deathRoll4Cell.value = player.character.deathRoll4 ? player.character.deathRoll4 : '-';
+            deathRoll5Cell.value = player.character.deathRoll5 ? player.character.deathRoll5 : '-';
           }
           else {
-            pveDeathsCell.value = '';
-            yearOfMaturityCell.value = '';
-            ageCell.value = '';
-            deathRoll1Cell.value = '';
-            deathRoll2Cell.value = '';
-            deathRoll3Cell.value = '';
-            deathRoll4Cell.value = '';
-            deathRoll5Cell.value = '';
+            pveDeathsCell.value = '-';
+            yearOfMaturityCell.value = '-';
+            ageCell.value = '-';
+            deathRoll1Cell.value = '-';
+            deathRoll2Cell.value = '-';
+            deathRoll3Cell.value = '-';
+            deathRoll4Cell.value = '-';
+            deathRoll5Cell.value = '-';
           }
 
           const borderLeft = {
@@ -272,6 +272,15 @@ module.exports = {
           deathRoll4Cell.borders = borderLeft;
           deathRoll5Cell.borders = borderLeft;
           snowflakeCell.borders = borderLeft;
+
+          pveDeathsCell.horizontalAlignment = 'CENTER';
+          yearOfMaturityCell.horizontalAlignment = 'CENTER';
+          ageCell.horizontalAlignment = 'CENTER';
+          deathRoll1Cell.horizontalAlignment = 'CENTER';
+          deathRoll2Cell.horizontalAlignment = 'CENTER';
+          deathRoll3Cell.horizontalAlignment = 'CENTER';
+          deathRoll4Cell.horizontalAlignment = 'CENTER';
+          deathRoll5Cell.horizontalAlignment = 'CENTER';
         }
 
         await affiliationSheet.saveUpdatedCells();
