@@ -8,7 +8,7 @@
     "deploy-commands": "node deploy-commands.js",
     "db:init": "node dbInit.js",
     "db:init:force": "node dbInit.js --force",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test/run-tests.js"
   },
   "author": "Albertbz",
   "license": "ISC",

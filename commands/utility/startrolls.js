@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, subtext, EmbedBuilder, WorkerContextFetchingStrategy } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, subtext, EmbedBuilder, WorkerContextFetchingStrategy, italic, bold } = require('discord.js');
 const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
@@ -8,9 +8,8 @@ function randomInteger(max) {
   return Math.floor(Math.random() * max + 1);
 }
 
-function calculateFromThresholds(childless, son, daughter, twinDaughters, twinSons, twinFraternal) {
-  const offspringCheck = randomInteger(100)
-
+function calculateFromThresholds(childless, son, daughter, twinDaughters, twinSons, twinFraternal, offspringCheck) {
+  // offspringCheck is provided by the caller to make checks observable
   if (offspringCheck < childless) {
     return ['Childless']
   }
@@ -46,23 +45,39 @@ function calculateRoll({ age1, age2 = 0, isBastardRoll = false } = {}) {
   const fertilityCheck = randomInteger(100)
 
   if (fertilityCheck <= fertilityModifier) {
+    const offspringCheck = randomInteger(100)
     if (isBastardRoll) {
       // Handle bastard roll chances
-      return calculateFromThresholds(61, 79, 97, 98, 99, 100)
+      const result = calculateFromThresholds(61, 79, 97, 98, 99, 100, offspringCheck)
+      return { result, fertilityCheck, offspringCheck, fertilityModifier }
     }
     else {
       // Handle relationship roll chances
-      return calculateFromThresholds(41, 66, 91, 94, 97, 100)
+      const result = calculateFromThresholds(41, 66, 91, 94, 97, 100, offspringCheck)
+      return { result, fertilityCheck, offspringCheck, fertilityModifier }
     }
   }
   else {
-    return ['Failed Fertility Roll']
+    return { result: ['Failed Fertility Roll'], fertilityCheck, fertilityModifier }
   }
 }
 
 // --- Helper utilities to reduce duplication ---
-function buildOffspringPairLine(bearingName, conceivingName, rollRes) {
-  return inlineCode(bearingName) + ' & ' + inlineCode(conceivingName) + ': ' + rollRes.join(', ')
+function buildOffspringPairLine(bearingName, conceivingName, rollRes, checks = {}) {
+  let offspringText = '';
+  if (Array.isArray(rollRes) && rollRes.length > 0) {
+    const { text } = formatOffspringCounts(rollRes);
+    offspringText = text || rollRes.join(', ');
+  } else {
+    offspringText = Array.isArray(rollRes) ? rollRes.join(', ') : String(rollRes);
+  }
+
+  let line = inlineCode(bearingName) + ' & ' + inlineCode(conceivingName) + ': ' + bold(offspringText)
+  const parts = []
+  if (typeof checks.fertilityCheck !== 'undefined') parts.push('Fertility: ' + checks.fertilityCheck)
+  if (typeof checks.offspringCheck !== 'undefined') parts.push('Offspring: ' + checks.offspringCheck)
+  if (parts.length > 0) line += ' ' + italic('(' + parts.join(' / ') + ')')
+  return line
 }
 
 function formatOffspringCounts(rollRes) {
@@ -73,14 +88,39 @@ function formatOffspringCounts(rollRes) {
     if (r === 'Daughter') amountOfDaughters++;
   }
 
-  const childrenText = [];
-  if (amountOfSons > 1) childrenText.push(amountOfSons + ' Sons');
-  else if (amountOfSons === 1) childrenText.push(amountOfSons + ' Son');
+  // Special phrasing for twins/fraternal twins
+  let text = '';
+  if (rollRes.length === 2) {
+    if (amountOfSons === 2) text = 'Twin Sons';
+    else if (amountOfDaughters === 2) text = 'Twin Daughters';
+    else if (amountOfSons === 1 && amountOfDaughters === 1) text = 'Fraternal Twins';
+  }
 
-  if (amountOfDaughters > 1) childrenText.push(amountOfDaughters + ' Daughters');
-  else if (amountOfDaughters === 1) childrenText.push(amountOfDaughters + ' Daughter');
+  // Triplets and quadruplets
+  if (rollRes.length === 3) {
+    if (amountOfSons === 3) text = 'Triplet Sons';
+    else if (amountOfDaughters === 3) text = 'Triplet Daughters';
+    else text = 'Triplets (' + (amountOfSons + ' Son' + (amountOfSons !== 1 ? 's' : '')) + (amountOfDaughters > 0 ? ' and ' + amountOfDaughters + ' Daughter' + (amountOfDaughters !== 1 ? 's' : '') : '') + ')';
+  }
 
-  return { amountOfSons, amountOfDaughters, text: childrenText.join(' and ') };
+  if (rollRes.length === 4) {
+    if (amountOfSons === 4) text = 'Quadruplet Sons';
+    else if (amountOfDaughters === 4) text = 'Quadruplet Daughters';
+    else text = 'Quadruplets (' + (amountOfSons + ' Son' + (amountOfSons !== 1 ? 's' : '')) + (amountOfDaughters > 0 ? ' and ' + amountOfDaughters + ' Daughter' + (amountOfDaughters !== 1 ? 's' : '') : '') + ')';
+  }
+
+  if (!text) {
+    const childrenText = [];
+    if (amountOfSons > 1) childrenText.push(amountOfSons + ' Sons');
+    else if (amountOfSons === 1) childrenText.push('Son');
+
+    if (amountOfDaughters > 1) childrenText.push(amountOfDaughters + ' Daughters');
+    else if (amountOfDaughters === 1) childrenText.push('Daughter');
+
+    text = childrenText.join(' and ');
+  }
+
+  return { amountOfSons, amountOfDaughters, text };
 }
 
 async function getPlayerSnowflakeForCharacter(characterId) {
@@ -91,35 +131,6 @@ async function getPlayerSnowflakeForCharacter(characterId) {
 function pickRandomElement(arr) {
   if (!arr || arr.length === 0) return null;
   return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function splitMessageIntoChunks(text, maxLen = 2000) {
-  const lines = text.split('\n');
-  const chunks = [];
-  let current = '';
-
-  for (const line of lines) {
-    // +1 for the newline when joining
-    if ((current.length + line.length + 1) > maxLen) {
-      if (current.length === 0) {
-        // single line too big (unlikely), hard split
-        chunks.push(line.slice(0, maxLen));
-        let rest = line.slice(maxLen);
-        while (rest.length > 0) {
-          chunks.push(rest.slice(0, maxLen));
-          rest = rest.slice(maxLen);
-        }
-        current = '';
-      } else {
-        chunks.push(current);
-        current = line;
-      }
-    } else {
-      current = current.length === 0 ? line : (current + '\n' + line);
-    }
-  }
-  if (current.length > 0) chunks.push(current);
-  return chunks;
 }
 
 module.exports = {
@@ -245,8 +256,10 @@ module.exports = {
           const embed = new EmbedBuilder()
             .setTitle('Relationship roll')
             .setDescription(
-              'Bearing partner: ' + inlineCode(bearingCharacter.name) + '\n' +
-              'Conceiving partner(s): ' + conceivingCharacters.map(character => inlineCode(character.name)).join(', ') + bastardNPC
+              'Bearing partner:\n' +
+              inlineCode(bearingCharacter.name) + '\n\n' +
+              'Conceiving partner(s):\n' +
+              conceivingCharacters.map(character => inlineCode(character.name)).join('\n') + bastardNPC
             )
             .setColor(0x0000FF)
 
@@ -264,17 +277,17 @@ module.exports = {
 
               const offspringResults = [];
               for (const conceivingCharacter of conceivingCharacters) {
-                const rollRes = calculateRoll({ age1: bearingCharacterAge, age2: world.currentYear - conceivingCharacter.yearOfMaturity })
-                offspringResults.push({ rollRes: rollRes, conceivingCharacter: conceivingCharacter })
+                const roll = calculateRoll({ age1: bearingCharacterAge, age2: world.currentYear - conceivingCharacter.yearOfMaturity })
+                offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck }, conceivingCharacter: conceivingCharacter })
               }
 
               if (bearingCharacter.isRollingForBastards) {
-                const rollRes = calculateRoll({ age1: bearingCharacterAge, isBastardRoll: true })
-                offspringResults.push({ rollRes: rollRes, conceivingCharacter: undefined })
+                const roll = calculateRoll({ age1: bearingCharacterAge, isBastardRoll: true })
+                offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck }, conceivingCharacter: undefined })
               }
 
-              const offspringRollsText = offspringResults.map(({ rollRes, conceivingCharacter }, _) => {
-                return buildOffspringPairLine(bearingCharacter.name, conceivingCharacter ? conceivingCharacter.name : 'NPC', rollRes)
+              const offspringRollsText = offspringResults.map(({ rollRes, conceivingCharacter, checks }, _) => {
+                return buildOffspringPairLine(bearingCharacter.name, conceivingCharacter ? conceivingCharacter.name : 'NPC', rollRes, checks)
               })
 
               const successfulRolls = []
@@ -336,9 +349,10 @@ module.exports = {
                 .setColor(color)
 
               // Save compact summary for final report (relationships only if children were produced)
-              const partnerName = (offspringResult.relationship && offspringResult.relationship.conceivingCharacter)
-                ? offspringResult.relationship.conceivingCharacter.name
-                : 'NPC';
+              let partnerName = 'NPC';
+              if (offspringResult.relationship && offspringResult.relationship.conceivingCharacter) {
+                partnerName = offspringResult.relationship.conceivingCharacter.name;
+              }
               const offspringTextCompact = (offspringResult.rolls && offspringResult.rolls.length) ? formatOffspringCounts(offspringResult.rolls).text : 'No children';
               if (offspringTextCompact !== 'No children') {
                 finalRelationshipSummaries.push(inlineCode(bearingCharacter.name) + ' & ' + inlineCode(partnerName) + ': ' + offspringTextCompact);
@@ -459,12 +473,14 @@ module.exports = {
           })
 
           try {
-            const roll = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+            const rollMessageRes = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
 
-            if (roll.customId === 'roll') {
+            if (rollMessageRes.customId === 'roll') {
               const characterAge = world.currentYear - character.yearOfMaturity
-              const rollRes = calculateRoll({ age1: characterAge, isBastardRoll: true })
-              const offspringRollsText = inlineCode(character.name) + ' & ' + inlineCode('NPC') + ': ' + rollRes.join(', ')
+              const roll = calculateRoll({ age1: characterAge, isBastardRoll: true })
+              const rollRes = roll.result
+              const checks = { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck }
+              const offspringRollsText = buildOffspringPairLine(character.name, 'NPC', rollRes, checks)
 
               const successfulRoll = rollRes.includes('Son') || rollRes.includes('Daughter')
 
@@ -489,9 +505,9 @@ module.exports = {
                 finalBastardSummaries.push(inlineCode(character.name) + ': ' + offspringTextCompactBastard);
               }
 
-              await roll.update({});
+              await rollMessageRes.update({});
 
-              const resultMessage = await roll.editReply({
+              const resultMessage = await rollMessageRes.editReply({
                 embeds: [relEmbed, bastEmbed, embed],
                 components: [continueRow],
                 withResponse: true
@@ -604,3 +620,9 @@ module.exports = {
     return null;
   }
 }
+
+// Expose internals for unit tests (no public API change)
+module.exports.__test = {
+  formatOffspringCounts,
+  buildOffspringPairLine,
+};
