@@ -56,5 +56,25 @@ if (!line.includes('Twin Sons')) {
 }
 console.log('PASS buildOffspringPairLine twin test');
 
+// Test special-case 100 -> triplets/quadruplets via calculateFromThresholds
+const calculateFromThresholds = startrolls.__test.calculateFromThresholds;
+if (!calculateFromThresholds) {
+  console.error('calculateFromThresholds not exported for testing.');
+  process.exit(1);
+}
+
+const special = calculateFromThresholds(0, 1, 2, 3, 4, 5, 100);
+if (!Array.isArray(special) || !(special.length === 3 || special.length === 4)) {
+  console.error('FAIL special-case 100 did not return 3 or 4 children:', special);
+  process.exit(1);
+}
+for (const c of special) {
+  if (c !== 'Son' && c !== 'Daughter') {
+    console.error('FAIL special-case returned invalid child sex:', c);
+    process.exit(1);
+  }
+}
+console.log('PASS special-case 100 produces 3-4 children');
+
 console.log('All tests passed!');
 process.exit(0);

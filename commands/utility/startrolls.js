@@ -8,6 +8,13 @@ function randomInteger(max) {
   return Math.floor(Math.random() * max + 1);
 }
 
+// Centralized thresholds for offspring rolls (single source of truth)
+const REL_THRESHOLDS = [41, 66, 91, 94, 97, 100];
+const BAST_THRESHOLDS = [61, 79, 97, 98, 99, 100];
+const OFFSPRING_LABELS = ['Childless', 'Son', 'Daughter', 'Twin Daughters', 'Twin Sons', 'Fraternal Twins'];
+// Centralized messages
+const CANCEL_MESSAGE = 'Something went wrong, or no button was interacted with for 5 minutes.';
+
 function calculateFromThresholds(childless, son, daughter, twinDaughters, twinSons, twinFraternal, offspringCheck) {
   // offspringCheck is provided by the caller to make checks observable
   if (offspringCheck < childless) {
@@ -29,7 +36,7 @@ function calculateFromThresholds(childless, son, daughter, twinDaughters, twinSo
     return ['Son', 'Daughter']
   }
   else if (offspringCheck === 100) {
-    const offspringAmount = randomInteger(4);
+    const offspringAmount = randomInteger(2) + 2; // 3 or 4 offspring
 
     const offspring = []
     for (let i = 0; i < offspringAmount; i++) {
@@ -48,12 +55,12 @@ function calculateRoll({ age1, age2 = 0, isBastardRoll = false } = {}) {
     const offspringCheck = randomInteger(100)
     if (isBastardRoll) {
       // Handle bastard roll chances
-      const result = calculateFromThresholds(61, 79, 97, 98, 99, 100, offspringCheck)
+      const result = calculateFromThresholds(...BAST_THRESHOLDS, offspringCheck)
       return { result, fertilityCheck, offspringCheck, fertilityModifier }
     }
     else {
       // Handle relationship roll chances
-      const result = calculateFromThresholds(41, 66, 91, 94, 97, 100, offspringCheck)
+      const result = calculateFromThresholds(...REL_THRESHOLDS, offspringCheck)
       return { result, fertilityCheck, offspringCheck, fertilityModifier }
     }
   }
@@ -217,13 +224,42 @@ module.exports = {
       .setDescription(bastardsDescription)
       .setColor(0x0000FF);
 
+    // Build an embed that shows the roll chance thresholds for relationships and bastards
+    function buildChanceDescription(thresholds, labels) {
+      let desc = '';
+      let prev = 1;
+      for (let i = 0; i < thresholds.length; i++) {
+        const t = thresholds[i];
+        const label = labels[i];
+        if (t === 100) {
+          const end = t - 1;
+          if (prev < end) desc += `**${label}:** ${prev}-${end}\n`;
+          else if (prev === end) desc += `**${label}:** ${prev}\n`;
+          desc += `**Triplets+:** 100\n`;
+        } else {
+          const end = t - 1;
+          if (prev < end) desc += `**${label}:** ${prev}-${end}\n`;
+          else if (prev === end) desc += `**${label}:** ${prev}\n`;
+          prev = t;
+        }
+      }
+      return desc;
+    }
+
+    const rollChancesDescription = '**Relationships**\n' + buildChanceDescription(REL_THRESHOLDS, OFFSPRING_LABELS) + '\n**Bastards**\n' + buildChanceDescription(BAST_THRESHOLDS, OFFSPRING_LABELS);
+
+    const rollChancesEmbed = new EmbedBuilder()
+      .setTitle('Offspring roll chances')
+      .setDescription(rollChancesDescription)
+      .setColor(0x0000FF);
+
     const controlEmbed = new EmbedBuilder()
       .setTitle('Ready to start')
       .setDescription('Please press Start when you are ready to start the offspring rolls.')
       .setColor(0x0000FF);
 
     const response = await interaction.reply({
-      embeds: [relEmbed, bastEmbed, controlEmbed],
+      embeds: [relEmbed, bastEmbed, rollChancesEmbed, controlEmbed],
       components: [startRow],
       withResponse: true
     });
@@ -264,7 +300,7 @@ module.exports = {
             .setColor(0x0000FF)
 
           const rollMessage = await interaction.editReply({
-            embeds: [relEmbed, bastEmbed, embed],
+            embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
             components: [rollRow],
             withResponse: true
           })
@@ -361,7 +397,7 @@ module.exports = {
               await roll.update({});
 
               const resultMessage = await roll.editReply({
-                embeds: [relEmbed, bastEmbed, embed],
+                embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
                 components: [continueRow],
                 withResponse: true
               })
@@ -446,13 +482,13 @@ module.exports = {
               }
               catch (error) {
                 console.log(error)
-                return interaction.editReply({ content: 'Confirmation not received within 5 minutes, cancelling.', components: [], embeds: [] })
+                return interaction.editReply({ content: CANCEL_MESSAGE, components: [], embeds: [] })
               }
             }
           }
           catch (error) {
             console.log(error)
-            return interaction.editReply({ content: 'Confirmation not received within 5 minutes, cancelling.', components: [], embeds: [] });
+            return interaction.editReply({ content: CANCEL_MESSAGE, components: [], embeds: [] });
           }
         }
 
@@ -460,44 +496,39 @@ module.exports = {
         for (const character of charactersRollingForBastardsFiltered) {
           const embed = new EmbedBuilder()
             .setTitle('Bastard NPC roll')
-            .setDescription(
-              'Rolling character: ' + inlineCode(character.name)
-            )
-            .setColor(0x0000FF)
-
+            .setDescription('Rolling character: ' + inlineCode(character.name))
+            .setColor(0x0000FF);
 
           const rollMessage = await start.editReply({
-            embeds: [relEmbed, bastEmbed, embed],
+            embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
             components: [rollRow],
             withResponse: true
-          })
+          });
 
           try {
             const rollMessageRes = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
 
             if (rollMessageRes.customId === 'roll') {
-              const characterAge = world.currentYear - character.yearOfMaturity
-              const roll = calculateRoll({ age1: characterAge, isBastardRoll: true })
-              const rollRes = roll.result
-              const checks = { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck }
-              const offspringRollsText = buildOffspringPairLine(character.name, 'NPC', rollRes, checks)
+              const characterAge = world.currentYear - character.yearOfMaturity;
+              const roll = calculateRoll({ age1: characterAge, isBastardRoll: true });
+              const rollRes = roll.result;
+              const checks = { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck };
+              const offspringRollsText = buildOffspringPairLine(character.name, 'NPC', rollRes, checks);
 
-              const successfulRoll = rollRes.includes('Son') || rollRes.includes('Daughter')
+              const successfulRoll = rollRes.includes('Son') || rollRes.includes('Daughter');
 
               let color = 0xFF0000;
               let offspringResultText = inlineCode(character.name) + ' did **not** get a child with an NPC.';
               if (successfulRoll) {
                 color = 0x00FF00;
-
-                const { amountOfSons, amountOfDaughters, text: offspringText } = formatOffspringCounts(rollRes)
-
-                offspringResultText = inlineCode(character.name) + ' got the following with an NPC:\n' + offspringText
+                const { text: offspringText } = formatOffspringCounts(rollRes);
+                offspringResultText = inlineCode(character.name) + ' got the following with an NPC:\n' + offspringText;
               }
 
-              const embed = new EmbedBuilder()
+              const resultEmbed = new EmbedBuilder()
                 .setTitle('Result of roll')
                 .setDescription(offspringRollsText + '\n\n' + offspringResultText)
-                .setColor(color)
+                .setColor(color);
 
               // Save compact summary for final report (bastards only if children were produced)
               const offspringTextCompactBastard = successfulRoll ? formatOffspringCounts(rollRes).text : 'No children';
@@ -508,29 +539,26 @@ module.exports = {
               await rollMessageRes.update({});
 
               const resultMessage = await rollMessageRes.editReply({
-                embeds: [relEmbed, bastEmbed, embed],
+                embeds: [relEmbed, bastEmbed, rollChancesEmbed, resultEmbed],
                 components: [continueRow],
                 withResponse: true
-              })
+              });
 
               try {
                 const result = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-
                 if (result.customId === 'continue') {
-
                   if (successfulRoll) {
-                    for (const roll of rollRes) {
-                      // Make the character
+                    for (const childRoll of rollRes) {
                       let affiliationId = (await Affiliations.findOne({ where: { name: 'Wanderer' } })).id;
 
                       const childCharacter = await Characters.create({
-                        name: roll,
-                        sex: roll === 'Son' ? 'Male' : 'Female',
+                        name: childRoll,
+                        sex: childRoll === 'Son' ? 'Male' : 'Female',
                         affiliationId: affiliationId,
                         socialClassName: 'Notable',
                         yearOfMaturity: world.currentYear + 3,
                         parent1Id: character.id,
-                      })
+                      });
 
                       await postInLogChannel(
                         'Character Created',
@@ -541,17 +569,15 @@ module.exports = {
                         'Social class: `' + childCharacter.socialClassName + '`\n' +
                         'Year of Maturity: `' + childCharacter.yearOfMaturity + '`',
                         0x008000
-                      )
+                      );
 
-                      // Make the playable child
                       try {
-                        const parent1Snowflake = await getPlayerSnowflakeForCharacter(character.id)
-
+                        const parent1Snowflake = await getPlayerSnowflakeForCharacter(character.id);
                         const playableChild = await PlayableChildren.create({
                           characterId: childCharacter.id,
                           legitimacy: 'Illegitimate',
                           contact1Snowflake: parent1Snowflake,
-                        })
+                        });
 
                         await postInLogChannel(
                           'Playable Child Created',
@@ -559,38 +585,35 @@ module.exports = {
                           'Name: ' + inlineCode(childCharacter.name) + '\n' +
                           'Legitimacy: ' + inlineCode(playableChild.legitimacy) + '\n' +
                           'Parent1: ' + inlineCode(character.name) + '\n' +
-                          'Contact1: ' + userMention(playableChild.contact1Snowflake),
+                          'Contact1: ' + (playableChild.contact1Snowflake ? userMention(playableChild.contact1Snowflake) : 'None'),
                           0x008000
-                        )
-                      }
-                      catch (error) {
-                        console.log(error)
-                        return interaction.editReply({ content: 'Something went wrong when creating the playable child.', components: [], embeds: [] })
+                        );
+                      } catch (error) {
+                        console.log(error);
+                        return interaction.editReply({ content: 'Something went wrong when creating the playable child.', components: [], embeds: [] });
                       }
                     }
                   }
 
-                  await result.update({})
+                  await result.update({});
                 }
-              }
-              catch (error) {
-                console.log(error)
-                return interaction.editReply({ content: 'Confirmation not received within 5 minutes, cancelling.', components: [], embeds: [] })
+              } catch (error) {
+                console.log(error);
+                return interaction.editReply({ content: CANCEL_MESSAGE, components: [], embeds: [] });
               }
             }
-          }
-          catch (error) {
-            console.log(error)
-            return interaction.editReply({ content: 'Confirmation not received within 5 minutes, cancelling.', components: [], embeds: [] });
+          } catch (error) {
+            console.log(error);
+            return interaction.editReply({ content: CANCEL_MESSAGE, components: [], embeds: [] });
           }
         }
 
       }
+    } catch (error) {
+      console.log(error);
+      return interaction.editReply({ content: CANCEL_MESSAGE, components: [], embeds: [] });
     }
-    catch (error) {
-      console.log(error)
-      return interaction.editReply({ content: 'Confirmation not received within 5 minutes, cancelling.', components: [], embeds: [] });
-    }
+
     if (finalRelationshipSummaries.length === 0 && finalBastardSummaries.length === 0) {
       return interaction.editReply({ content: 'Finished offspring rolls. No children were produced.', components: [], embeds: [] });
     }
@@ -625,4 +648,5 @@ module.exports = {
 module.exports.__test = {
   formatOffspringCounts,
   buildOffspringPairLine,
+  calculateFromThresholds,
 };
