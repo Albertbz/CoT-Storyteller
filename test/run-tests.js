@@ -33,6 +33,15 @@ const tests = [
   { input: ['Son', 'Son', 'Son', 'Son'], expect: { amountOfSons: 4, amountOfDaughters: 0, text: 'Quadruplet Sons' } },
   { input: ['Daughter', 'Daughter', 'Daughter', 'Daughter'], expect: { amountOfSons: 0, amountOfDaughters: 4, text: 'Quadruplet Daughters' } },
   { input: ['Son', 'Son', 'Daughter', 'Daughter'], expect: { amountOfSons: 2, amountOfDaughters: 2, text: 'Quadruplets (2 Sons and 2 Daughters)' } },
+  { input: ['Son', 'Son', 'Son', 'Son', 'Son'], expect: { amountOfSons: 5, amountOfDaughters: 0, text: 'Quintuplet Sons' } },
+  { input: ['Daughter', 'Daughter', 'Daughter', 'Daughter', 'Daughter'], expect: { amountOfSons: 0, amountOfDaughters: 5, text: 'Quintuplet Daughters' } },
+  { input: ['Son', 'Son', 'Son', 'Son', 'Son', 'Son'], expect: { amountOfSons: 6, amountOfDaughters: 0, text: 'Sextuplet Sons' } },
+  { input: ['Daughter', 'Daughter', 'Daughter', 'Daughter', 'Daughter', 'Daughter'], expect: { amountOfSons: 0, amountOfDaughters: 6, text: 'Sextuplet Daughters' } },
+  // Mixed quintuplets/sextuplets
+  { input: ['Son', 'Son', 'Son', 'Son', 'Daughter'], expect: { amountOfSons: 4, amountOfDaughters: 1, text: 'Quintuplets (4 Sons and 1 Daughter)' } },
+  { input: ['Son', 'Son', 'Daughter', 'Daughter', 'Daughter'], expect: { amountOfSons: 2, amountOfDaughters: 3, text: 'Quintuplets (2 Sons and 3 Daughters)' } },
+  { input: ['Son', 'Son', 'Son', 'Son', 'Son', 'Daughter'], expect: { amountOfSons: 5, amountOfDaughters: 1, text: 'Sextuplets (5 Sons and 1 Daughter)' } },
+  { input: ['Son', 'Son', 'Son', 'Daughter', 'Daughter', 'Daughter'], expect: { amountOfSons: 3, amountOfDaughters: 3, text: 'Sextuplets (3 Sons and 3 Daughters)' } },
 ];
 
 for (const t of tests) {
@@ -64,8 +73,8 @@ if (!calculateFromThresholds) {
 }
 
 const special = calculateFromThresholds(0, 1, 2, 3, 4, 5, 100);
-if (!Array.isArray(special) || !(special.length === 3 || special.length === 4)) {
-  console.error('FAIL special-case 100 did not return 3 or 4 children:', special);
+if (!Array.isArray(special) || !(special.length >= 3 && special.length <= 6)) {
+  console.error('FAIL special-case 100 did not return 3-6 children:', special);
   process.exit(1);
 }
 for (const c of special) {
@@ -74,7 +83,7 @@ for (const c of special) {
     process.exit(1);
   }
 }
-console.log('PASS special-case 100 produces 3-4 children');
+console.log('PASS special-case 100 produces 3-6 children');
 
 console.log('All tests passed!');
 process.exit(0);

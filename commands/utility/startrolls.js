@@ -36,7 +36,7 @@ function calculateFromThresholds(childless, son, daughter, twinDaughters, twinSo
     return ['Son', 'Daughter']
   }
   else if (offspringCheck === 100) {
-    const offspringAmount = randomInteger(2) + 2; // 3 or 4 offspring
+    const offspringAmount = randomInteger(4) + 2; // 3 to 6 offspring (1..4) + 2 => 3..6
 
     const offspring = []
     for (let i = 0; i < offspringAmount; i++) {
@@ -114,6 +114,19 @@ function formatOffspringCounts(rollRes) {
     if (amountOfSons === 4) text = 'Quadruplet Sons';
     else if (amountOfDaughters === 4) text = 'Quadruplet Daughters';
     else text = 'Quadruplets (' + (amountOfSons + ' Son' + (amountOfSons !== 1 ? 's' : '')) + (amountOfDaughters > 0 ? ' and ' + amountOfDaughters + ' Daughter' + (amountOfDaughters !== 1 ? 's' : '') : '') + ')';
+  }
+
+  // Quintuplets and sextuplets
+  if (rollRes.length === 5) {
+    if (amountOfSons === 5) text = 'Quintuplet Sons';
+    else if (amountOfDaughters === 5) text = 'Quintuplet Daughters';
+    else text = 'Quintuplets (' + (amountOfSons + ' Son' + (amountOfSons !== 1 ? 's' : '')) + (amountOfDaughters > 0 ? ' and ' + amountOfDaughters + ' Daughter' + (amountOfDaughters !== 1 ? 's' : '') : '') + ')';
+  }
+
+  if (rollRes.length === 6) {
+    if (amountOfSons === 6) text = 'Sextuplet Sons';
+    else if (amountOfDaughters === 6) text = 'Sextuplet Daughters';
+    else text = 'Sextuplets (' + (amountOfSons + ' Son' + (amountOfSons !== 1 ? 's' : '')) + (amountOfDaughters > 0 ? ' and ' + amountOfDaughters + ' Daughter' + (amountOfDaughters !== 1 ? 's' : '') : '') + ')';
   }
 
   if (!text) {
@@ -235,7 +248,7 @@ module.exports = {
           const end = t - 1;
           if (prev < end) desc += `**${label}:** ${prev}-${end}\n`;
           else if (prev === end) desc += `**${label}:** ${prev}\n`;
-          desc += `**Triplets+:** 100\n`;
+          desc += `**Triplets+ (3-6 children):** 100\n`;
         } else {
           const end = t - 1;
           if (prev < end) desc += `**${label}:** ${prev}-${end}\n`;
