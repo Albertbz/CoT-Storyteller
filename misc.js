@@ -1,10 +1,8 @@
-const { EmbedBuilder, userMention } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses, Worlds } = require('./dbObjects.js');
+const { EmbedBuilder, userMention, inlineCode } = require('discord.js');
+const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, Deceased, PlayableChildren } = require('./dbObjects.js');
 const { roles, channels, guilds } = require('./configs/ids.json');
 
 async function addPlayerToDatabase(id, ign, timezone, storyteller) {
-  timezone = timezone === null ? 'Undefined' : timezone;
-
   try {
     const player = await Players.create({
       id: id,
@@ -12,12 +10,12 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
       timezone: timezone
     });
 
-    postInLogChannel(
+    await postInLogChannel(
       'Player Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
       'Discord User: ' + userMention(player.id) + '\n' +
-      'VS Username: `' + player.ign + '`\n' +
-      'Timezone: `' + player.timezone + '`',
+      'VS Username: ' + inlineCode(player.ign) + '\n' +
+      'Timezone: ' + inlineCode(player.timezone ? player.timezone : 'Undefined') + '\n',
       0x008000
     )
 
@@ -32,40 +30,54 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
   }
 }
 
-async function addCharacterToDatabase(name, sex, affiliationId, socialClassName, storytellerUser) {
+async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = undefined, affiliationId = null, socialClassName = 'Commoner', yearOfMaturity = null, parent1Id = null, parent2Id = null } = {}) {
+  // storyteller is required
+  if (!storyteller) {
+    throw new Error('storyteller is required');
+  }
+
+  const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+
+  // Preserve previous behavior when callers pass explicit nulls
   name = name === null ? 'Unnamed' : name;
   socialClassName = socialClassName === null ? 'Commoner' : socialClassName;
   sex = sex === null ? undefined : sex;
+  yearOfMaturity = yearOfMaturity === null ? world.currentYear : yearOfMaturity;
 
-  if (!affiliationId) {
+  if (affiliationId === null || affiliationId === undefined) {
     const wandererAffiliation = await Affiliations.findOne({ where: { name: 'Wanderer' } });
     affiliationId = wandererAffiliation.id;
   }
 
   try {
-    const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
-
     const character = await Characters.create({
       name: name,
       sex: sex,
       affiliationId: affiliationId,
       socialClassName: socialClassName,
-      yearOfMaturity: world.currentYear
+      yearOfMaturity: yearOfMaturity,
+      parent1Id: parent1Id,
+      parent2Id: parent2Id
     })
 
     const affiliation = await Affiliations.findOne({ where: { id: affiliationId } });
 
-    postInLogChannel(
+    const parent1 = await character.getParent1();
+    const parent2 = await character.getParent2();
+
+    await postInLogChannel(
       'Character Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
-      'Name: `' + character.name + '`\n' +
-      'Sex: `' + character.sex + '`\n' +
-      'Affiliation: `' + affiliation.name + '`\n' +
-      'Social class: `' + character.socialClassName + '`\n' +
-      'Year of Maturity: `' + character.yearOfMaturity + '`',
+      'Name: ' + inlineCode(character.name) + '\n' +
+      'Sex: ' + inlineCode(character.sex) + '\n' +
+      'Affiliation: ' + inlineCode(affiliation.name) + '\n' +
+      'Social class: ' + inlineCode(character.socialClassName) + '\n' +
+      'Year of Maturity: ' + inlineCode(character.yearOfMaturity) + '\n' +
+      'Parent 1: ' + inlineCode(parent1 ? parent1.name : 'Unknown') + '\n' +
+      'Parent 2: ' + inlineCode(parent2 ? parent2.name : 'Unknown') + '\n',
       0x008000
     )
-
+    // Return both the character and the text description
     return character;
   }
   catch (error) {
@@ -76,6 +88,130 @@ async function addCharacterToDatabase(name, sex, affiliationId, socialClassName,
       console.log(error);
       throw new Error('Something went wrong with creating the character.');
     }
+  }
+}
+
+async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conceivingCharacterId, committed = false, inheritedTitle = 'None' } = {}) {
+  // storyteller is required
+  if (!storyteller) {
+    throw new Error('storyteller is required');
+  }
+
+  // Get the characters
+  const bearingCharacter = await Characters.findOne({ where: { id: bearingCharacterId } });
+  const conceivingCharacter = await Characters.findOne({ where: { id: conceivingCharacterId } });
+
+  if (!bearingCharacter) {
+    throw new Error('Bearing character not found.');
+  }
+
+  if (!conceivingCharacter) {
+    throw new Error('Conceiving character not found.');
+  }
+
+  // Check whether the characters are the same
+  if (bearingCharacter.id === conceivingCharacter.id) {
+    throw new Error('A character cannot be in a relationship with themselves.');
+  }
+
+  // Check whether either of the characters are deceased
+  const bearingCharacterIsDeceased = await Deceased.findOne({ where: { characterId: bearingCharacter.id } });
+  const conceivingCharacterIsDeceased = await Deceased.findOne({ where: { characterId: conceivingCharacter.id } });
+
+  if (bearingCharacterIsDeceased) {
+    throw new Error('The bearing character, ' + inlineCode(bearingCharacter.name) + ', is deceased and cannot be in a relationship.');
+  }
+  if (conceivingCharacterIsDeceased) {
+    throw new Error('The conceiving character, ' + inlineCode(conceivingCharacter.name) + ', is deceased and cannot be in a relationship.');
+  }
+
+  // Check whether either of the characters are not commoners
+  if (bearingCharacter.socialClassName === 'Commoner') {
+    throw new Error('The bearing character, ' + inlineCode(bearingCharacter.name) + ', is a Commoner and cannot be in a relationship.');
+  }
+  if (conceivingCharacter.socialClassName === 'Commoner') {
+    throw new Error('The conceiving character, ' + inlineCode(conceivingCharacter.name) + ', is a Commoner and cannot be in a relationship.');
+  }
+
+  // Check whether either of the characters are already in a relationship as opposite roles
+  const bearingCharacterExistsAsConceiving = await Relationships.findOne({
+    where: { conceivingCharacterId: bearingCharacter.id }
+  });
+
+  if (bearingCharacterExistsAsConceiving) {
+    throw new Error('The bearing partner, ' + inlineCode(bearingCharacter.name) + ', is already a conceiving partner in another relationship.');
+  }
+
+  const conceivingCharacterExistsAsBearing = await Relationships.findOne({
+    where: { bearingCharacterId: conceivingCharacter.id }
+  });
+
+  if (conceivingCharacterExistsAsBearing) {
+    throw new Error('The conceiving partner, ' + inlineCode(conceivingCharacter.name) + ', is already a bearing partner in another relationship.');
+  }
+
+  // If all checks have been passed, create the relationship
+  try {
+
+    const relationship = await Relationships.create({
+      bearingCharacterId: bearingCharacter.id,
+      conceivingCharacterId: conceivingCharacter.id,
+      committed: committed,
+      inheritedTitle: inheritedTitle
+    });
+
+    await postInLogChannel(
+      'Relationship Created',
+      '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
+      'Bearing Character: ' + inlineCode(bearingCharacter.name) + '\n' +
+      'Conceiving Character: ' + inlineCode(conceivingCharacter.name) + '\n' +
+      'Committed: ' + inlineCode(committed.toString()) + '\n' +
+      'Inherited Title: ' + inlineCode(inheritedTitle) + '\n',
+      0x008000
+    )
+
+    return relationship;
+  }
+  catch (error) {
+    console.log(error);
+    throw new Error('Something went wrong with creating the relationship.');
+  }
+}
+
+async function addPlayableChildToDatabase(storyteller, { characterId, legitimacy, contact1Snowflake, contact2Snowflake } = {}) {
+  // storyteller is required
+  if (!storyteller) {
+    throw new Error('storyteller is required');
+  }
+
+  try {
+    // Create the playable child
+    const playableChild = await PlayableChildren.create({
+      characterId: characterId,
+      legitimacy: legitimacy,
+      contact1Snowflake: contact1Snowflake,
+      contact2Snowflake: contact2Snowflake
+    });
+
+    const childCharacter = await Characters.findOne({ where: { id: characterId } });
+    const parent1Character = await childCharacter.getParent1();
+    const parent2Character = await childCharacter.getParent2();
+
+    await postInLogChannel(
+      'Playable Child Created',
+      '**Created by: ' + userMention(storyteller.id) + '** (during offspring rolls)\n\n' +
+      'Name: ' + inlineCode(childCharacter.name) + '\n' +
+      'Legitimacy: ' + inlineCode(playableChild.legitimacy) + '\n' +
+      'Parent1: ' + inlineCode(parent1Character.name) + '\n' +
+      'Parent2: ' + inlineCode(parent2Character ? parent2Character.name : 'NPC') + '\n' +
+      'Contact1: ' + (playableChild.contact1Snowflake ? userMention(playableChild.contact1Snowflake) : 'None') + '\n' +
+      'Contact2: ' + (playableChild.contact2Snowflake ? userMention(playableChild.contact2Snowflake) : 'None'),
+      0x008000
+    )
+  }
+  catch (error) {
+    console.log(error);
+    throw new Error('Something went wrong with creating the playable child.');
   }
 }
 
@@ -91,7 +227,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
 
     const playerExists = player !== null;
 
-    if (!playerExists) return playerExists;
+    if (!playerExists) return false;
 
     // Remove all roles that they could have had
     await member.roles.remove([roles.commoner, roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
@@ -124,7 +260,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       await member.roles.add(roles.steelbearer);
     }
 
-    postInLogChannel(
+    await postInLogChannel(
       'Character assigned to Player',
       '**Assigned by: ' + userMention(storyteller.id) + '**\n\n' +
       'Character: `' + character.name + '`\n' +
@@ -132,7 +268,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       0x0000A3
     )
 
-    return playerExists;
+    return true;
   }
   catch (error) {
     console.log(error)
@@ -147,6 +283,7 @@ async function postInLogChannel(title, description, color) {
     .setColor(color)
   const logChannel = await client.channels.fetch(channels.storytellerLog);
   logChannel.send({ embeds: [embedLog] });
+  return;
 }
 
 function ageToFertilityModifier(age) {
@@ -156,4 +293,4 @@ function ageToFertilityModifier(age) {
   if (age < 5) return 1;
 }
 
-module.exports = { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, ageToFertilityModifier }
+module.exports = { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, ageToFertilityModifier, addRelationshipToDatabase, addPlayableChildToDatabase }; 

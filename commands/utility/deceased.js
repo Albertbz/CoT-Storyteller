@@ -135,6 +135,9 @@ module.exports = {
     }
     catch (error) {
       console.log(error);
+      if (error.name === 'SequelizeUniqueConstraintError') {
+        return interaction.editReply({ content: 'This character is already marked as deceased.', flags: MessageFlags.Ephemeral });
+      }
       return interaction.editReply({ content: 'Something went wrong with making the character deceased.', flags: MessageFlags.Ephemeral });
     }
   }

@@ -257,7 +257,7 @@ module.exports = {
 
         updatedFieldsText = updatedFieldsText.replace(/\n$/, '');
 
-        postInLogChannel(
+        await postInLogChannel(
           'Recruitment Post Updated',
           '**Updated by: ' + userMention(interaction.user.id) + '**\n\n' +
           '**House ' + updatedAffiliation.name + '**:\n' +

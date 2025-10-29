@@ -2,72 +2,15 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { postInLogChannel, assignCharacterToPlayer, ageToFertilityModifier, addCharacterToDatabase } = require('../../misc.js');
+const { postInLogChannel, assignCharacterToPlayer, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase } = require('../../misc.js');
 
 function randomInteger(max) {
   return Math.floor(Math.random() * max + 1);
 }
 
-// Centralized thresholds for offspring rolls (single source of truth)
-const REL_THRESHOLDS = [41, 66, 91, 94, 97, 100];
-const BAST_THRESHOLDS = [61, 79, 97, 98, 99, 100];
-const OFFSPRING_LABELS = ['Childless', 'Son', 'Daughter', 'Twin Daughters', 'Twin Sons', 'Fraternal Twins'];
+const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateFromThresholds, calculateRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter } = require('../../helpers/rollHelper.js');
 // Centralized messages
 const CANCEL_MESSAGE = 'Something went wrong, or no button was interacted with for 5 minutes.';
-
-function calculateFromThresholds(childless, son, daughter, twinDaughters, twinSons, twinFraternal, offspringCheck) {
-  // offspringCheck is provided by the caller to make checks observable
-  if (offspringCheck < childless) {
-    return ['Childless']
-  }
-  else if (offspringCheck < son) {
-    return ['Son']
-  }
-  else if (offspringCheck < daughter) {
-    return ['Daughter']
-  }
-  else if (offspringCheck < twinDaughters) {
-    return ['Daughter', 'Daughter']
-  }
-  else if (offspringCheck < twinSons) {
-    return ['Son', 'Son']
-  }
-  else if (offspringCheck < twinFraternal) {
-    return ['Son', 'Daughter']
-  }
-  else if (offspringCheck === 100) {
-    const offspringAmount = randomInteger(4) + 2; // 3 to 6 offspring (1..4) + 2 => 3..6
-
-    const offspring = []
-    for (let i = 0; i < offspringAmount; i++) {
-      const sex = randomInteger(2) === 1 ? 'Son' : 'Daughter';
-      offspring.push(sex);
-    }
-    return offspring
-  }
-}
-
-function calculateRoll({ age1, age2 = 0, isBastardRoll = false } = {}) {
-  const fertilityModifier = ageToFertilityModifier(age1) * ageToFertilityModifier(age2) * 100
-  const fertilityCheck = randomInteger(100)
-
-  if (fertilityCheck <= fertilityModifier) {
-    const offspringCheck = randomInteger(100)
-    if (isBastardRoll) {
-      // Handle bastard roll chances
-      const result = calculateFromThresholds(...BAST_THRESHOLDS, offspringCheck)
-      return { result, fertilityCheck, offspringCheck, fertilityModifier }
-    }
-    else {
-      // Handle relationship roll chances
-      const result = calculateFromThresholds(...REL_THRESHOLDS, offspringCheck)
-      return { result, fertilityCheck, offspringCheck, fertilityModifier }
-    }
-  }
-  else {
-    return { result: ['Failed Fertility Roll'], fertilityCheck, fertilityModifier }
-  }
-}
 
 // --- Helper utilities to reduce duplication ---
 function buildOffspringPairLine(bearingName, conceivingName, rollRes, checks = {}) {
@@ -85,67 +28,6 @@ function buildOffspringPairLine(bearingName, conceivingName, rollRes, checks = {
   if (typeof checks.offspringCheck !== 'undefined') parts.push('Offspring: ' + checks.offspringCheck)
   if (parts.length > 0) line += ' ' + italic('(' + parts.join(' / ') + ')')
   return line
-}
-
-function formatOffspringCounts(rollRes) {
-  let amountOfSons = 0
-  let amountOfDaughters = 0
-  for (const r of rollRes) {
-    if (r === 'Son') amountOfSons++;
-    if (r === 'Daughter') amountOfDaughters++;
-  }
-
-  // Special phrasing for twins/fraternal twins
-  let text = '';
-  if (rollRes.length === 2) {
-    if (amountOfSons === 2) text = 'Twin Sons';
-    else if (amountOfDaughters === 2) text = 'Twin Daughters';
-    else if (amountOfSons === 1 && amountOfDaughters === 1) text = 'Fraternal Twins';
-  }
-
-  // Triplets and quadruplets
-  if (rollRes.length === 3) {
-    if (amountOfSons === 3) text = 'Triplet Sons';
-    else if (amountOfDaughters === 3) text = 'Triplet Daughters';
-    else text = 'Triplets (' + (amountOfSons + ' Son' + (amountOfSons !== 1 ? 's' : '')) + (amountOfDaughters > 0 ? ' and ' + amountOfDaughters + ' Daughter' + (amountOfDaughters !== 1 ? 's' : '') : '') + ')';
-  }
-
-  if (rollRes.length === 4) {
-    if (amountOfSons === 4) text = 'Quadruplet Sons';
-    else if (amountOfDaughters === 4) text = 'Quadruplet Daughters';
-    else text = 'Quadruplets (' + (amountOfSons + ' Son' + (amountOfSons !== 1 ? 's' : '')) + (amountOfDaughters > 0 ? ' and ' + amountOfDaughters + ' Daughter' + (amountOfDaughters !== 1 ? 's' : '') : '') + ')';
-  }
-
-  // Quintuplets and sextuplets
-  if (rollRes.length === 5) {
-    if (amountOfSons === 5) text = 'Quintuplet Sons';
-    else if (amountOfDaughters === 5) text = 'Quintuplet Daughters';
-    else text = 'Quintuplets (' + (amountOfSons + ' Son' + (amountOfSons !== 1 ? 's' : '')) + (amountOfDaughters > 0 ? ' and ' + amountOfDaughters + ' Daughter' + (amountOfDaughters !== 1 ? 's' : '') : '') + ')';
-  }
-
-  if (rollRes.length === 6) {
-    if (amountOfSons === 6) text = 'Sextuplet Sons';
-    else if (amountOfDaughters === 6) text = 'Sextuplet Daughters';
-    else text = 'Sextuplets (' + (amountOfSons + ' Son' + (amountOfSons !== 1 ? 's' : '')) + (amountOfDaughters > 0 ? ' and ' + amountOfDaughters + ' Daughter' + (amountOfDaughters !== 1 ? 's' : '') : '') + ')';
-  }
-
-  if (!text) {
-    const childrenText = [];
-    if (amountOfSons > 1) childrenText.push(amountOfSons + ' Sons');
-    else if (amountOfSons === 1) childrenText.push('Son');
-
-    if (amountOfDaughters > 1) childrenText.push(amountOfDaughters + ' Daughters');
-    else if (amountOfDaughters === 1) childrenText.push('Daughter');
-
-    text = childrenText.join(' and ');
-  }
-
-  return { amountOfSons, amountOfDaughters, text };
-}
-
-async function getPlayerSnowflakeForCharacter(characterId) {
-  const player = await Players.findOne({ where: { characterId } });
-  return player ? player.id : null;
 }
 
 function pickRandomElement(arr) {
@@ -283,7 +165,7 @@ module.exports = {
 
     try {
       const start = await response.resource.message.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-      await start.update({})
+      await start.deferUpdate();
 
       if (start.customId === 'start') {
         for (const [_, bearingCharacter] of bearingCharacters) {
@@ -320,6 +202,7 @@ module.exports = {
 
           try {
             const roll = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+            await roll.deferUpdate();
 
             if (roll.customId === 'roll') {
               const bearingCharacterAge = world.currentYear - bearingCharacter.yearOfMaturity
@@ -407,8 +290,6 @@ module.exports = {
                 finalRelationshipSummaries.push(inlineCode(bearingCharacter.name) + ' & ' + inlineCode(partnerName) + ': ' + offspringTextCompact);
               }
 
-              await roll.update({});
-
               const resultMessage = await roll.editReply({
                 embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
                 components: [continueRow],
@@ -417,10 +298,11 @@ module.exports = {
 
               try {
                 const result = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+                await result.deferUpdate();
 
                 if (result.customId === 'continue') {
 
-                  for (const roll of offspringResult.rolls) {
+                  for (const childType of offspringResult.rolls) {
                     // Make the character
                     let affiliationId = (await Affiliations.findOne({ where: { name: 'Wanderer' } })).id;
 
@@ -429,26 +311,15 @@ module.exports = {
                       affiliationId = offspringResult.relationship.conceivingCharacter.affiliationId;
                     }
 
-                    const childCharacter = await Characters.create({
-                      name: roll,
-                      sex: roll === 'Son' ? 'Male' : 'Female',
+                    const childCharacter = await addCharacterToDatabase(result.user, {
+                      name: childType,
+                      sex: childType === 'Son' ? 'Male' : 'Female',
                       affiliationId: affiliationId,
                       socialClassName: offspringResult.relationship ? (offspringResult.relationship.inheritingTitle === 'Noble' ? 'Noble' : 'Notable') : 'Notable',
                       yearOfMaturity: world.currentYear + 3,
                       parent1Id: offspringResult.relationship ? offspringResult.relationship.bearingCharacter.id : bearingCharacter.id,
                       parent2Id: offspringResult.relationship ? offspringResult.relationship.conceivingCharacter.id : null,
                     })
-
-                    await postInLogChannel(
-                      'Character Created',
-                      '**Created by: ' + userMention(interaction.user.id) + '** (during offspring rolls)\n\n' +
-                      'Name: `' + childCharacter.name + '`\n' +
-                      'Sex: `' + childCharacter.sex + '`\n' +
-                      'Affiliation: `' + (await childCharacter.getAffiliation()).name + '`\n' +
-                      'Social class: `' + childCharacter.socialClassName + '`\n' +
-                      'Year of Maturity: `' + childCharacter.yearOfMaturity + '`',
-                      0x008000
-                    )
 
                     // Make the playable child
                     try {
@@ -465,32 +336,18 @@ module.exports = {
                       const contact1Snowflake = parent1Snowflake ?? parent2Snowflake ?? null;
                       const contact2Snowflake = (parent1Snowflake && parent2Snowflake) ? parent2Snowflake : null;
 
-                      const playableChild = await PlayableChildren.create({
+                      const playableChild = await addPlayableChildToDatabase(interaction.user, {
                         characterId: childCharacter.id,
                         legitimacy: offspringResult.relationship ? (offspringResult.relationship.isCommitted ? 'Legitimate' : 'Illegitimate') : 'Illegitimate',
                         contact1Snowflake: contact1Snowflake,
                         contact2Snowflake: contact2Snowflake,
-                      })
-
-                      await postInLogChannel(
-                        'Playable Child Created',
-                        '**Created by: ' + userMention(interaction.user.id) + '** (during offspring rolls)\n\n' +
-                        'Name: ' + inlineCode(childCharacter.name) + '\n' +
-                        'Legitimacy: ' + inlineCode(playableChild.legitimacy) + '\n' +
-                        'Parent1: ' + inlineCode(bearingCharacter.name) + '\n' +
-                        'Parent2: ' + inlineCode(offspringResult.relationship ? offspringResult.relationship.conceivingCharacter.name : 'NPC') + '\n' +
-                        'Contact1: ' + (playableChild.contact1Snowflake ? userMention(playableChild.contact1Snowflake) : 'None') + '\n' +
-                        'Contact2: ' + (playableChild.contact2Snowflake ? userMention(playableChild.contact2Snowflake) : 'None'),
-                        0x008000
-                      )
+                      });
                     }
                     catch (error) {
                       console.log(error)
                       return interaction.editReply({ content: 'Something went wrong when creating the playable child.', components: [], embeds: [] })
                     }
                   }
-
-                  await result.update({})
                 }
               }
               catch (error) {
@@ -520,6 +377,7 @@ module.exports = {
 
           try {
             const rollMessageRes = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+            await rollMessageRes.deferUpdate();
 
             if (rollMessageRes.customId === 'roll') {
               const characterAge = world.currentYear - character.yearOfMaturity;
@@ -549,8 +407,6 @@ module.exports = {
                 finalBastardSummaries.push(inlineCode(character.name) + ': ' + offspringTextCompactBastard);
               }
 
-              await rollMessageRes.update({});
-
               const resultMessage = await rollMessageRes.editReply({
                 embeds: [relEmbed, bastEmbed, rollChancesEmbed, resultEmbed],
                 components: [continueRow],
@@ -559,6 +415,8 @@ module.exports = {
 
               try {
                 const result = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+                await result.deferUpdate();
+
                 if (result.customId === 'continue') {
                   if (successfulRoll) {
                     for (const childRoll of rollRes) {
@@ -607,8 +465,6 @@ module.exports = {
                       }
                     }
                   }
-
-                  await result.update({});
                 }
               } catch (error) {
                 console.log(error);

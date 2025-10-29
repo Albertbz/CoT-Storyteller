@@ -1,8 +1,8 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses } = require('../../dbObjects.js');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
+const { Players, Characters, Affiliations, SocialClasses, Relationships } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer } = require('../../misc.js')
+const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase } = require('../../misc.js')
 
 
 module.exports = {
@@ -107,18 +107,75 @@ module.exports = {
             .setName('player')
             .setDescription('The player to set the character to.')
         )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('relationship')
+        .setDescription('Create a new relationship.')
+        .addStringOption(option =>
+          option
+            .setName('bearingcharacter')
+            .setDescription('The character bearing the offspring.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('conceivingcharacter')
+            .setDescription('The character conceiving the offspring.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('committed')
+            .setDescription('Whether the relationship is committed or not.')
+            .setRequired(true)
+            .addChoices(
+              { name: 'Yes', value: 'Yes' },
+              { name: 'No', value: 'No' }
+            )
+        )
+        .addStringOption(option =>
+          option
+            .setName('inheritedtitle')
+            .setDescription('The inherited title that offspring of this relationship will receive.')
+            .addChoices(
+              { name: 'Noble', value: 'Noble' },
+              { name: 'None', value: 'None' }
+            )
+        )
     ),
   async autocomplete(interaction) {
     let choices;
 
-    const focusedValue = interaction.options.getFocused();
+    // Autocomplete for affiliations, check which option is being autocompleted
+    const focusedOption = interaction.options.getFocused(true);
 
-    const affilations = await Affiliations.findAll({
-      where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
-      attributes: ['name', 'id']
-    })
+    if (focusedOption.name === 'affiliation') {
+      const focusedValue = interaction.options.getFocused();
 
-    choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+      const affiliations = await Affiliations.findAll({
+        where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
+        attributes: ['name', 'id'],
+        limit: 25
+      });
+
+      choices = affiliations.map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+    }
+
+    // Autocomplete for relationships
+    else if (focusedOption.name === 'bearingcharacter' || focusedOption.name === 'conceivingcharacter') {
+      const focusedValue = interaction.options.getFocused();
+
+      const characters = await Characters.findAll({
+        where: { name: { [Op.startsWith]: focusedValue } },
+        attributes: ['name', 'id'],
+        limit: 25
+      });
+
+      choices = characters.map(character => ({ name: character.name, value: character.id }));
+    }
 
     await interaction.respond(choices);
   },
@@ -129,7 +186,7 @@ module.exports = {
       // For creating the player
       const user = interaction.options.getUser('user');
       const ign = interaction.options.getString('ign');
-      const timezone = interaction.options.getString('timezone') ?? 'Undefined';
+      const timezone = interaction.options.getString('timezone') ?? undefined;
 
       // For creating the character, if one is to be created for the player
       const name = interaction.options.getString('name');
@@ -146,25 +203,26 @@ module.exports = {
         const playerCreatedText =
           '**Player was created with the following information:**\n' +
           'Discord User: ' + userMention(player.id) + '\n' +
-          'VS Username: `' + player.ign + '`\n' +
-          'Timezone: `' + player.timezone + '`';
+          'VS Username: ' + inlineCode(player.ign) + '\n' +
+          'Timezone: ' + inlineCode(player.timezone ? player.timezone : 'Undefined') + '\n';
 
 
         // Create the character if any of the arguments were provided
         if (!creatingCharacter) return interaction.editReply({ content: playerCreatedText, flags: MessageFlags.Ephemeral });
 
-        const character = await addCharacterToDatabase(name, sex, affiliationId, socialClassName, interaction.user);
+        const character = await addCharacterToDatabase(interaction.user, { name, sex, affiliationId, socialClassName });
         await assignCharacterToPlayer(character.id, player.id, interaction.user);
 
         const affiliation = await Affiliations.findOne({ where: { id: affiliationId } });
 
         const characterCreatedText =
           '**Character was created with the following information and set as the Player\'s character:**\n' +
-          'Name: `' + character.name + '`\n' +
-          'Sex: `' + character.sex + '`\n' +
-          'Affiliation: `' + affiliation.name + '`\n' +
-          'Social class: `' + character.socialClassName + '`\n' +
-          'Year of Maturity: `' + character.yearOfMaturity + '`'
+          'Name: ' + inlineCode(character.name) + '\n' +
+          'Sex: ' + inlineCode(character.sex) + '\n' +
+          'Affiliation: ' + inlineCode(affiliation.name) + '\n' +
+          'Social class: ' + inlineCode(character.socialClassName) + '\n' +
+          'Year of Maturity: ' + inlineCode(character.yearOfMaturity) + '\n';
+
         return interaction.editReply({ content: playerCreatedText + '\n\n' + characterCreatedText, flags: MessageFlags.Ephemeral });
       }
       catch (error) {
@@ -183,17 +241,17 @@ module.exports = {
       const linkToUser = user !== null;
 
       try {
-        const character = await addCharacterToDatabase(name, sex, affiliationId, socialClassName, interaction.user);
+        const character = await addCharacterToDatabase(interaction.user, { name, sex, affiliationId, socialClassName });
 
-        const affiliation = character.getAffiliation();
+        const affiliation = await character.getAffiliation();
 
         const characterCreatedText =
           '**Character was created with the following information:**\n' +
-          'Name: `' + character.name + '`\n' +
-          'Sex: `' + character.sex + '`\n' +
-          'Affiliation: `' + affiliation.name + '`\n' +
-          'Social class: `' + character.socialClassName + '`\n' +
-          'Year of Maturity: `' + character.yearOfMaturity + '`'
+          'Name: ' + inlineCode(character.name) + '\n' +
+          'Sex: ' + inlineCode(character.sex) + '\n' +
+          'Affiliation: ' + inlineCode(affiliation.name) + '\n' +
+          'Social class: ' + inlineCode(character.socialClassName) + '\n' +
+          'Year of Maturity: ' + inlineCode(character.yearOfMaturity) + '\n'
         if (!linkToUser) return interaction.editReply({ content: characterCreatedText, flags: MessageFlags.Ephemeral });
 
         const playerExists = await assignCharacterToPlayer(character.id, user.id, interaction.user);
@@ -207,6 +265,22 @@ module.exports = {
         return interaction.editReply({ content: 'Something went wrong.', flags: MessageFlags.Ephemeral })
       }
     }
+    else if (interaction.options.getSubcommand() === 'relationship') {
+      const bearingCharacterId = interaction.options.getString('bearingcharacter');
+      const conceivingCharacterId = interaction.options.getString('conceivingcharacter');
+      const committed = interaction.options.getString('committed') === 'Yes';
+      const inheritedTitle = interaction.options.getString('inheritedtitle') ?? 'None';
 
+      try {
+        const relationship = await addRelationshipToDatabase(interaction.user, { bearingCharacterId, conceivingCharacterId, committed, inheritedTitle });
+        const bearingCharacter = await relationship.getBearingCharacter();
+        const conceivingCharacter = await relationship.getConceivingCharacter();
+        return interaction.editReply({ content: 'The relationship between ' + inlineCode(bearingCharacter.name) + ' and ' + inlineCode(conceivingCharacter.name) + ' was created.', flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        // console.log(error);
+        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
+      }
+    }
   }
 }

@@ -24,13 +24,13 @@ const force = process.argv.includes('--force') || process.argv.includes('-f');
 sequelize.sync({ force }).then(async () => {
   await Worlds.create({ name: 'Elstrand', currentYear: 20 });
 
-  await Affiliations.create({ roleId: roles.eshaeryn, name: 'Du Vēzos', emojiName: 'duvezos', isRuling: true, state: 'Almost Full', role1: 'Lumberjacks', role2: 'Miners', role3: 'Smiths' });
+  await Affiliations.create({ roleId: roles.eshaeryn, name: 'Du Vēzos', emojiName: 'duvezos', isRuling: true, state: 'Open', role1: 'Farmers', role2: 'Miners', role3: 'Lumberjacks' });
   await Affiliations.create({ roleId: roles.firstLanding, name: 'Farring', emojiName: 'farring', isRuling: true, state: 'Almost Full', role1: 'Soldiers', role2: 'Farmers', role3: 'Builders' });
-  await Affiliations.create({ roleId: roles.theBarrowlands, name: 'Nightlocke', emojiName: 'nightlocke', isRuling: true, state: 'Full', role1: 'Builders', role2: 'Lumberjacks', role3: 'Farmers' });
+  await Affiliations.create({ roleId: roles.theBarrowlands, name: 'Nightlocke', emojiName: 'nightlocke', isRuling: true, state: 'Almost Full', role1: 'Cooks', role2: 'Lumberjacks', role3: 'Soldiers' });
   await Affiliations.create({ roleId: roles.riverhelm, name: 'Rivertal', emojiName: 'rivertal', isRuling: true, state: 'Open', role1: 'Builders', role2: 'Farmers', role3: 'Cooks' });
-  await Affiliations.create({ roleId: roles.theHeartlands, name: 'Sabr', emojiName: 'sabr', isRuling: true, state: 'Almost Full', role1: 'Tailors', role2: 'Builders', role3: 'Cooks' });
-  await Affiliations.create({ roleId: roles.vernados, name: 'Stout', emojiName: 'stout', isRuling: true, state: 'Full', role1: 'Cooks', role2: 'Builders', role3: 'Soldiers' });
-  await Affiliations.create({ roleId: roles.velkharaan, name: 'Wildhart', emojiName: 'wildhart', isRuling: true, state: 'Urgent', role1: 'Builders', role2: 'Farmers', role3: 'Soldiers' });
+  await Affiliations.create({ roleId: roles.theHeartlands, name: 'Sabr', emojiName: 'sabr', isRuling: true, state: 'Open', role1: 'Tailors', role2: 'Builders', role3: 'Cooks' });
+  await Affiliations.create({ roleId: roles.vernados, name: 'Stout', emojiName: 'stout', isRuling: true, state: 'Almost Full', role1: 'Cooks', role2: 'Builders', role3: 'Soldiers' });
+  await Affiliations.create({ roleId: roles.velkharaan, name: 'Wildhart', emojiName: 'wildhart', isRuling: true, state: 'Urgent', role1: 'Builders', role2: 'Carpenters', role3: 'Soldiers' });
   await Affiliations.create({ roleId: roles.wanderer, name: 'Wanderer' });
 
   await SocialClasses.create({ roleId: roles.commoner, name: 'Commoner' });

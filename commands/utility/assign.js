@@ -45,9 +45,9 @@ module.exports = {
     try {
       const character = await Characters.findOne({ where: { id: characterId } });
 
-      const playerExists = assignCharacterToPlayer(characterId, user.id, interaction.user);
+      const playerExists = await assignCharacterToPlayer(characterId, user.id, interaction.user);
 
-      if (!playerExists) return interaction.editReply({ content: characterCreatedText + '\n\n' + '**Attempted to assign character to the specified player, but the player was not found in the database.**', flags: MessageFlags.Ephemeral });
+      if (!playerExists) return interaction.editReply({ content: '**Attempted to assign character to the specified player, but the player was not found in the database.**', flags: MessageFlags.Ephemeral });
 
       const replyText = 'The character ' + inlineCode(character.name) + ' was assigned to ' + userMention(user.id) + '.';
       return interaction.editReply({ content: replyText, flags: MessageFlags.Ephemeral });

@@ -11,7 +11,6 @@ module.exports = (sequelize, DataTypes) => {
     },
     timezone: {
       type: DataTypes.STRING,
-      defaultValue: 'Undefined',
     },
     characterId: {
       type: DataTypes.UUID

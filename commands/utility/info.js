@@ -2,6 +2,90 @@ const { SlashCommandBuilder, InteractionContextType, EmbedBuilder, MessageFlags,
 const { Players, Characters, Affiliations, SocialClasses, Worlds } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 
+function makeInfoEmbed(title, about) {
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setDescription('Info about: ' + about);
+  return embed;
+}
+
+async function addPlayerInfoToEmbed(player, embed) {
+  embed
+    .addFields(
+      { name: '\u200b', value: '\u200b', inline: true },
+      { name: '\u200b', value: '***Player Info***', inline: true },
+      { name: '\u200b', value: '\u200b', inline: true },
+    );
+
+  if (!player) {
+    embed
+      .addFields(
+        { name: 'Currently not played by a player.', value: '\u200b' }
+      );
+    return;
+  }
+
+  const user = await client.users.fetch(player.id);
+
+  const discordUsername = user ? user.username : 'Unknown';
+  const vsUsername = player.ign ? player.ign : 'Unknown';
+  const timezone = player.timezone === null ? '-' : player.timezone;
+
+  embed
+    .addFields(
+      { name: 'Discord Username', value: inlineCode(discordUsername), inline: true },
+      { name: 'VS Username', value: inlineCode(vsUsername), inline: true },
+      { name: 'Timezone', value: inlineCode(timezone), inline: true },
+    )
+}
+
+function addCharacterInfoToEmbed(character, embed, world) {
+  embed
+    .addFields(
+      { name: '\u200b', value: '\u200b', inline: true },
+      { name: '\u200b', value: '***Character Info***', inline: true },
+      { name: '\u200b', value: '\u200b', inline: true },
+    );
+
+  if (!character) {
+    embed
+      .addFields(
+        { name: 'Currently not playing a character.', value: '\u200b' }
+      );
+    return;
+  }
+
+  const name = character.name;
+  const sex = character.sex;
+  const affiliationName = character.affiliation ? character.affiliation.name : 'Unknown';
+  const socialClassName = character.socialClass ? character.socialClass.name : 'Unknown';
+  const role = character.role === null ? '-' : character.role;
+  const comments = character.comments === null ? '-' : character.comments;
+  let pveDeaths = '-';
+  let yearOfMaturity = '-';
+  let age = '-';
+  if (!(character.socialClassName === 'Commoner' && (character.affiliation && character.affiliation.name !== 'Wanderer'))) {
+    pveDeaths = character.pveDeaths;
+    yearOfMaturity = character.yearOfMaturity;
+    age = world.currentYear - character.yearOfMaturity;
+  }
+
+  embed
+    .addFields(
+      { name: 'Name', value: inlineCode(name), inline: true },
+      { name: 'Sex', value: inlineCode(sex), inline: true },
+      { name: 'Affiliation', value: inlineCode(affiliationName), inline: true },
+      { name: 'Social Class', value: inlineCode(socialClassName), inline: true },
+      { name: 'Role', value: inlineCode(role), inline: true },
+      { name: 'Comments', value: inlineCode(comments), inline: true },
+      { name: 'PvE Deaths', value: inlineCode(pveDeaths), inline: true },
+      { name: 'Year of Maturity', value: inlineCode(yearOfMaturity), inline: true },
+      { name: 'Age', value: inlineCode(age), inline: true },
+    );
+
+  return;
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('info')
@@ -49,57 +133,9 @@ module.exports = {
         })
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle('Result')
-        .setDescription('Info about: ' + userMention(user.id))
-        .addFields(
-          { name: '\u200b', value: '\u200b', inline: true },
-          { name: '\u200b', value: '***Player Info***', inline: true },
-          { name: '\u200b', value: '\u200b', inline: true },
-        )
-        .addFields(
-          { name: 'Discord Username', value: inlineCode(user.username), inline: true },
-          { name: 'VS Username', value: inlineCode(player.ign), inline: true },
-          { name: 'Timezone', value: inlineCode(player.timezone), inline: true },
-        )
-
-      if (player.character) {
-        const character = player.character;
-        embed
-          .addFields(
-            { name: '\u200b', value: '\u200b', inline: true },
-            { name: '\u200b', value: '***Character Info***', inline: true },
-            { name: '\u200b', value: '\u200b', inline: true },
-          )
-          .addFields(
-            { name: 'Name', value: inlineCode(character.name), inline: true },
-            { name: 'Sex', value: inlineCode(character.sex), inline: true },
-            { name: 'Affiliation', value: inlineCode(character.affiliation.name), inline: true },
-            { name: 'Social Class', value: inlineCode(character.socialClass.name), inline: true },
-            { name: 'Role', value: inlineCode(character.role), inline: true },
-            { name: 'Comments', value: inlineCode(character.comments), inline: true }
-          );
-
-        if (character.socialClass.name !== 'Commoner' && character.affiliation.name !== 'Wanderer') {
-          embed
-            .addFields(
-              { name: 'PvE Deaths', value: inlineCode(character.pveDeaths), inline: true },
-              { name: 'Year of Maturity', value: inlineCode(character.yearOfMaturity), inline: true },
-              { name: 'Age', value: inlineCode(world.currentYear - character.yearOfMaturity), inline: true },
-            );
-        }
-      }
-      else {
-        embed
-          .addFields(
-            { name: '\u200b', value: '\u200b', inline: true },
-            { name: '\u200b', value: '***Character Info***', inline: true },
-            { name: '\u200b', value: '\u200b', inline: true },
-          )
-          .addFields(
-            { name: 'Currently not playing a character.', value: '\u200b' }
-          )
-      }
+      const embed = makeInfoEmbed('Result', userMention(user.id));
+      await addPlayerInfoToEmbed(player, embed);
+      addCharacterInfoToEmbed(player.character, embed, world);
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
@@ -113,63 +149,20 @@ module.exports = {
           { model: SocialClasses, as: 'socialClass' }]
       });
 
-      const embed = new EmbedBuilder()
-        .setTitle('Result')
-        .setDescription('Info about: ' + character.name);
-      embed
-        .addFields(
-          { name: '\u200b', value: '\u200b', inline: true },
-          { name: '\u200b', value: '***Character Info***', inline: true },
-          { name: '\u200b', value: '\u200b', inline: true },
-        )
-        .addFields(
-          { name: 'Name', value: inlineCode(character.name), inline: true },
-          { name: 'Sex', value: inlineCode(character.sex), inline: true },
-          { name: 'Affiliation', value: inlineCode(character.affiliation.name), inline: true },
-          { name: 'Social Class', value: inlineCode(character.socialClass.name), inline: true },
-          { name: 'Role', value: inlineCode(character.role), inline: true },
-          { name: 'Comments', value: inlineCode(character.comments), inline: true }
-        );
-
-      if (character.socialClass.name !== 'Commoner' && character.affiliation.name !== 'Wanderer') {
-        embed
-          .addFields(
-            { name: 'PvE Deaths', value: inlineCode(character.pveDeaths), inline: true },
-            { name: 'Year of Maturity', value: inlineCode(character.yearOfMaturity), inline: true },
-            { name: 'Age', value: inlineCode(world.currentYear - character.yearOfMaturity), inline: true },
-          );
+      if (!character) {
+        return interaction.reply({
+          content: 'Character not found in the database. Please make sure you click on the name when searching for it.', flags: MessageFlags.Ephemeral
+        })
       }
+
+      const embed = makeInfoEmbed('Result', character.name);
+      addCharacterInfoToEmbed(character, embed, world);
 
       const player = await Players.findOne({
         where: { characterId: character.id }
       })
 
-      if (player) {
-        const user = await interaction.client.users.fetch(player.id);
-
-        embed
-          .addFields(
-            { name: '\u200b', value: '\u200b', inline: true },
-            { name: '\u200b', value: '***Player Info***', inline: true },
-            { name: '\u200b', value: '\u200b', inline: true },
-          )
-          .addFields(
-            { name: 'Discord Username', value: inlineCode(user.username), inline: true },
-            { name: 'VS Username', value: inlineCode(player.ign), inline: true },
-            { name: 'Timezone', value: inlineCode(player.timezone), inline: true },
-          )
-      }
-      else {
-        embed
-          .addFields(
-            { name: '\u200b', value: '\u200b', inline: true },
-            { name: '\u200b', value: '***Player Info***', inline: true },
-            { name: '\u200b', value: '\u200b', inline: true },
-          )
-          .addFields(
-            { name: 'Currently not played by a player.', value: '\u200b' }
-          )
-      }
+      await addPlayerInfoToEmbed(player, embed);
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }

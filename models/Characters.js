@@ -1,5 +1,3 @@
-const { roles } = require('../configs/ids.json');
-
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('characters', {
     id: {
@@ -29,7 +27,6 @@ module.exports = (sequelize, DataTypes) => {
     },
     role: {
       type: DataTypes.STRING,
-      defaultValue: 'Undefined',
     },
     pveDeaths: {
       type: DataTypes.INTEGER,
@@ -37,7 +34,6 @@ module.exports = (sequelize, DataTypes) => {
     },
     comments: {
       type: DataTypes.STRING,
-      defaultValue: 'Undefined'
     },
     parent1Id: {
       type: DataTypes.UUID,

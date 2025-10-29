@@ -2,11 +2,11 @@ const assert = require('assert');
 const path = require('path');
 
 // Load the module under test
-const startrolls = require(path.resolve(__dirname, '../commands/utility/startrolls.js'));
+const rollHelper = require(path.resolve(__dirname, '../helpers/rollHelper.js'));
 
 // Extract helpers
-const formatOffspringCounts = startrolls.formatOffspringCounts || startrolls.__test && startrolls.__test.formatOffspringCounts;
-const buildOffspringPairLine = startrolls.buildOffspringPairLine || startrolls.__test && startrolls.__test.buildOffspringPairLine;
+const formatOffspringCounts = rollHelper.formatOffspringCounts || rollHelper.__test && rollHelper.__test.formatOffspringCounts;
+const buildOffspringPairLine = require(path.resolve(__dirname, '../commands/utility/startrolls.js')).buildOffspringPairLine || require(path.resolve(__dirname, '../commands/utility/startrolls.js')).__test && require(path.resolve(__dirname, '../commands/utility/startrolls.js')).__test.buildOffspringPairLine;
 
 if (!formatOffspringCounts) {
   console.error('formatOffspringCounts not exported for testing.');
@@ -66,7 +66,7 @@ if (!line.includes('Twin Sons')) {
 console.log('PASS buildOffspringPairLine twin test');
 
 // Test special-case 100 -> triplets/quadruplets via calculateFromThresholds
-const calculateFromThresholds = startrolls.__test.calculateFromThresholds;
+const calculateFromThresholds = rollHelper.calculateFromThresholds;
 if (!calculateFromThresholds) {
   console.error('calculateFromThresholds not exported for testing.');
   process.exit(1);

@@ -14,7 +14,7 @@ module.exports = {
     .addSubcommand(subcommand =>
       subcommand
         .setName('player')
-        .setDescription('Change something about a player or their character.')
+        .setDescription('Change something about a player')
         .addUserOption(option =>
           option
             .setName('user')
@@ -30,64 +30,6 @@ module.exports = {
           option
             .setName('timezone_new')
             .setDescription('The new timezone.')
-        )
-        .addStringOption(option =>
-          option
-            .setName('name_new')
-            .setDescription('The new name.')
-        )
-        .addStringOption(option =>
-          option
-            .setName('sex_new')
-            .setDescription('The new sex.')
-            .addChoices(
-              { name: 'Male', value: 'Male' },
-              { name: 'Female', value: 'Female' },
-              { name: 'Undefined', value: 'Undefined' }
-            )
-        )
-        .addStringOption(option =>
-          option
-            .setName('affiliation_new')
-            .setDescription('The new affiliation.')
-            .setAutocomplete(true)
-        )
-        .addStringOption(option =>
-          option
-            .setName('socialclass_new')
-            .setDescription('The new social class.')
-            .addChoices(
-              { name: 'Commoner', value: 'Commoner' },
-              { name: 'Notable', value: 'Notable' },
-              { name: 'Noble', value: 'Noble' },
-              { name: 'Ruler', value: 'Ruler' }
-            )
-        )
-        .addNumberOption(option =>
-          option
-            .setName('yearofmaturity_new')
-            .setDescription('The new Year of Maturity.')
-        )
-        .addNumberOption(option =>
-          option
-            .setName('pvedeaths_new')
-            .setDescription('The new amount of PvE deaths.')
-        )
-        .addStringOption(option =>
-          option
-            .setName('role_new')
-            .setDescription('The new role.')
-        )
-        .addStringOption(option =>
-          option
-            .setName('steelbearer_new')
-            .setDescription('The type of steelbearer to change the character to.')
-            .addChoices(
-              { name: 'Ruler', value: 'Ruler' },
-              { name: 'Duchy', value: 'Duchy' },
-              { name: 'General-purpose', value: 'General-purpose' },
-              { name: 'None', value: 'None' },
-            )
         )
     )
     .addSubcommand(subcommand =>
@@ -264,21 +206,6 @@ module.exports = {
   async autocomplete(interaction) {
     let choices;
 
-    if (interaction.options.getSubcommand() === 'player') {
-      const focusedOption = interaction.options.getFocused(true);
-
-      if (focusedOption.name === 'affiliation_new') {
-        const focusedValue = interaction.options.getFocused();
-
-        const affilations = await Affiliations.findAll({
-          where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
-          attributes: ['name', 'id']
-        })
-
-        choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
-      }
-    }
-
     if (interaction.options.getSubcommand() === 'character') {
       const focusedOption = interaction.options.getFocused(true);
 
@@ -349,19 +276,6 @@ module.exports = {
         }
         );
       }
-
-      if (focusedOption.name === 'affiliation_new') {
-        const focusedValue = interaction.options.getFocused();
-
-        const affilations = await Affiliations.findAll({
-          where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
-          attributes: ['name', 'id']
-        })
-
-        choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
-      }
-
-
     }
     await interaction.respond(choices);
   },
@@ -374,15 +288,6 @@ module.exports = {
       const newIgn = interaction.options.getString('ign_new');
       const newTimezone = interaction.options.getString('timezone_new');
 
-      const newName = interaction.options.getString('name_new');
-      const newSex = interaction.options.getString('sex_new');
-      const newAffiliationId = interaction.options.getString('affiliation_new');
-      const newSocialClassName = interaction.options.getString('socialclass_new');
-      const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
-      const newPvEDeaths = interaction.options.getNumber('pvedeaths_new');
-      const newRole = interaction.options.getString('role_new');
-      const newSteelbearer = interaction.options.getString('steelbearer_new');
-
       const player = await Players.findOne({
         where: { id: user.id },
         include: { model: Characters, as: 'character' }
@@ -391,12 +296,7 @@ module.exports = {
 
       if (!player) return interaction.editReply({ content: 'The specified player does not exist in the database.', flags: MessageFlags.Ephemeral });
 
-      const characterInfoChangedText = [];
-      // let characterInfoChangedText = '';
-      let characterInfoChanged = false;
-
       const playerInfoChangedText = [];
-      // let playerInfoChangedText = '';
       let playerInfoChanged = false;
 
       if (newIgn) {
@@ -413,113 +313,9 @@ module.exports = {
         playerInfoChangedText.push('Timezone: ' + inlineCode(oldTimezone) + ' -> ' + inlineCode(newTimezone))
       }
 
-      if (player.character) {
-        const character = player.character;
-
-        const member = await interaction.guild.members.fetch(player.id);
-
-        if (newName) {
-          const oldName = character.name;
-          await character.update({ name: newName });
-          // const member = await interaction.guild.members.fetch(user);
-          // member.setNickname(newName); // Crashes the bot if used on owner of server
-          characterInfoChanged = true;
-          characterInfoChangedText.push('Name: ' + inlineCode(oldName) + ' -> ' + inlineCode(newName))
-        }
-
-        if (newSex) {
-          const oldSex = character.sex;
-          await character.update({ sex: newSex });
-          characterInfoChanged = true;
-          characterInfoChangedText.push('Sex: ' + inlineCode(oldSex) + ' -> ' + inlineCode(newSex))
-        }
-
-        if (newAffiliationId) {
-          const oldAffiliation = await Affiliations.findOne({ where: { id: character.affiliationId } });
-          const newAffiliation = await Affiliations.findOne({ where: { id: newAffiliationId } });
-
-          await character.update({ affiliationId: newAffiliationId });
-
-          // Update Discord role
-          await member.roles.remove([roles.eshaeryn, roles.firstLanding, roles.riverhelm, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
-          await member.roles.add(newAffiliation.roleId);
-
-          // Update variables for later use
-          characterInfoChanged = true;
-          characterInfoChangedText.push('Affiliation: ' + inlineCode(oldAffiliation.name) + ' -> ' + inlineCode(newAffiliation.name));
-        }
-
-        if (newSocialClassName) {
-          const oldSocialClass = await SocialClasses.findOne({ where: { name: character.socialClassName } });
-          const newSocialClass = await SocialClasses.findOne({ where: { name: newSocialClassName } });
-
-          await character.update({ socialClassName: newSocialClassName });
-
-          // Update Discord role
-          await member.roles.remove([roles.notable, roles.noble, roles.ruler]);
-
-          if (newSocialClass.name === 'Ruler') {
-            await member.roles.add([roles.notable, roles.noble, roles.ruler]);
-          }
-          else if (newSocialClass.name === 'Noble') {
-            await member.roles.add([roles.notable, roles.noble]);
-          }
-          else if (newSocialClass.name === 'Notable') {
-            await member.roles.add(roles.notable);
-          }
-
-          // Update varibles for later use
-          characterInfoChanged = true;
-          characterInfoChangedText.push('Social class: ' + inlineCode(oldSocialClass.name) + ' -> ' + inlineCode(newSocialClass.name));
-        }
-
-        if (newYearOfMaturity) {
-          const oldYearOfMaturity = character.yearOfMaturity;
-          await character.update({ yearOfMaturity: newYearOfMaturity });
-          characterInfoChanged = true;
-          characterInfoChangedText.push('Year of Maturity: ' + inlineCode(oldYearOfMaturity) + ' -> ' + inlineCode(newYearOfMaturity));
-        }
-
-        if (newPvEDeaths) {
-          const oldPvEDeaths = character.pveDeaths;
-          await character.update({ pveDeaths: newPvEDeaths });
-          characterInfoChanged = true;
-          characterInfoChangedText.push('PvE Deaths: ' + inlineCode(oldPvEDeaths) + ' -> ' + inlineCode(newPvEDeaths));
-        }
-
-        if (newRole) {
-          const oldRole = character.role;
-          await character.update({ role: newRole });
-          characterInfoChanged = true;
-          characterInfoChangedText.push('Role: ' + inlineCode(oldRole) + ' -> ' + inlineCode(newRole));
-        }
-
-        if (newSteelbearer !== null) {
-          const oldSteelbearer = character.steelbearer;
-
-          if (newSteelbearer === 'None') {
-            await character.update({ steelbearer: null })
-          }
-          else {
-            await character.update({ steelbearer: newSteelbearer });
-          }
-
-          // Update Discord role
-          await member.roles.remove(roles.steelbearer);
-          if (character.steelbearer) await member.roles.add(roles.steelbearer);
-
-          // Update variables for later use
-          characterInfoChanged = true;
-          characterInfoChangedText.push('Steelbearer: ' + inlineCode(oldSteelbearer) + ' -> ' + inlineCode(newSteelbearer));
-        }
-      }
-      else if (newName || newSex || newAffiliationId || newSocialClassName || newYearOfMaturity || newPvEDeaths || newRole || newSteelbearer !== null) {
-        characterInfoChangedText.push('This player is currently not playing a character, and as such nothing was changed.')
-      }
-
       // Handle different cases of changed info
       if (playerInfoChanged) {
-        postInLogChannel(
+        await postInLogChannel(
           'Player Info Changed',
           '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
           'Player: ' + userMention(user.id) + '\n\n' +
@@ -529,31 +325,12 @@ module.exports = {
         playerInfoChangedText.unshift('**The following Player info was changed for ' + userMention(user.id) + ':**')
       }
 
-      if (characterInfoChangedText.length !== 0) {
-        if (characterInfoChanged) {
-          postInLogChannel(
-            'Character Info Changed',
-            '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
-            'Character: `' + player.character.name + '`\n\n' +
-            characterInfoChangedText.join('\n'),
-            0xD98C00
-          )
-        }
-        const characterName = player.character ? player.character.name : 'N/A';
-        characterInfoChangedText.unshift('**The following Character info was changed for ' + inlineCode(characterName) + ':**');
-      }
-
       let changedText = '';
-      if (!playerInfoChanged && !characterInfoChanged) {
-        if (characterInfoChangedText.length !== 0) {
-          changedText = characterInfoChangedText;
-        }
-        else {
-          changedText = 'Please specify what to change.'
-        }
+      if (!playerInfoChanged) {
+        changedText = 'Please specify what to change.'
       }
       else {
-        changedText = playerInfoChangedText.join('\n') + '\n' + characterInfoChangedText.join('\n');
+        changedText = playerInfoChangedText.join('\n');
       }
 
       return interaction.editReply({ content: changedText, flags: MessageFlags.Ephemeral })
@@ -581,7 +358,12 @@ module.exports = {
       const isCurrentlyPlayed = player !== null;
       let member = null;
       if (isCurrentlyPlayed) {
-        member = await interaction.guild.members.fetch(player.id);
+        try {
+          member = await interaction.guild.members.fetch(player.id);
+        }
+        catch (error) {
+          return interaction.editReply({ content: 'Could not find the Discord member for the player currently playing this character. Have they left the server?', flags: MessageFlags.Ephemeral });
+        }
       }
 
       let changedText = [];
@@ -589,13 +371,13 @@ module.exports = {
       if (newName) {
         const oldName = character.name;
         await character.update({ name: newName });
-        changedText.push('Name: ' + inlineCode(oldName) + ' -> ' + inlineCode(newName));
+        changedText.push('Name: ' + inlineCode(oldName ? oldName : 'Undefined') + ' -> ' + inlineCode(newName));
       }
 
       if (newSex) {
         const oldSex = character.sex;
         await character.update({ sex: newSex });
-        changedText.push('Sex: ' + inlineCode(oldSex) + ' -> ' + inlineCode(newSex));
+        changedText.push('Sex: ' + inlineCode(oldSex ? oldSex : 'Undefined') + ' -> ' + inlineCode(newSex));
       }
 
       if (newAffiliationId) {
@@ -678,7 +460,7 @@ module.exports = {
         changedText.push('Please specify what to change.');
       }
       else {
-        postInLogChannel(
+        await postInLogChannel(
           'Character Info Changed',
           '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
           'Character: ' + inlineCode(character.name) + '\n\n' +
@@ -698,7 +480,7 @@ module.exports = {
       const oldYear = world.currentYear;
       await world.update({ currentYear: newYear });
 
-      postInLogChannel(
+      await postInLogChannel(
         'Current Year Changed',
         '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
         'Year: ' + inlineCode(oldYear) + ' -> ' + inlineCode(newYear),
@@ -732,7 +514,7 @@ module.exports = {
         changes.push('Emoji name: ' + inlineCode(oldEmojiName) + ' -> ' + inlineCode(newEmojiName));
       }
 
-      postInLogChannel(
+      await postInLogChannel(
         'Affiliation Changed',
         '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
         'Affiliation: ' + inlineCode(affiliation.name) + '\n\n' +

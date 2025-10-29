@@ -232,10 +232,10 @@ module.exports = {
 
 
           socialClassCell.value = player.character.socialClassName;
-          roleCell.value = player.character.role === 'Undefined' ? '' : player.character.role;
+          roleCell.value = player.character.role === null ? '' : player.character.role;
           nameCell.value = player.character.name;
-          timezoneCell.value = player.timezone === 'Undefined' ? '' : player.timezone;
-          commentsCell.value = player.character.comments === 'Undefined' ? '' : player.character.comments;
+          timezoneCell.value = player.timezone === null ? '' : player.timezone;
+          commentsCell.value = player.character.comments === null ? '' : player.character.comments;
           snowflakeCell.value = player.id
 
           if (player.character.socialClassName !== 'Commoner' || affiliation.name === 'Wanderer') {
