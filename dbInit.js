@@ -22,7 +22,7 @@ require('./models/Deceased.js')(sequelize, Sequelize.DataTypes);
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 
 sequelize.sync({ force }).then(async () => {
-  await Worlds.create({ name: 'Elstrand', currentYear: 20 });
+  await Worlds.create({ name: 'Elstrand', currentYear: 21 });
 
   await Affiliations.create({ roleId: roles.eshaeryn, name: 'Du Vēzos', emojiName: 'duvezos', isRuling: true, state: 'Open', role1: 'Farmers', role2: 'Miners', role3: 'Lumberjacks' });
   await Affiliations.create({ roleId: roles.firstLanding, name: 'Farring', emojiName: 'farring', isRuling: true, state: 'Almost Full', role1: 'Soldiers', role2: 'Farmers', role3: 'Builders' });

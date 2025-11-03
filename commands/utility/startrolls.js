@@ -22,7 +22,7 @@ function buildOffspringPairLine(bearingName, conceivingName, rollRes, checks = {
     offspringText = Array.isArray(rollRes) ? rollRes.join(', ') : String(rollRes);
   }
 
-  let line = inlineCode(bearingName) + ' & ' + inlineCode(conceivingName) + ': ' + bold(offspringText)
+  let line = inlineCode(bearingName) + ' & ' + inlineCode(conceivingName) + ' (' + checks.fertilityModifier + '% fertile)' + ':\n' + bold(offspringText)
   const parts = []
   if (typeof checks.fertilityCheck !== 'undefined') parts.push('Fertility: ' + checks.fertilityCheck)
   if (typeof checks.offspringCheck !== 'undefined') parts.push('Offspring: ' + checks.offspringCheck)
@@ -181,16 +181,19 @@ module.exports = {
 
           let bastardNPC = ''
           if (bearingCharacter.isRollingForBastards) {
-            bastardNPC = ', `NPC`'
+            bastardNPC = '\n' + inlineCode('NPC')
           }
+
+          // Calculate fertility modifier
+          const fertilityModifierBearing = ageToFertilityModifier(world.currentYear - bearingCharacter.yearOfMaturity) * 100;
 
           const embed = new EmbedBuilder()
             .setTitle('Relationship roll')
             .setDescription(
               'Bearing partner:\n' +
-              inlineCode(bearingCharacter.name) + '\n\n' +
+              inlineCode(bearingCharacter.name) + ' (' + fertilityModifierBearing + '% fertile)\n\n' +
               'Conceiving partner(s):\n' +
-              conceivingCharacters.map(character => inlineCode(character.name)).join('\n') + bastardNPC
+              conceivingCharacters.map(character => inlineCode(character.name) + ' (' + ageToFertilityModifier((world.currentYear - character.yearOfMaturity)) * 100 + '% fertile)').join('\n') + bastardNPC
             )
             .setColor(0x0000FF)
 
@@ -210,12 +213,12 @@ module.exports = {
               const offspringResults = [];
               for (const conceivingCharacter of conceivingCharacters) {
                 const roll = calculateRoll({ age1: bearingCharacterAge, age2: world.currentYear - conceivingCharacter.yearOfMaturity })
-                offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck }, conceivingCharacter: conceivingCharacter })
+                offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, conceivingCharacter: conceivingCharacter })
               }
 
               if (bearingCharacter.isRollingForBastards) {
                 const roll = calculateRoll({ age1: bearingCharacterAge, isBastardRoll: true })
-                offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck }, conceivingCharacter: undefined })
+                offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, conceivingCharacter: undefined })
               }
 
               const offspringRollsText = offspringResults.map(({ rollRes, conceivingCharacter, checks }, _) => {
@@ -277,7 +280,12 @@ module.exports = {
 
               const embed = new EmbedBuilder()
                 .setTitle('Result of roll')
-                .setDescription(offspringRollsText.join('\n') + '\n\n' + offspringResultText)
+                .setDescription(
+                  bold('Rolls:') + '\n' +
+                  offspringRollsText.join('\n\n') +
+                  '\n\n\n' +
+                  bold('Result:') + '\n' +
+                  offspringResultText)
                 .setColor(color)
 
               // Save compact summary for final report (relationships only if children were produced)
@@ -364,9 +372,12 @@ module.exports = {
 
         // Do bastard rolls
         for (const character of charactersRollingForBastardsFiltered) {
+          // Calculate fertility modifier
+          const fertilityModifier = ageToFertilityModifier(world.currentYear - character.yearOfMaturity) * 100;
+
           const embed = new EmbedBuilder()
             .setTitle('Bastard NPC roll')
-            .setDescription('Rolling character: ' + inlineCode(character.name))
+            .setDescription('Rolling character: ' + inlineCode(character.name) + ' (' + fertilityModifier + '% fertile)')
             .setColor(0x0000FF);
 
           const rollMessage = await start.editReply({
@@ -383,7 +394,7 @@ module.exports = {
               const characterAge = world.currentYear - character.yearOfMaturity;
               const roll = calculateRoll({ age1: characterAge, isBastardRoll: true });
               const rollRes = roll.result;
-              const checks = { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck };
+              const checks = { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier };
               const offspringRollsText = buildOffspringPairLine(character.name, 'NPC', rollRes, checks);
 
               const successfulRoll = rollRes.includes('Son') || rollRes.includes('Daughter');

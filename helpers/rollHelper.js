@@ -31,7 +31,7 @@ function calculateRoll({ age1, age2 = 0, isBastardRoll = false } = {}) {
   const fertilityModifier = ageToFertilityModifier(age1) * ageToFertilityModifier(age2) * 100;
   const fertilityCheck = randomInteger(100);
 
-  if (fertilityCheck <= fertilityModifier) {
+  if (fertilityCheck > 100 - fertilityModifier) {
     const offspringCheck = randomInteger(100);
     if (isBastardRoll) {
       const result = calculateFromThresholds(...BAST_THRESHOLDS, offspringCheck);
