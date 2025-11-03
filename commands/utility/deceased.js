@@ -134,10 +134,10 @@ module.exports = {
       return interaction.editReply({ content: 'The character ' + inlineCode(character.name) + ' has been added to the deceased characters.', flags: MessageFlags.Ephemeral })
     }
     catch (error) {
-      console.log(error);
       if (error.name === 'SequelizeUniqueConstraintError') {
         return interaction.editReply({ content: 'This character is already marked as deceased.', flags: MessageFlags.Ephemeral });
       }
+      console.log(error);
       return interaction.editReply({ content: 'Something went wrong with making the character deceased.', flags: MessageFlags.Ephemeral });
     }
   }

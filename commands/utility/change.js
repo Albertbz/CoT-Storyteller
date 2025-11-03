@@ -101,6 +101,20 @@ module.exports = {
               { name: 'None', value: 'None' },
             )
         )
+        .addStringOption(option =>
+          option
+            .setName('comments_new')
+            .setDescription('The new comments.')
+        )
+        .addStringOption(option =>
+          option
+            .setName('rollingforbastards_new')
+            .setDescription('The new rolling for bastards status.')
+            .addChoices(
+              { name: 'Yes', value: 'True' },
+              { name: 'No', value: 'False' }
+            )
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -345,6 +359,8 @@ module.exports = {
       const newPvEDeaths = interaction.options.getNumber('pvedeaths_new');
       const newRole = interaction.options.getString('role_new');
       const newSteelbearer = interaction.options.getString('steelbearer_new');
+      const newComments = interaction.options.getString('comments_new');
+      const newRollingForBastards = interaction.options.getString('rollingforbastards_new') === 'True' ? true : (interaction.options.getString('rollingforbastards_new') === 'False' ? false : null);
 
       const character = await Characters.findOne({
         include: { model: Affiliations, as: 'affiliation' },
@@ -368,19 +384,19 @@ module.exports = {
 
       let changedText = [];
 
-      if (newName) {
+      if (newName !== null) {
         const oldName = character.name;
         await character.update({ name: newName });
         changedText.push('Name: ' + inlineCode(oldName ? oldName : 'Undefined') + ' -> ' + inlineCode(newName));
       }
 
-      if (newSex) {
+      if (newSex !== null) {
         const oldSex = character.sex;
         await character.update({ sex: newSex });
         changedText.push('Sex: ' + inlineCode(oldSex ? oldSex : 'Undefined') + ' -> ' + inlineCode(newSex));
       }
 
-      if (newAffiliationId) {
+      if (newAffiliationId !== null) {
         const oldAffiliation = await Affiliations.findOne({ where: { id: character.affiliationId } });
         const newAffiliation = await Affiliations.findOne({ where: { id: newAffiliationId } });
 
@@ -396,7 +412,7 @@ module.exports = {
         changedText.push('Affiliation: ' + inlineCode(oldAffiliation.name) + ' -> ' + inlineCode(newAffiliation.name));
       }
 
-      if (newSocialClassName) {
+      if (newSocialClassName !== null) {
         const oldSocialClass = await SocialClasses.findOne({ where: { name: character.socialClassName } });
         const newSocialClass = await SocialClasses.findOne({ where: { name: newSocialClassName } });
 
@@ -420,22 +436,22 @@ module.exports = {
         changedText.push('Social class: ' + inlineCode(oldSocialClass.name) + ' -> ' + inlineCode(newSocialClass.name));
       }
 
-      if (newYearOfMaturity) {
+      if (newYearOfMaturity !== null) {
         const oldYearOfMaturity = character.yearOfMaturity;
         await character.update({ yearOfMaturity: newYearOfMaturity });
         changedText.push('Year of Maturity: ' + inlineCode(oldYearOfMaturity) + ' -> ' + inlineCode(newYearOfMaturity));
       }
 
-      if (newPvEDeaths) {
+      if (newPvEDeaths !== null) {
         const oldPvEDeaths = character.pveDeaths;
         await character.update({ pveDeaths: newPvEDeaths });
         changedText.push('PvE Deaths: ' + inlineCode(oldPvEDeaths) + ' -> ' + inlineCode(newPvEDeaths));
       }
 
-      if (newRole) {
+      if (newRole !== null) {
         const oldRole = character.role;
         await character.update({ role: newRole });
-        changedText.push('Role: ' + inlineCode(oldRole) + ' -> ' + inlineCode(newRole));
+        changedText.push('Role: ' + inlineCode(oldRole ? oldRole : 'Undefined') + ' -> ' + inlineCode(newRole));
       }
 
       if (newSteelbearer !== null) {
@@ -454,6 +470,18 @@ module.exports = {
         }
 
         changedText.push('Steelbearer: ' + inlineCode(oldSteelbearer) + ' -> ' + inlineCode(newSteelbearer));
+      }
+
+      if (newComments !== null) {
+        const oldComments = character.comments;
+        await character.update({ comments: newComments });
+        changedText.push('Comments: ' + inlineCode(oldComments ? oldComments : 'None') + ' -> ' + inlineCode(newComments));
+      }
+
+      if (newRollingForBastards !== null) {
+        const oldRollingForBastards = character.isRollingForBastards;
+        await character.update({ isRollingForBastards: newRollingForBastards });
+        changedText.push('Rolling for Bastards: ' + inlineCode(oldRollingForBastards ? 'Yes' : 'No') + ' -> ' + inlineCode(newRollingForBastards ? 'Yes' : 'No'));
       }
 
       if (changedText.length === 0) {

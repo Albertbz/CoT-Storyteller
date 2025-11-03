@@ -433,7 +433,12 @@ module.exports = {
         const parentNames = playableChildRow.get('Parents').split(', ')
         // console.log(parentNames)
 
-        const [parent1Character, _] = await Characters.findOrCreate({ where: { name: parentNames[0], socialClassName: 'Notable' } });
+        const [parent1Character, created] = await Characters.findOrCreate({ where: { name: parentNames[0] } });
+
+        if (created) {
+          await parent1Character.update({ socialClassName: 'Notable' });
+        }
+
         if (parent1Character) {
           await character.update({ parent1Id: parent1Character.id });
         }
@@ -442,7 +447,11 @@ module.exports = {
         }
 
         if (parentNames.length > 1) {
-          const [parent2Character, _] = await Characters.findOrCreate({ where: { name: parentNames[1] } });
+          const [parent2Character, created] = await Characters.findOrCreate({ where: { name: parentNames[1] } });
+          if (created) {
+            await parent2Character.update({ socialClassName: 'Notable' });
+          }
+
           if (parent2Character) {
             await character.update({ parent2Id: parent2Character.id });
           }
