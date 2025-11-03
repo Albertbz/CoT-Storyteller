@@ -220,14 +220,34 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     const guild = await client.guilds.fetch(guilds.cot);
     const member = await guild.members.fetch(playerId);
 
+    const character = await Characters.findOne({ where: { id: characterId } });
+
     // Check whether player exists in database
     const player = await Players.findOne({
       where: { id: playerId }
     })
 
-    const playerExists = player !== null;
+    if (!player) {
+      throw new Error(userMention(member.id) + ' does not exist in the database.');
+    }
 
-    if (!playerExists) return false;
+    // Check whether character is deceased
+    const foundDeceasedRecord = await Deceased.findOne({
+      where: { characterId: characterId }
+    });
+
+    if (foundDeceasedRecord) {
+      throw new Error(inlineCode(character.name) + ' is deceased and cannot be assigned to a player.');
+    }
+
+    // Check whether already being played by another player
+    const existingPlayer = await Players.findOne({
+      where: { characterId: characterId }
+    });
+
+    if (existingPlayer) {
+      throw new Error(inlineCode(character.name) + ' is already assigned to another player.');
+    }
 
     // Remove all roles that they could have had
     await member.roles.remove([roles.commoner, roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
@@ -235,24 +255,25 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     // Update the association
     await player.update({ characterId: characterId });
 
-    // Get the new character and update the roles of the member
-    const character = await Characters.findOne({
-      where: { id: characterId },
-      include: [
-        { model: Affiliations, as: 'affiliation' },
-        { model: SocialClasses, as: 'socialClass' }
-      ]
-    });
+    // Assign roles based on affiliation and social class
+    try {
+      const affiliation = character.getAffiliation();
+      await member.roles.add(affiliation.roleId);
+    }
+    catch (error) {
+      console.log('Failed to assign affiliation role: ' + error);
+      await player.setCharacter(null);
+      throw new Error('Failed to assign affiliation role. Is the character set to a non-ruling house?');
+    }
 
-    await member.roles.add(character.affiliation.roleId);
-
-    if (character.socialClass.name === 'Ruler') {
+    const socialClass = character.getSocialClass();
+    if (socialClass.name === 'Ruler') {
       await member.roles.add([roles.notable, roles.noble, roles.ruler]);
     }
-    else if (character.socialClass.name === 'Noble') {
+    else if (socialClass.name === 'Noble') {
       await member.roles.add([roles.notable, roles.noble]);
     }
-    else if (character.socialClass.name === 'Notable') {
+    else if (socialClass.name === 'Notable') {
       await member.roles.add(roles.notable);
     }
 
@@ -271,8 +292,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     return true;
   }
   catch (error) {
-    console.log(error)
-    return false;
+    throw new Error(error.message);
   }
 }
 
