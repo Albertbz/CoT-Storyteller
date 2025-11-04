@@ -296,7 +296,7 @@ module.exports = {
     const deceaseds = await Deceased.findAll({
       include: {
         model: Characters, as: 'character',
-        attributes: ['name'],
+        attributes: ['name', 'yearOfMaturity'],
         include: { model: Affiliations, as: 'affiliation', attributes: ['name'] }
       },
     })
@@ -348,7 +348,7 @@ module.exports = {
       nameCell.value = deceased.character.name;
       affiliationCell.value = deceased.character.affiliation.name;
       dateOfDeathCell.value = deceased.dateOfDeath;
-      ageOfDeathCell.value = deceased.ageOfDeath;
+      ageOfDeathCell.value = deceased.yearOfDeath - deceased.character.yearOfMaturity;
       causeOfDeathCell.value = deceased.causeOfDeath;
       snowflakeCell.value = deceased.playedById;
     }

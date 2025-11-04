@@ -1,3 +1,5 @@
+const { NOTFOUND } = require("sqlite3");
+
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('affiliations', {
     id: {
@@ -8,7 +10,8 @@ module.exports = (sequelize, DataTypes) => {
     },
     name: {
       type: DataTypes.STRING,
-      unique: true
+      unique: true,
+      notNull: true
     },
     isRuling: {
       type: DataTypes.BOOLEAN,

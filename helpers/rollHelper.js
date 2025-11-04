@@ -12,7 +12,8 @@ const REL_THRESHOLDS = [41, 66, 91, 94, 97, 100];
 const BAST_THRESHOLDS = [61, 79, 97, 98, 99, 100];
 const OFFSPRING_LABELS = ['Childless', 'Son', 'Daughter', 'Twin Daughters', 'Twin Sons', 'Fraternal Twins'];
 
-function calculateFromThresholds(childless, son, daughter, twinDaughters, twinSons, twinFraternal, offspringCheck) {
+// Calculate offspring result from thresholds
+function determineOffspringResult(childless, son, daughter, twinDaughters, twinSons, twinFraternal, offspringCheck) {
   if (offspringCheck < childless) return ['Childless'];
   if (offspringCheck < son) return ['Son'];
   if (offspringCheck < daughter) return ['Daughter'];
@@ -29,17 +30,17 @@ function calculateFromThresholds(childless, son, daughter, twinDaughters, twinSo
   }
 }
 
-function calculateRoll({ age1, age2 = 0, isBastardRoll = false } = {}) {
+function calculateOffspringRoll({ age1, age2 = 0, isBastardRoll = false } = {}) {
   const fertilityModifier = ageToFertilityModifier(age1) * ageToFertilityModifier(age2) * 100;
   const fertilityCheck = randomInteger(100);
 
   if (fertilityCheck > 100 - fertilityModifier) {
     const offspringCheck = randomInteger(100);
     if (isBastardRoll) {
-      const result = calculateFromThresholds(...BAST_THRESHOLDS, offspringCheck);
+      const result = determineOffspringResult(...BAST_THRESHOLDS, offspringCheck);
       return { result, fertilityCheck, offspringCheck, fertilityModifier };
     } else {
-      const result = calculateFromThresholds(...REL_THRESHOLDS, offspringCheck);
+      const result = determineOffspringResult(...REL_THRESHOLDS, offspringCheck);
       return { result, fertilityCheck, offspringCheck, fertilityModifier };
     }
   }
@@ -126,13 +127,15 @@ function buildOffspringPairLine(bearingName, conceivingName, rollRes, checks = {
   return line
 }
 
+// 
+
 
 module.exports = {
   REL_THRESHOLDS,
   BAST_THRESHOLDS,
   OFFSPRING_LABELS,
-  calculateFromThresholds,
-  calculateRoll,
+  determineOffspringResult,
+  calculateOffspringRoll,
   formatOffspringCounts,
   getPlayerSnowflakeForCharacter,
   buildOffspringPairLine

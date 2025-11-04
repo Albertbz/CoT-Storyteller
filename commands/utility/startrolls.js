@@ -1,9 +1,9 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, subtext, EmbedBuilder, WorkerContextFetchingStrategy, italic, bold } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren } = require('../../dbObjects.js');
+const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel, assignCharacterToPlayer, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase } = require('../../misc.js');
-const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateFromThresholds, calculateRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine } = require('../../helpers/rollHelper.js');
+const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, determineOffspringResult, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine } = require('../../helpers/rollHelper.js');
 
 // Centralized messages
 const CANCEL_MESSAGE = 'Something went wrong, or no button was interacted with for 5 minutes.';
@@ -202,12 +202,12 @@ module.exports = {
 
                 const offspringResults = [];
                 for (const conceivingCharacter of conceivingCharacters) {
-                  const roll = calculateRoll({ age1: bearingCharacterAge, age2: world.currentYear - conceivingCharacter.yearOfMaturity })
+                  const roll = calculateOffspringRoll({ age1: bearingCharacterAge, age2: world.currentYear - conceivingCharacter.yearOfMaturity })
                   offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, conceivingCharacter: conceivingCharacter })
                 }
 
                 if (bearingCharacter.isRollingForBastards) {
-                  const roll = calculateRoll({ age1: bearingCharacterAge, isBastardRoll: true })
+                  const roll = calculateOffspringRoll({ age1: bearingCharacterAge, isBastardRoll: true })
                   offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, conceivingCharacter: undefined })
                 }
 
@@ -382,7 +382,7 @@ module.exports = {
 
               if (rollMessageRes.customId === 'roll') {
                 const characterAge = world.currentYear - character.yearOfMaturity;
-                const roll = calculateRoll({ age1: characterAge, isBastardRoll: true });
+                const roll = calculateOffspringRoll({ age1: characterAge, isBastardRoll: true });
                 const rollRes = roll.result;
                 const checks = { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier };
                 const offspringRollsText = buildOffspringPairLine(character.name, 'NPC', rollRes, checks);
@@ -510,7 +510,45 @@ module.exports = {
         return interaction.editReply({ embeds: embedsToSend, components: [] });
       }
 
-      // return null;
+      return null;
+    }
+    // Do death rolls
+    else if (interaction.options.getSubcommand() === 'death') {
+      // return interaction.editReply({ content: 'Death rolls are not yet implemented.', components: [] });
+
+      // Get all characters that are eligible for death rolls
+      // Eligible if: age > 3, not commoner (if not wanderer affiliation), and not in Deceased table
+      const characters = await Characters.findAll({
+        include: [
+          { model: Affiliations, as: 'affiliation' },
+          { model: SocialClasses, as: 'socialClass' }
+        ]
+      });
+
+      const deceasedCharacters = await Deceased.findAll({ attributes: ['characterId'] });
+
+      const eligibleCharacters = characters.filter(character => {
+        const age = world.currentYear - character.yearOfMaturity;
+        const isCommoner = character.socialClass.name === 'Commoner';
+        const isWanderer = character.affiliation.name === 'Wanderer';
+        return age > 3 && (isWanderer || !isCommoner) && !deceasedCharacters.some(deceased => deceased.characterId === character.id);
+      });
+
+      console.log(`Found ${eligibleCharacters.length} eligible characters for death rolls.`);
+
+      // For each character, show age and calculate death chance
+      for (const character of eligibleCharacters) {
+        const age = world.currentYear - character.yearOfMaturity;
+
+
+
+      }
+
+      // Roll and show results
+
+      // Summarize results
+
+      return interaction.editReply({ content: 'Death rolls are not yet implemented.', components: [] });
     }
   }
 }
@@ -519,5 +557,5 @@ module.exports = {
 module.exports.__test = {
   formatOffspringCounts,
   buildOffspringPairLine,
-  calculateFromThresholds,
+  determineOffspringResult,
 };

@@ -108,7 +108,6 @@ module.exports = {
         monthOfDeath: month,
         dayOfDeath: day,
         causeOfDeath: cause,
-        ageOfDeath: year - character.yearOfMaturity,
         playedById: playerId
       })
 
@@ -125,7 +124,6 @@ module.exports = {
         '**Made deceased by: ' + userMention(interaction.user.id) + '**\n\n' +
         'Character: ' + inlineCode(character.name) + '\n\n' +
         'Date of Death: ' + inlineCode(deceased.dateOfDeath) + '\n' +
-        'Age of Death: ' + inlineCode(deceased.ageOfDeath) + '\n' +
         'Cause of Death: ' + inlineCode(deceased.causeOfDeath) + '\n' +
         'Played by: ' + userMention(deceased.playedById),
         0x0000A3

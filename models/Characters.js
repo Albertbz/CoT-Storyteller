@@ -16,9 +16,11 @@ module.exports = (sequelize, DataTypes) => {
     },
     affiliationId: {
       type: DataTypes.UUID,
+      notNull: true
     },
     socialClassName: {
       type: DataTypes.STRING,
+      notNull: true,
       defaultValue: 'Commoner'
     },
     yearOfMaturity: {

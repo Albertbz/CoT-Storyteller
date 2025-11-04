@@ -31,9 +31,6 @@ module.exports = (sequelize, DataTypes) => {
     causeOfDeath: {
       type: DataTypes.STRING
     },
-    ageOfDeath: {
-      type: DataTypes.INTEGER
-    },
     playedById: {
       type: DataTypes.STRING
     }

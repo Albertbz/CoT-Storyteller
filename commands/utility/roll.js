@@ -3,7 +3,7 @@ const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships,
 const { roles } = require('../../configs/ids.json');
 const { Op, where } = require('sequelize');
 const { postInLogChannel, assignCharacterToPlayer, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase } = require('../../misc.js');
-const { calculateRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter } = require('../../helpers/rollHelper.js');
+const { calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter } = require('../../helpers/rollHelper.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -80,7 +80,7 @@ module.exports = {
       const age1 = world ? (world.currentYear - relationship.bearingCharacter.yearOfMaturity) : 0;
       const age2 = world ? (world.currentYear - relationship.conceivingCharacter.yearOfMaturity) : 0;
 
-      const roll = calculateRoll({ age1, age2, isBastardRoll: false });
+      const roll = calculateOffspringRoll({ age1, age2, isBastardRoll: false });
 
       let description = '';
       if (Array.isArray(roll.result) && (roll.result.includes('Son') || roll.result.includes('Daughter'))) {

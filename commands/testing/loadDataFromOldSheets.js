@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags } = require('discord.js');
-const { Players, Characters, Affiliations, Relationships, Deceased, PlayableChildren } = require('../../dbObjects.js');
+const { Players, Characters, Affiliations, Relationships, Deceased, PlayableChildren, Worlds } = require('../../dbObjects.js');
 const { notableOffspringDoc, citizenryRegistryDoc, offspringDoc } = require('../../sheets.js');
 const { Op } = require('sequelize');
 
@@ -32,6 +32,9 @@ module.exports = {
     .setDefaultMemberPermissions(0),
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    // Get world
+    const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
 
     console.log('Loading spreadsheets.')
     // Load notable/offspring document
@@ -326,8 +329,7 @@ module.exports = {
           monthOfDeath: monthOfDeath,
           yearOfDeath: yearOfDeath,
           playedById: memberId,
-          causeOfDeath: deceasedRow.get('Cause of Death'),
-          ageOfDeath: deceasedRow.get('Age of Death')
+          causeOfDeath: deceasedRow.get('Cause of Death')
         })
 
       }
@@ -396,8 +398,7 @@ module.exports = {
           monthOfDeath: monthOfDeath,
           yearOfDeath: yearOfDeath,
           playedById: memberId,
-          causeOfDeath: deceasedRow.get('Cause of Death'),
-          ageOfDeath: deceasedRow.get('Age of Death')
+          causeOfDeath: deceasedRow.get('Cause of Death')
         })
 
       }
@@ -420,7 +421,7 @@ module.exports = {
           affiliation = await Affiliations.findOne({ where: { name: 'Wanderer' } });
         }
 
-        const socialClassName = playableChildRow.get('Inherited title') === 'None' || '' ? 'Notable' : playableChildRow.get('Inherited title');
+        const socialClassName = playableChildRow.get('Inherited title') === 'Noble' ? 'Noble' : 'Notable';
 
         const character = await Characters.create({
           name: playableChildRow.get('Character Name'),
@@ -436,7 +437,15 @@ module.exports = {
         const [parent1Character, created] = await Characters.findOrCreate({ where: { name: parentNames[0] } });
 
         if (created) {
-          await parent1Character.update({ socialClassName: 'Notable' });
+          console.log('Created parent character, added to deceased as expired child: ' + parentNames[0]);
+          await parent1Character.update({ socialClassName: 'Notable', affiliationId: affiliation.id, yearOfMaturity: world.currentYear });
+          await Deceased.create({
+            characterId: parent1Character.id,
+            causeOfDeath: 'Expired Child',
+            dayOfDeath: 1,
+            monthOfDeath: 'January',
+            yearOfDeath: world.currentYear
+          });
         }
 
         if (parent1Character) {
@@ -449,7 +458,15 @@ module.exports = {
         if (parentNames.length > 1) {
           const [parent2Character, created] = await Characters.findOrCreate({ where: { name: parentNames[1] } });
           if (created) {
-            await parent2Character.update({ socialClassName: 'Notable' });
+            console.log('Created parent character, added to deceased as expired child: ' + parentNames[1]);
+            await parent2Character.update({ socialClassName: 'Notable', affiliationId: affiliation.id, yearOfMaturity: world.currentYear });
+            await Deceased.create({
+              characterId: parent2Character.id,
+              causeOfDeath: 'Expired Child',
+              dayOfDeath: 1,
+              monthOfDeath: 'January',
+              yearOfDeath: world.currentYear
+            });
           }
 
           if (parent2Character) {
