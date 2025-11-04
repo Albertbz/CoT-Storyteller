@@ -591,7 +591,7 @@ module.exports = {
       for (const row of bastardRollsRows) {
         const character = await Characters.findOne({ where: { name: row.get('Character Name') } })
 
-        if (!character) console.log('Could not find: ' + row.get('Character Name'))
+        if (!character) throw new Error('Could not find: ' + row.get('Character Name'));
 
         const deceasedCharacter = await Deceased.findOne({ where: { characterId: character.id } })
         if (deceasedCharacter) {

@@ -1,6 +1,8 @@
 const { Players } = require('../dbObjects.js');
 const { ageToFertilityModifier } = require('../misc.js');
+const { inlineCode, bold, italic } = require('discord.js');
 
+// Returns a random integer between 1 and max (inclusive)
 function randomInteger(max) {
   return Math.floor(Math.random() * max + 1);
 }
@@ -107,6 +109,23 @@ async function getPlayerSnowflakeForCharacter(characterId) {
   return player ? player.id : null;
 }
 
+function buildOffspringPairLine(bearingName, conceivingName, rollRes, checks = {}) {
+  let offspringText = '';
+  if (Array.isArray(rollRes) && rollRes.length > 0) {
+    const { text } = formatOffspringCounts(rollRes);
+    offspringText = text || rollRes.join(', ');
+  } else {
+    offspringText = Array.isArray(rollRes) ? rollRes.join(', ') : String(rollRes);
+  }
+
+  let line = inlineCode(bearingName) + ' & ' + inlineCode(conceivingName) + ' (' + checks.fertilityModifier + '% fertile)' + ':\n' + bold(offspringText)
+  const parts = []
+  if (typeof checks.fertilityCheck !== 'undefined') parts.push('Fertility: ' + checks.fertilityCheck)
+  if (typeof checks.offspringCheck !== 'undefined') parts.push('Offspring: ' + checks.offspringCheck)
+  if (parts.length > 0) line += ' ' + italic('(' + parts.join(' / ') + ')')
+  return line
+}
+
 
 module.exports = {
   REL_THRESHOLDS,
@@ -116,4 +135,5 @@ module.exports = {
   calculateRoll,
   formatOffspringCounts,
   getPlayerSnowflakeForCharacter,
+  buildOffspringPairLine
 };

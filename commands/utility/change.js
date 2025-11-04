@@ -416,24 +416,31 @@ module.exports = {
         const oldSocialClass = await SocialClasses.findOne({ where: { name: character.socialClassName } });
         const newSocialClass = await SocialClasses.findOne({ where: { name: newSocialClassName } });
 
-        await character.update({ socialClassName: newSocialClassName });
+        // Check whether changing to commoner from non-commoner
+        if (newSocialClassName === 'Commoner' && oldSocialClass.name !== 'Commoner') {
+          changedText.push('Cannot change to Commoner from a higher social class.');
+        }
+        else {
+          await character.update({ socialClassName: newSocialClassName });
 
-        // If currently played, update Discord role
-        if (isCurrentlyPlayed) {
-          await member.roles.remove([roles.notable, roles.noble, roles.ruler]);
+          // If currently played, update Discord role
+          if (isCurrentlyPlayed) {
+            await member.roles.remove([roles.notable, roles.noble, roles.ruler]);
 
-          if (newSocialClass.name === 'Ruler') {
-            await member.roles.add([roles.notable, roles.noble, roles.ruler]);
+            if (newSocialClass.name === 'Ruler') {
+              await member.roles.add([roles.notable, roles.noble, roles.ruler]);
+            }
+            else if (newSocialClass.name === 'Noble') {
+              await member.roles.add([roles.notable, roles.noble]);
+            }
+            else if (newSocialClass.name === 'Notable') {
+              await member.roles.add(roles.notable);
+            }
           }
-          else if (newSocialClass.name === 'Noble') {
-            await member.roles.add([roles.notable, roles.noble]);
-          }
-          else if (newSocialClass.name === 'Notable') {
-            await member.roles.add(roles.notable);
-          }
+
+          changedText.push('Social class: ' + inlineCode(oldSocialClass.name) + ' -> ' + inlineCode(newSocialClass.name));
         }
 
-        changedText.push('Social class: ' + inlineCode(oldSocialClass.name) + ' -> ' + inlineCode(newSocialClass.name));
       }
 
       if (newYearOfMaturity !== null) {
@@ -479,9 +486,15 @@ module.exports = {
       }
 
       if (newRollingForBastards !== null) {
-        const oldRollingForBastards = character.isRollingForBastards;
-        await character.update({ isRollingForBastards: newRollingForBastards });
-        changedText.push('Rolling for Bastards: ' + inlineCode(oldRollingForBastards ? 'Yes' : 'No') + ' -> ' + inlineCode(newRollingForBastards ? 'Yes' : 'No'));
+        // Check whether not commoner
+        if (character.socialClassName === 'Commoner') {
+          changedText.push('Cannot change Rolling for Bastards for Commoner characters.');
+        }
+        else {
+          const oldRollingForBastards = character.isRollingForBastards;
+          await character.update({ isRollingForBastards: newRollingForBastards });
+          changedText.push('Rolling for Bastards: ' + inlineCode(oldRollingForBastards ? 'Yes' : 'No') + ' -> ' + inlineCode(newRollingForBastards ? 'Yes' : 'No'));
+        }
       }
 
       if (changedText.length === 0) {

@@ -165,7 +165,7 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
       'Bearing Character: ' + inlineCode(bearingCharacter.name) + '\n' +
       'Conceiving Character: ' + inlineCode(conceivingCharacter.name) + '\n' +
-      'Committed: ' + inlineCode(committed.toString()) + '\n' +
+      'Committed: ' + inlineCode(committed ? 'Yes' : 'No') + '\n' +
       'Inherited Title: ' + inlineCode(inheritedTitle) + '\n',
       0x008000
     )
