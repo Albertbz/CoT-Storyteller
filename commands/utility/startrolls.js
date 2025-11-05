@@ -2,14 +2,16 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { postInLogChannel, assignCharacterToPlayer, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase } = require('../../misc.js');
-const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, determineOffspringResult, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine } = require('../../helpers/rollHelper.js');
+const { postInLogChannel, assignCharacterToPlayer, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, addDeceasedToDatabase, changeCharacterAndLog } = require('../../misc.js');
+const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, determineOffspringResult, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll } = require('../../helpers/rollHelper.js');
 
 // Centralized messages
-const CANCEL_MESSAGE = 'Something went wrong, or no button was interacted with for 5 minutes.';
+const CANCEL_MESSAGE = 'Something went wrong. Please let Albert know.';
+const TIMEOUT_MESSAGE = 'No response received for 5 minutes, cancelling the rolls.';
 const BLUE_COLOR = 0x0000A3;
 const GREEN_COLOR = 0x00A300;
 const RED_COLOR = 0xA30000;
+const YELLOW_COLOR = 0xA3A300;
 
 // Picks a random element from an array
 function pickRandomElement(arr) {
@@ -140,24 +142,25 @@ module.exports = {
 
       const controlEmbed = new EmbedBuilder()
         .setTitle('Ready to start')
-        .setDescription('Please press Start when you are ready to start the offspring rolls.')
+        .setDescription('Please press Start when you are ready to start the offspring rolls.\n\nIf you do not interact with the buttons for 5 minutes, the rolls will stop.')
         .setColor(BLUE_COLOR);
 
-      const responseMessage = await interaction.editReply({
+      const startMessage = await interaction.editReply({
         embeds: [relEmbed, bastEmbed, rollChancesEmbed, controlEmbed],
         components: [startRow],
         withResponse: true
       });
 
-      const collectorFilter = i => i.user.id === interaction.user.id;
+      const interactionUser = interaction.user;
+      const collectorFilter = i => i.user.id === interactionUser.id;
       const finalRelationshipSummaries = [];
       const finalBastardSummaries = [];
 
       try {
-        const start = await responseMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-        await start.deferUpdate();
+        const startInteraction = await startMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+        await startInteraction.update({});
 
-        if (start.customId === 'start') {
+        if (startInteraction.customId === 'start') {
           for (const [_, bearingCharacter] of bearingCharacters) {
             const relationships = await Relationships.findAll({
               where: { bearingCharacterId: bearingCharacter.id },
@@ -187,17 +190,17 @@ module.exports = {
               )
               .setColor(BLUE_COLOR)
 
-            const rollMessage = await interaction.editReply({
+            const rollMessage = await startMessage.edit({
               embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
               components: [rollRow],
               withResponse: true
             })
 
             try {
-              const roll = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-              await roll.deferUpdate();
+              const rollInteraction = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+              await rollInteraction.update({});
 
-              if (roll.customId === 'roll') {
+              if (rollInteraction.customId === 'roll') {
                 const bearingCharacterAge = world.currentYear - bearingCharacter.yearOfMaturity
 
                 const offspringResults = [];
@@ -252,7 +255,7 @@ module.exports = {
                     }
                     catch (error) {
                       console.log(error)
-                      return interaction.editReply({ content: 'Something went wrong when trying to find the relationship for the successful roll.', components: [], embeds: [] })
+                      throw new Error('Something went wrong when trying to find the relationship for the successful roll.')
                     }
                   }
                   offspringResult.rolls = rollRes
@@ -288,17 +291,17 @@ module.exports = {
                   finalRelationshipSummaries.push(inlineCode(bearingCharacter.name) + ' & ' + inlineCode(partnerName) + ': ' + offspringTextCompact);
                 }
 
-                const resultMessage = await roll.editReply({
+                const resultMessage = await rollMessage.edit({
                   embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
                   components: [continueRow],
                   withResponse: true
                 })
 
                 try {
-                  const result = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-                  await result.deferUpdate();
+                  const resultInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+                  await resultInteraction.update({});
 
-                  if (result.customId === 'continue') {
+                  if (resultInteraction.customId === 'continue') {
 
                     for (const childType of offspringResult.rolls) {
                       // Make the character
@@ -309,7 +312,7 @@ module.exports = {
                         affiliationId = offspringResult.relationship.conceivingCharacter.affiliationId;
                       }
 
-                      const childCharacter = await addCharacterToDatabase(result.user, {
+                      const childCharacter = await addCharacterToDatabase(interactionUser, {
                         name: childType,
                         sex: childType === 'Son' ? 'Male' : 'Female',
                         affiliationId: affiliationId,
@@ -334,7 +337,7 @@ module.exports = {
                         const contact1Snowflake = parent1Snowflake ?? parent2Snowflake ?? null;
                         const contact2Snowflake = (parent1Snowflake && parent2Snowflake) ? parent2Snowflake : null;
 
-                        const playableChild = await addPlayableChildToDatabase(interaction.user, {
+                        const playableChild = await addPlayableChildToDatabase(interactionUser, {
                           characterId: childCharacter.id,
                           legitimacy: offspringResult.relationship ? (offspringResult.relationship.isCommitted ? 'Legitimate' : 'Illegitimate') : 'Illegitimate',
                           contact1Snowflake: contact1Snowflake,
@@ -343,20 +346,26 @@ module.exports = {
                       }
                       catch (error) {
                         console.log(error)
-                        return interaction.editReply({ content: 'Something went wrong when creating the playable child.', components: [], embeds: [] })
+                        throw new Error('Something went wrong when creating the playable child.')
                       }
                     }
                   }
                 }
                 catch (error) {
+                  if (error.code === 'InteractionCollectorError') {
+                    return resultMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] })
+                  }
                   console.log(error)
-                  return interaction.editReply({ content: CANCEL_MESSAGE, components: [], embeds: [] })
+                  return resultMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] })
                 }
               }
             }
             catch (error) {
+              if (error.code === 'InteractionCollectorError') {
+                return rollMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+              }
               console.log(error)
-              return interaction.editReply({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+              return rollMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
             }
           }
 
@@ -370,17 +379,17 @@ module.exports = {
               .setDescription('Rolling character: ' + inlineCode(character.name) + ' (' + fertilityModifier + '% fertile)')
               .setColor(BLUE_COLOR);
 
-            const rollMessage = await start.editReply({
+            const rollMessage = await startMessage.edit({
               embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
               components: [rollRow],
               withResponse: true
             });
 
             try {
-              const rollMessageRes = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-              await rollMessageRes.deferUpdate();
+              const rollInteraction = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+              await rollInteraction.update({});
 
-              if (rollMessageRes.customId === 'roll') {
+              if (rollInteraction.customId === 'roll') {
                 const characterAge = world.currentYear - character.yearOfMaturity;
                 const roll = calculateOffspringRoll({ age1: characterAge, isBastardRoll: true });
                 const rollRes = roll.result;
@@ -408,17 +417,17 @@ module.exports = {
                   finalBastardSummaries.push(inlineCode(character.name) + ': ' + offspringTextCompactBastard);
                 }
 
-                const resultMessage = await rollMessageRes.editReply({
+                const resultMessage = await rollMessage.edit({
                   embeds: [relEmbed, bastEmbed, rollChancesEmbed, resultEmbed],
                   components: [continueRow],
                   withResponse: true
                 });
 
                 try {
-                  const result = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-                  await result.deferUpdate();
+                  const resultInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+                  await resultInteraction.update({});
 
-                  if (result.customId === 'continue') {
+                  if (resultInteraction.customId === 'continue') {
                     if (successfulRoll) {
                       for (const childRoll of rollRes) {
                         let affiliationId = (await Affiliations.findOne({ where: { name: 'Wanderer' } })).id;
@@ -434,7 +443,7 @@ module.exports = {
 
                         await postInLogChannel(
                           'Character Created',
-                          '**Created by: ' + userMention(interaction.user.id) + '** (during offspring rolls)\n\n' +
+                          '**Created by: ' + userMention(interactionUser.id) + '** (during offspring rolls)\n\n' +
                           'Name: `' + childCharacter.name + '`\n' +
                           'Sex: `' + childCharacter.sex + '`\n' +
                           'Affiliation: `' + (await childCharacter.getAffiliation()).name + '`\n' +
@@ -453,7 +462,7 @@ module.exports = {
 
                           await postInLogChannel(
                             'Playable Child Created',
-                            '**Created by: ' + userMention(interaction.user.id) + '** (during offspring rolls)\n\n' +
+                            '**Created by: ' + userMention(interactionUser.id) + '** (during offspring rolls)\n\n' +
                             'Name: ' + inlineCode(childCharacter.name) + '\n' +
                             'Legitimacy: ' + inlineCode(playableChild.legitimacy) + '\n' +
                             'Parent1: ' + inlineCode(character.name) + '\n' +
@@ -462,30 +471,41 @@ module.exports = {
                           );
                         } catch (error) {
                           console.log(error);
-                          return interaction.editReply({ content: 'Something went wrong when creating the playable child.', components: [], embeds: [] });
+                          throw new Error('Something went wrong when creating the playable child.');
                         }
                       }
                     }
                   }
-                } catch (error) {
+                }
+                catch (error) {
+                  if (error.code === 'InteractionCollectorError') {
+                    return resultMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+                  }
                   console.log(error);
-                  return interaction.editReply({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+                  return resultMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
                 }
               }
-            } catch (error) {
+            }
+            catch (error) {
+              if (error.code === 'InteractionCollectorError') {
+                return rollMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+              }
               console.log(error);
-              return interaction.editReply({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+              return rollMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
             }
           }
 
         }
       } catch (error) {
+        if (error.code === 'InteractionCollectorError') {
+          return startMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+        }
         console.log(error);
-        return interaction.editReply({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+        return startMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
       }
 
       if (finalRelationshipSummaries.length === 0 && finalBastardSummaries.length === 0) {
-        return interaction.editReply({ content: 'Finished offspring rolls. No children were produced.', components: [], embeds: [] });
+        return startMessage.edit({ content: 'Finished offspring rolls. No children were produced.', components: [], embeds: [] });
       }
 
       // Build embeds array and send both summaries in the same message
@@ -507,14 +527,18 @@ module.exports = {
       }
 
       if (embedsToSend.length > 0) {
-        return interaction.editReply({ embeds: embedsToSend, components: [] });
+        return startMessage.edit({ embeds: embedsToSend, components: [] });
       }
 
       return null;
     }
-    // Do death rolls
+
+
+    /**
+     * Do death rolls
+     */
     else if (interaction.options.getSubcommand() === 'death') {
-      // return interaction.editReply({ content: 'Death rolls are not yet implemented.', components: [] });
+      const nextYear = world.currentYear + 1;
 
       // Get all characters that are eligible for death rolls
       // Eligible if: age > 3, not commoner (if not wanderer affiliation), and not in Deceased table
@@ -528,27 +552,241 @@ module.exports = {
       const deceasedCharacters = await Deceased.findAll({ attributes: ['characterId'] });
 
       const eligibleCharacters = characters.filter(character => {
-        const age = world.currentYear - character.yearOfMaturity;
+        const age = nextYear - character.yearOfMaturity;
         const isCommoner = character.socialClass.name === 'Commoner';
         const isWanderer = character.affiliation.name === 'Wanderer';
         return age > 3 && (isWanderer || !isCommoner) && !deceasedCharacters.some(deceased => deceased.characterId === character.id);
       });
 
+      // Sort the eligible characters by age ascending
+      eligibleCharacters.sort((a, b) => {
+        const ageA = nextYear - a.yearOfMaturity;
+        const ageB = nextYear - b.yearOfMaturity;
+        return ageA - ageB;
+      });
+
       console.log(`Found ${eligibleCharacters.length} eligible characters for death rolls.`);
 
-      // For each character, show age and calculate death chance
-      for (const character of eligibleCharacters) {
-        const age = world.currentYear - character.yearOfMaturity;
-
-
-
+      if (eligibleCharacters.length === 0) {
+        return interaction.editReply({ content: `There are no eligible characters for death rolls.`, components: [], embeds: [] });
       }
 
-      // Roll and show results
+      // Make embeds with all of the dying characters, about 50 in each embed
+      const embeds = [];
+      const chunkSize = 50;
+      for (let i = 0; i < eligibleCharacters.length; i += chunkSize) {
+        const chunk = eligibleCharacters.slice(i, i + chunkSize);
+        let description = `The Age specified here is the age the character will be turning in Year ${nextYear}.\n\n`;
+        description += chunk.map(character => {
+          const age = nextYear - character.yearOfMaturity;
+          return `${inlineCode(character.name)} - Age: ${age}`;
+        }).join('\n');
+
+        // If not last chunk, add "and X more..." at the end
+        if (i + chunk.length < eligibleCharacters.length) {
+          const moreCount = eligibleCharacters.length - (i + chunk.length);
+          description += `\n\nAnd ${moreCount} more...`;
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle(`Eligible Characters for Death Rolls in Year ${nextYear} (Showing ${i + 1}-${i + chunk.length} of ${eligibleCharacters.length})`)
+          .setDescription(description)
+          .setColor(BLUE_COLOR);
+
+        embeds.push(embed);
+      }
+
+      // Make an embed with the death roll chances wrt. age
+      const deathRollChancesDescription =
+        `**Death Roll Chances by Age:**\n` +
+        `**Age 4:** 1-5 (1 PvE death)\n` +
+        `**Age 5:** 1-25 (2 PvE deaths)\n` +
+        `**Age 6:** 1-50 (3 PvE deaths)\n` +
+        `**Age 7:** 1-75 (Guaranteed death)\n` +
+        `**Age 8 or older:** 1-90 (Guaranteed death)\n\n` +
+        `If a character accumulates more than 3 PvE deaths, they die.`;
+      const deathRollChancesEmbed = new EmbedBuilder()
+        .setTitle('Death Roll Chances')
+        .setDescription(deathRollChancesDescription)
+        .setColor(BLUE_COLOR);
+
+      // Make a start embed
+      const startEmbed = new EmbedBuilder()
+        .setTitle('Ready to start')
+        .setDescription('Please press Start when you are ready to start the death rolls.')
+        .setColor(BLUE_COLOR);
+
+      // Make continue button
+      const saveAndContinueButton = new ButtonBuilder()
+        .setCustomId('save_and_continue_death_rolls')
+        .setLabel('Save and Continue')
+        .setStyle(ButtonStyle.Primary);
+
+      const saveAndContinueRow = new ActionRowBuilder()
+        .addComponents(saveAndContinueButton);
+
+      // Make roll button
+      const rollButton = new ButtonBuilder()
+        .setCustomId('roll_death_rolls')
+        .setLabel('Roll')
+        .setStyle(ButtonStyle.Primary);
+
+      const rollRow = new ActionRowBuilder()
+        .addComponents(rollButton);
+
+      // Make a button to start the rolls
+      const startButton = new ButtonBuilder()
+        .setCustomId('start_death_rolls')
+        .setLabel('Start Death Rolls')
+        .setStyle(ButtonStyle.Primary);
+
+      const startRow = new ActionRowBuilder()
+        .addComponents(startButton);
+
+      const responseMessage = await interaction.editReply({
+        embeds: [embeds[0], deathRollChancesEmbed, startEmbed],
+        components: [startRow],
+        withResponse: true
+      });
+
+      const interactionUser = interaction.user;
+      const collectorFilter = i => i.user.id === interactionUser.id;
+
+      try {
+        const startInteraction = await responseMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+        await startInteraction.deferUpdate();
+
+        if (startInteraction.customId === 'start_death_rolls') {
+          // For each character, calculate death roll and show the embed that the character is in
+          for (const [index, character] of eligibleCharacters.entries()) {
+            const currentCharactersEmbed = embeds[Math.floor(index / chunkSize)];
+
+            // Make embed for the current character with their name and their age
+            const age = nextYear - character.yearOfMaturity;
+            const characterEmbed = new EmbedBuilder()
+              .setTitle('Death Roll for ' + character.name)
+              .setDescription(inlineCode(character.name) + ' - Age: ' + age)
+              .setColor(BLUE_COLOR);
+
+            // Add the character embed and change the button to roll
+            const rollMessage = await startInteraction.editReply({
+              embeds: [currentCharactersEmbed, deathRollChancesEmbed, characterEmbed],
+              components: [rollRow],
+              withResponse: true
+            });
+
+            try {
+              const rollInteraction = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+              await rollInteraction.deferUpdate();
+
+              if (rollInteraction.customId === 'roll_death_rolls') {
+                // Do the roll itself
+                const { roll, deathsFromRoll, status } = calculateDeathRoll(character, nextYear);
+
+                // To use if the character has died
+                // 24 days, random day
+                const dayOfDeath = Math.floor(Math.random() * 24) + 1;
+                // 4 months, random month. Map to month names now
+                const monthOfDeathNumber = Math.floor(Math.random() * 4) + 1;
+                const monthNames = ['January', 'February', 'March', 'April'];
+                const monthOfDeath = monthNames[monthOfDeathNumber - 1];
+                // Year of death is next year
+                const yearOfDeath = nextYear;
+
+                let resultDescription = '';
+                let color = BLUE_COLOR;
+                if (status === 'unharmed') {
+                  resultDescription = inlineCode(character.name) + ' (' + age + ' years old) rolled ' + inlineCode(roll) + ' and did not lose any PvE lives.';
+                  color = GREEN_COLOR;
+                } else if (status === 'gains_pve_deaths') {
+                  resultDescription = inlineCode(character.name) + ' (' + age + ' years old) rolled ' + inlineCode(roll) + ' and lost ' + inlineCode(deathsFromRoll) + ' PvE li' + (deathsFromRoll > 1 ? 'ves' : 'fe') + '.';
+                  color = YELLOW_COLOR;
+                } else if (status === 'dies') {
+                  resultDescription = inlineCode(character.name) + ' (' + age + ' years old) rolled ' + inlineCode(roll) + ' and will die on ' + inlineCode(dayOfDeath + ' ' + monthOfDeath + ', \'' + yearOfDeath) + '.';
+                  color = RED_COLOR;
+                }
+
+                const resultEmbed = new EmbedBuilder()
+                  .setTitle('Result of Death Roll')
+                  .setDescription(resultDescription)
+                  .setColor(color);
+
+                // Show the result and the continue button
+                const resultMessage = await rollInteraction.editReply({
+                  embeds: [currentCharactersEmbed, deathRollChancesEmbed, resultEmbed],
+                  components: [saveAndContinueRow],
+                  withResponse: true
+                });
+
+                try {
+                  const saveAndContinueInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+                  await saveAndContinueInteraction.deferUpdate();
+
+                  if (saveAndContinueInteraction.customId === 'save_and_continue_death_rolls') {
+                    // Save the death roll result to the database by updating
+                    // the character's PvE deaths or adding them to a temporary 
+                    // Deceased table, as well as updating the character
+                    // deathRollX corresponding to their age next year - 3
+                    if (status === 'gains_pve_deaths') {
+                      await changeCharacterAndLog(
+                        interactionUser, character, {
+                        newPveDeaths: character.pveDeaths + deathsFromRoll,
+                        [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
+                      });
+                    } else if (status === 'dies') {
+                      // Update the character's deathRollX
+                      await changeCharacterAndLog(interactionUser, character, {
+                        [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
+                      });
+
+                      // Get player that played the character
+                      const player = await Players.findOne({ where: { characterId: character.id } });
+
+                      await addDeceasedToDatabase(interactionUser, { characterId: character.id, dayOfDeath, monthOfDeath, yearOfDeath, causeOfDeath: 'Age', playedById: player ? player.id : null });
+                    }
+                    else if (status === 'unharmed') {
+                      // Just update the character's deathRollX
+                      await changeCharacterAndLog(interactionUser, character, {
+                        [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
+                      });
+                    }
+                  }
+                }
+                catch (error) {
+                  if (error.code === 'InteractionCollectorError') {
+                    return resultMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+                  }
+                  console.log(error);
+                  return resultMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+                }
+              }
+            }
+            catch (error) {
+              if (error.code === 'InteractionCollectorError') {
+                return rollMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+              }
+              console.log(error);
+              return rollMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+            }
+          }
+        }
+      }
+      catch (error) {
+        if (error.code === 'InteractionCollectorError') {
+          return responseMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+        }
+        console.log(error);
+        return responseMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+      }
+
+
+
+
 
       // Summarize results
 
-      return interaction.editReply({ content: 'Death rolls are not yet implemented.', components: [] });
+      // return interaction.editReply({ content: 'Death rolls are not yet implemented.', components: [] });
+      return null;
     }
   }
 }

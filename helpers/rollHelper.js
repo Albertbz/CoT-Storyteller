@@ -12,7 +12,7 @@ const REL_THRESHOLDS = [41, 66, 91, 94, 97, 100];
 const BAST_THRESHOLDS = [61, 79, 97, 98, 99, 100];
 const OFFSPRING_LABELS = ['Childless', 'Son', 'Daughter', 'Twin Daughters', 'Twin Sons', 'Fraternal Twins'];
 
-// Calculate offspring result from thresholds
+// Determine offspring result from thresholds
 function determineOffspringResult(childless, son, daughter, twinDaughters, twinSons, twinFraternal, offspringCheck) {
   if (offspringCheck < childless) return ['Childless'];
   if (offspringCheck < son) return ['Son'];
@@ -127,7 +127,53 @@ function buildOffspringPairLine(bearingName, conceivingName, rollRes, checks = {
   return line
 }
 
-// 
+/**
+ * Calculate death roll. Takes age of character, returns whether the character
+ * dies, gets X PvE deaths, or lives.
+ * Roll a D100, then check the following thresholds:
+ * If age = 4, 1-5: Fail roll (1 PvE death)
+ * If age = 5, 1-25: Fail roll (2 PvE deaths)
+ * If age = 6, 1-50: Fail roll (3 PvE deaths)
+ * If age = 7, 1-75: Fail roll (Guaranteed death)
+ * If age >= 8, 1-90: Fail roll (Guaranteed death)
+ * If roll fails, check for number of PvE deaths the character currently has,
+ * and if the number of PvE deaths added to the number of PvE deaths from this
+ * roll is more than 3, the character dies. Otherwise, they gain the number of
+ * PvE deaths from this roll.
+ * @param {Characters} character The character to roll death for.
+ * @returns {Object} An object with the roll result. Contains:
+ *  - roll: The D100 roll result.
+ *  - deathsFromRoll: Number of PvE deaths from the roll (0 if unharmed).
+ *  - status: One of 'unharmed', 'gains_pve_deaths', 'dies'.
+ */
+
+function calculateDeathRoll(character, worldYear) {
+  const roll = randomInteger(100);
+  let deathsFromRoll = 0;
+  const age = worldYear - character.yearOfMaturity;
+  if (age === 4 && roll <= 5) {
+    deathsFromRoll = 1;
+  } else if (age === 5 && roll <= 25) {
+    deathsFromRoll = 2;
+  } else if (age === 6 && roll <= 50) {
+    deathsFromRoll = 3;
+  } else if (age === 7 && roll <= 75) {
+    deathsFromRoll = 4; // Guaranteed death
+  } else if (age >= 8 && roll <= 90) {
+    deathsFromRoll = 4; // Guaranteed death
+  }
+
+  if (deathsFromRoll === 0) {
+    return { roll, deathsFromRoll: 0, status: 'unharmed' };
+  }
+
+  const totalPvEDeaths = (character.pveDeaths || 0) + deathsFromRoll;
+  if (totalPvEDeaths >= 4) {
+    return { roll, deathsFromRoll, status: 'dies' };
+  } else {
+    return { roll, deathsFromRoll, status: 'gains_pve_deaths' };
+  }
+}
 
 
 module.exports = {
@@ -138,5 +184,6 @@ module.exports = {
   calculateOffspringRoll,
   formatOffspringCounts,
   getPlayerSnowflakeForCharacter,
-  buildOffspringPairLine
+  buildOffspringPairLine,
+  calculateDeathRoll
 };

@@ -296,6 +296,126 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
   }
 }
 
+async function addDeceasedToDatabase(storyteller, { characterId, yearOfDeath, monthOfDeath, dayOfDeath, causeOfDeath, playedById } = {}) {
+  // storyteller is required
+  if (!storyteller) {
+    throw new Error('storyteller is required');
+  }
+
+  try {
+    const deceased = await Deceased.create({
+      characterId: characterId,
+      yearOfDeath: yearOfDeath,
+      monthOfDeath: monthOfDeath,
+      dayOfDeath: dayOfDeath,
+      causeOfDeath: causeOfDeath,
+      playedById: playedById
+    });
+
+    const character = await Characters.findOne({ where: { id: characterId } });
+
+    await postInLogChannel(
+      'Character made Deceased',
+      '**Made deceased by: ' + userMention(storyteller.id) + '**\n\n' +
+      'Character: ' + inlineCode(character.name) + '\n\n' +
+      'Date of Death: ' + inlineCode(deceased.dateOfDeath) + '\n' +
+      'Cause of Death: ' + inlineCode(deceased.causeOfDeath) + '\n' +
+      'Played by: ' + userMention(deceased.playedById),
+      0x0000A3
+    );
+
+    return deceased;
+  }
+  catch (error) {
+    console.log(error);
+    throw new Error('Something went wrong with adding the deceased character.');
+  }
+}
+
+// Changes the provided values of a character and posts the change to the log
+// channel using postInLogChannel.
+async function changeCharacterAndLog(storyteller, character, { newName, newSex, newAffiliationId, newSocialClassName, newYearOfMaturity, newRole, newPveDeaths, newComments, newParent1Id, newParent2Id, newIsRollingForBastards, newSteelbearerState, newDeathRoll1, newDeathRoll2, newDeathRoll3, newDeathRoll4, newDeathRoll5 } = {}) {
+  const oldValues = {
+    name: character.name,
+    sex: character.sex,
+    affiliationId: character.affiliationId,
+    socialClassName: character.socialClassName,
+    yearOfMaturity: character.yearOfMaturity,
+    role: character.role,
+    pveDeaths: character.pveDeaths,
+    comments: character.comments,
+    parent1Id: character.parent1Id,
+    parent2Id: character.parent2Id,
+    isRollingForBastards: character.isRollingForBastards,
+    steelbearerState: character.steelbearerState,
+    deathRoll1: character.deathRoll1,
+    deathRoll2: character.deathRoll2,
+    deathRoll3: character.deathRoll3,
+    deathRoll4: character.deathRoll4,
+    deathRoll5: character.deathRoll5
+  };
+
+  const newValues = {
+  };
+
+  if (newName !== undefined) newValues.name = newName;
+  if (newSex !== undefined) newValues.sex = newSex;
+  if (newAffiliationId !== undefined) newValues.affiliationId = newAffiliationId;
+  if (newSocialClassName !== undefined) newValues.socialClassName = newSocialClassName;
+  if (newYearOfMaturity !== undefined) newValues.yearOfMaturity = newYearOfMaturity;
+  if (newRole !== undefined) newValues.role = newRole;
+  if (newPveDeaths !== undefined) newValues.pveDeaths = newPveDeaths;
+  if (newComments !== undefined) newValues.comments = newComments;
+  if (newParent1Id !== undefined) newValues.parent1Id = newParent1Id;
+  if (newParent2Id !== undefined) newValues.parent2Id = newParent2Id;
+  if (newIsRollingForBastards !== undefined) newValues.isRollingForBastards = newIsRollingForBastards;
+  if (newSteelbearerState !== undefined) newValues.steelbearerState = newSteelbearerState;
+  if (newDeathRoll1 !== undefined) newValues.deathRoll1 = newDeathRoll1;
+  if (newDeathRoll2 !== undefined) newValues.deathRoll2 = newDeathRoll2;
+  if (newDeathRoll3 !== undefined) newValues.deathRoll3 = newDeathRoll3;
+  if (newDeathRoll4 !== undefined) newValues.deathRoll4 = newDeathRoll4;
+  if (newDeathRoll5 !== undefined) newValues.deathRoll5 = newDeathRoll5;
+
+  console.log(newValues);
+
+  let changeDescription = '**Changed by: ' + userMention(storyteller.id) + '**\n\n';
+
+  for (const [key, newValue] of Object.entries(newValues)) {
+    const oldValue = oldValues[key];
+    if (oldValue !== newValue) {
+      changeDescription += inlineCode(key) + ': ' + inlineCode(oldValue === null ? 'null' : String(oldValue)) + ' -> ' + inlineCode(newValue === null ? 'null' : String(newValue)) + '\n';
+    }
+  }
+
+  // Update the character with new values
+  await character.update({
+    name: newValues.name !== undefined ? newValues.name : character.name,
+    sex: newValues.sex !== undefined ? newValues.sex : character.sex,
+    affiliationId: newValues.affiliationId !== undefined ? newValues.affiliationId : character.affiliationId,
+    socialClassName: newValues.socialClassName !== undefined ? newValues.socialClassName : character.socialClassName,
+    yearOfMaturity: newValues.yearOfMaturity !== undefined ? newValues.yearOfMaturity : character.yearOfMaturity,
+    role: newValues.role !== undefined ? newValues.role : character.role,
+    pveDeaths: newValues.pveDeaths !== undefined ? newValues.pveDeaths : character.pveDeaths,
+    comments: newValues.comments !== undefined ? newValues.comments : character.comments,
+    parent1Id: newValues.parent1Id !== undefined ? newValues.parent1Id : character.parent1Id,
+    parent2Id: newValues.parent2Id !== undefined ? newValues.parent2Id : character.parent2Id,
+    isRollingForBastards: newValues.isRollingForBastards !== undefined ? newValues.isRollingForBastards : character.isRollingForBastards,
+    steelbearerState: newValues.steelbearerState !== undefined ? newValues.steelbearerState : character.steelbearerState,
+    deathRoll1: newValues.deathRoll1 !== undefined ? newValues.deathRoll1 : character.deathRoll1,
+    deathRoll2: newValues.deathRoll2 !== undefined ? newValues.deathRoll2 : character.deathRoll2,
+    deathRoll3: newValues.deathRoll3 !== undefined ? newValues.deathRoll3 : character.deathRoll3,
+    deathRoll4: newValues.deathRoll4 !== undefined ? newValues.deathRoll4 : character.deathRoll4,
+    deathRoll5: newValues.deathRoll5 !== undefined ? newValues.deathRoll5 : character.deathRoll5
+  });
+
+  await postInLogChannel(
+    'Character Changed',
+    changeDescription,
+    0xFFA500
+  );
+
+}
+
 async function postInLogChannel(title, description, color) {
   const embedLog = new EmbedBuilder()
     .setTitle(title)
@@ -313,4 +433,4 @@ function ageToFertilityModifier(age) {
   if (age < 5) return 1;
 }
 
-module.exports = { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, ageToFertilityModifier, addRelationshipToDatabase, addPlayableChildToDatabase }; 
+module.exports = { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, ageToFertilityModifier, addRelationshipToDatabase, addPlayableChildToDatabase, addDeceasedToDatabase, changeCharacterAndLog }; 
