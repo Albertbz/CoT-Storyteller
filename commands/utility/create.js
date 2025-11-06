@@ -254,15 +254,17 @@ module.exports = {
           'Year of Maturity: ' + inlineCode(character.yearOfMaturity) + '\n'
         if (!linkToUser) return interaction.editReply({ content: characterCreatedText, flags: MessageFlags.Ephemeral });
 
-        const playerExists = await assignCharacterToPlayer(character.id, user.id, interaction.user);
-
-        if (!playerExists) return interaction.editReply({ content: characterCreatedText + '\n\n' + '**Attempted to assign character to the specified player, but the player was not found in the database.**', flags: MessageFlags.Ephemeral })
-
-        return interaction.editReply({ content: characterCreatedText + '\n\n' + '**Aditionally, the character was assigned to:** ' + userMention(user.id), flags: MessageFlags.Ephemeral })
+        try {
+          await assignCharacterToPlayer(character.id, user.id, interaction.user);
+          return interaction.editReply({ content: characterCreatedText + '\n\n' + '**Aditionally, the character was assigned to:** ' + userMention(user.id), flags: MessageFlags.Ephemeral })
+        }
+        catch (error) {
+          return interaction.editReply({ content: `${characterCreatedText}\n\n**Attempted to assign character to the specified player, but ${error.message}** `, flags: MessageFlags.Ephemeral })
+        }
       }
       catch (error) {
         console.log(error);
-        return interaction.editReply({ content: 'Something went wrong.', flags: MessageFlags.Ephemeral })
+        return interaction.editReply({ content: 'Something went wrong. Please let Albert know and tell him what you were doing.', flags: MessageFlags.Ephemeral })
       }
     }
     else if (interaction.options.getSubcommand() === 'relationship') {

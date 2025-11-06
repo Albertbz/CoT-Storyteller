@@ -16,6 +16,7 @@ const Players = require('./models/Players.js')(sequelize, Sequelize.DataTypes);
 const Relationships = require('./models/Relationships.js')(sequelize, Sequelize.DataTypes);
 const PlayableChildren = require('./models/PlayableChildren.js')(sequelize, Sequelize.DataTypes);
 const Deceased = require('./models/Deceased.js')(sequelize, Sequelize.DataTypes);
+const DeathRollDeaths = require('./models/DeathRollDeaths.js')(sequelize, Sequelize.DataTypes);
 
 Characters.belongsTo(Affiliations, { foreignKey: 'affiliationId', as: 'affiliation' });
 Characters.belongsTo(SocialClasses, { foreignKey: 'socialClassName', as: 'socialClass' });
@@ -28,9 +29,11 @@ Relationships.belongsTo(Characters, { foreignKey: 'conceivingCharacterId', as: '
 Deceased.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 Deceased.belongsTo(Players, { foreignKey: 'playedById', as: 'playedBy' });
 
-PlayableChildren.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' })
+DeathRollDeaths.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
+
+PlayableChildren.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 
 Players.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 
 
-module.exports = { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased };
+module.exports = { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths };

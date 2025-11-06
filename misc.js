@@ -240,6 +240,11 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       throw new Error(inlineCode(character.name) + ' is deceased and cannot be assigned to a player.');
     }
 
+    // Check whether a character is already assigned to the player
+    if (player.characterId) {
+      throw new Error(userMention(member.id) + ' is already playing a character.');
+    }
+
     // Check whether already being played by another player
     const existingPlayer = await Players.findOne({
       where: { characterId: characterId }
@@ -257,7 +262,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
 
     // Assign roles based on affiliation and social class
     try {
-      const affiliation = character.getAffiliation();
+      const affiliation = await character.getAffiliation();
       await member.roles.add(affiliation.roleId);
     }
     catch (error) {
@@ -266,7 +271,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       throw new Error('Failed to assign affiliation role. Is the character set to a non-ruling house?');
     }
 
-    const socialClass = character.getSocialClass();
+    const socialClass = await character.getSocialClass();
     if (socialClass.name === 'Ruler') {
       await member.roles.add([roles.notable, roles.noble, roles.ruler]);
     }
@@ -378,12 +383,14 @@ async function changeCharacterAndLog(storyteller, character, { newName, newSex, 
 
   console.log(newValues);
 
-  let changeDescription = '**Changed by: ' + userMention(storyteller.id) + '**\n\n';
+  let changeDescription =
+    '**Changed by: ' + userMention(storyteller.id) + '**\n\n' +
+    'Character: ' + inlineCode(character.name) + '\n\n';
 
   for (const [key, newValue] of Object.entries(newValues)) {
     const oldValue = oldValues[key];
     if (oldValue !== newValue) {
-      changeDescription += inlineCode(key) + ': ' + inlineCode(oldValue === null ? 'null' : String(oldValue)) + ' -> ' + inlineCode(newValue === null ? 'null' : String(newValue)) + '\n';
+      changeDescription += inlineCode(key) + ': ' + inlineCode(oldValue === null ? '-' : String(oldValue)) + ' -> ' + inlineCode(newValue === null ? '-' : String(newValue)) + '\n';
     }
   }
 
@@ -411,7 +418,7 @@ async function changeCharacterAndLog(storyteller, character, { newName, newSex, 
   await postInLogChannel(
     'Character Changed',
     changeDescription,
-    0xFFA500
+    0xD98C00
   );
 
 }

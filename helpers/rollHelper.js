@@ -1,6 +1,13 @@
-const { Players } = require('../dbObjects.js');
-const { ageToFertilityModifier } = require('../misc.js');
-const { inlineCode, bold, italic } = require('discord.js');
+const { Players, DeathRollDeaths, Characters } = require('../dbObjects.js');
+const { ageToFertilityModifier, changeCharacterAndLog, postInLogChannel } = require('../misc.js');
+const { inlineCode, bold, italic, userMention } = require('discord.js');
+
+const BLUE_COLOR = 0x0000A3;
+const GREEN_COLOR = 0x00A300;
+const RED_COLOR = 0xA30000;
+const LIGHT_YELLOW_COLOR = 0xFFFFA3;
+const YELLOW_COLOR = 0xA3A300;
+const ORANGE_COLOR = 0xFFA500;
 
 // Returns a random integer between 1 and max (inclusive)
 function randomInteger(max) {
@@ -175,6 +182,100 @@ function calculateDeathRoll(character, worldYear) {
   }
 }
 
+function rollDeathAndGetResult(character, nextYear) {
+  // Do the roll itself
+  const { roll, deathsFromRoll, status } = calculateDeathRoll(character, nextYear);
+
+  const age = nextYear - character.yearOfMaturity;
+
+  // To use if the character has died
+  // 24 days, random day
+  const dayOfDeath = Math.floor(Math.random() * 24) + 1;
+  // 4 months, random month. Map to month names now
+  const monthOfDeathNumber = Math.floor(Math.random() * 4) + 1;
+  const monthNames = ['January', 'February', 'March', 'April'];
+  const monthOfDeath = monthNames[monthOfDeathNumber - 1];
+  // Year of death is next year
+  const yearOfDeath = nextYear;
+
+  let resultDescription = '';
+  let color = BLUE_COLOR;
+  if (status === 'unharmed') {
+    resultDescription = inlineCode(character.name) + ' (' + age + ' years old) rolled ' + inlineCode(roll) + ' and did not lose any PvE lives.';
+    color = GREEN_COLOR;
+  } else if (status === 'gains_pve_deaths') {
+    resultDescription = inlineCode(character.name) + ' (' + age + ' years old) rolled ' + inlineCode(roll) + ' and lost ' + inlineCode(deathsFromRoll) + ' PvE li' + (deathsFromRoll > 1 ? 'ves' : 'fe') + '.';
+    color = ORANGE_COLOR;
+  } else if (status === 'dies') {
+    resultDescription = inlineCode(character.name) + ' (' + age + ' years old) rolled ' + inlineCode(roll) + ' and will die on ' + inlineCode(dayOfDeath + ' ' + monthOfDeath + ', \'' + yearOfDeath) + '.';
+    color = RED_COLOR;
+  }
+
+  return { resultDescription, color, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath };
+}
+
+async function saveDeathResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives) {
+  // Get player that plays the character
+  const player = await Players.findOne({ where: { characterId: character.id } });
+
+  if (!player) {
+    console.log(`No player found for character ${character.name} (ID: ${character.id}).`);
+  }
+
+  // Save the death roll result to the database by updating
+  // the character's PvE deaths or adding them to the temporary 
+  // DeathRollDeaths table, as well as updating the character
+  // deathRollX corresponding to their age next year - 3
+  if (status === 'gains_pve_deaths') {
+    await changeCharacterAndLog(
+      interactionUser, character, {
+      newPveDeaths: character.pveDeaths + deathsFromRoll,
+      [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
+    });
+
+    // Add to summary tracking
+    if (deathsFromRoll === 1) {
+      lost1PveLife.push({ character, player });
+    } else if (deathsFromRoll === 2) {
+      lost2PveLives.push({ character, player });
+    } else if (deathsFromRoll === 3) {
+      lost3PveLives.push({ character, player });
+    }
+
+  } else if (status === 'dies') {
+    // Update the character's deathRollX
+    await changeCharacterAndLog(interactionUser, character, {
+      [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
+    });
+
+    await DeathRollDeaths.create({
+      characterId: character.id,
+      dayOfDeath: dayOfDeath,
+      monthOfDeath: monthOfDeath,
+      yearOfDeath: yearOfDeath,
+      playedById: player ? player.id : null
+    });
+
+    await postInLogChannel(
+      'Character Scheduled for Death',
+      '**Scheduled by: ' + userMention(interactionUser.id) + '** (during death rolls)\n\n' +
+      'Name: `' + character.name + '`\n' +
+      'Date of Death: `' + dayOfDeath + ' ' + monthOfDeath + ', \'' + yearOfDeath + '`\n' +
+      (player ? 'Played by: ' + userMention(player.id) : 'Played by: None'),
+      BLUE_COLOR
+    );
+
+    // Add to summary tracking
+    diedCharacters.push({ character, player, dayOfDeath, monthOfDeath, yearOfDeath });
+  }
+  else if (status === 'unharmed') {
+    // Just update the character's deathRollX
+    await changeCharacterAndLog(interactionUser, character, {
+      [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
+    });
+  }
+}
+
 
 module.exports = {
   REL_THRESHOLDS,
@@ -185,5 +286,7 @@ module.exports = {
   formatOffspringCounts,
   getPlayerSnowflakeForCharacter,
   buildOffspringPairLine,
-  calculateDeathRoll
+  calculateDeathRoll,
+  rollDeathAndGetResult,
+  saveDeathResultToDatabase
 };

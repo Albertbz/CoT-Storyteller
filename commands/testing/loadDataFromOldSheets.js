@@ -557,8 +557,11 @@ module.exports = {
         }
         else {
           const deceasedCharacter = await Deceased.findOne({ where: { characterId: bearingCharacter.id } })
-          if (deceasedCharacter) {
-            console.log('The following character is dead: ' + bearingCharacterName)
+          if (deceasedCharacter && deceasedCharacter.yearOfDeath < world.currentYear) {
+            console.log(`The following character is dead and died before this year: ${bearingCharacterName}. Should be removed.`)
+          }
+          else if (deceasedCharacter && deceasedCharacter.yearOfDeath === world.currentYear) {
+            console.log(`The following character is dead, but died this year: ${bearingCharacterName}`)
           }
         }
       }
@@ -573,8 +576,11 @@ module.exports = {
         }
         else {
           const deceasedCharacter = await Deceased.findOne({ where: { characterId: conceivingCharacter.id } })
-          if (deceasedCharacter) {
-            console.log('The following character is dead: ' + conceivingCharacterName)
+          if (deceasedCharacter && deceasedCharacter.yearOfDeath < world.currentYear) {
+            console.log(`The following character is dead and died before this year: ${conceivingCharacterName}. Should be removed.`)
+          }
+          else if (deceasedCharacter && deceasedCharacter.yearOfDeath === world.currentYear) {
+            console.log(`The following character is dead, but died this year: ${conceivingCharacterName}`)
           }
         }
       }
