@@ -339,7 +339,7 @@ async function addDeceasedToDatabase(storyteller, { characterId, yearOfDeath, mo
 
 // Changes the provided values of a character and posts the change to the log
 // channel using postInLogChannel.
-async function changeCharacterAndLog(storyteller, character, { newName, newSex, newAffiliationId, newSocialClassName, newYearOfMaturity, newRole, newPveDeaths, newComments, newParent1Id, newParent2Id, newIsRollingForBastards, newSteelbearerState, newDeathRoll1, newDeathRoll2, newDeathRoll3, newDeathRoll4, newDeathRoll5 } = {}) {
+async function changeCharacter(storyteller, character, shouldPostInLogChannel, { newName, newSex, newAffiliationId, newSocialClassName, newYearOfMaturity, newRole, newPveDeaths, newComments, newParent1Id, newParent2Id, newIsRollingForBastards, newSteelbearerState, newDeathRoll1, newDeathRoll2, newDeathRoll3, newDeathRoll4, newDeathRoll5 } = {}) {
   const oldValues = {
     name: character.name,
     sex: character.sex,
@@ -381,7 +381,7 @@ async function changeCharacterAndLog(storyteller, character, { newName, newSex, 
   if (newDeathRoll4 !== undefined) newValues.deathRoll4 = newDeathRoll4;
   if (newDeathRoll5 !== undefined) newValues.deathRoll5 = newDeathRoll5;
 
-  console.log(newValues);
+  // console.log(newValues);
 
   let changeDescription =
     '**Changed by: ' + userMention(storyteller.id) + '**\n\n' +
@@ -415,11 +415,13 @@ async function changeCharacterAndLog(storyteller, character, { newName, newSex, 
     deathRoll5: newValues.deathRoll5 !== undefined ? newValues.deathRoll5 : character.deathRoll5
   });
 
-  await postInLogChannel(
-    'Character Changed',
-    changeDescription,
-    0xD98C00
-  );
+  if (shouldPostInLogChannel) {
+    await postInLogChannel(
+      'Character Changed',
+      changeDescription,
+      0xD98C00
+    );
+  }
 
 }
 
@@ -440,4 +442,4 @@ function ageToFertilityModifier(age) {
   if (age < 5) return 1;
 }
 
-module.exports = { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, ageToFertilityModifier, addRelationshipToDatabase, addPlayableChildToDatabase, addDeceasedToDatabase, changeCharacterAndLog }; 
+module.exports = { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, ageToFertilityModifier, addRelationshipToDatabase, addPlayableChildToDatabase, addDeceasedToDatabase, changeCharacter }; 

@@ -561,7 +561,7 @@ module.exports = {
             console.log(`The following character is dead and died before this year: ${bearingCharacterName}. Should be removed.`)
           }
           else if (deceasedCharacter && deceasedCharacter.yearOfDeath === world.currentYear) {
-            console.log(`The following character is dead, but died this year: ${bearingCharacterName}`)
+            console.log(`The following character is dead, but died this year: ${bearingCharacterName}. Should be removed due to being bearing partner.`)
           }
         }
       }
@@ -617,8 +617,11 @@ module.exports = {
         if (!character) throw new Error('Could not find: ' + row.get('Character Name'));
 
         const deceasedCharacter = await Deceased.findOne({ where: { characterId: character.id } })
-        if (deceasedCharacter) {
-          console.log('The following character is dead: ' + row.get('Character Name'))
+        if (deceasedCharacter && deceasedCharacter.yearOfDeath < world.currentYear) {
+          console.log(`The following character is dead and died before this year: ${character.name}. Should be removed.`)
+        }
+        else if (deceasedCharacter && deceasedCharacter.yearOfDeath === world.currentYear) {
+          console.log(`The following character is dead, but died this year: ${character.name}`)
         }
         else {
           await character.update({ isRollingForBastards: true })

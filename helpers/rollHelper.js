@@ -1,6 +1,6 @@
 const { Players, DeathRollDeaths, Characters } = require('../dbObjects.js');
-const { ageToFertilityModifier, changeCharacterAndLog, postInLogChannel } = require('../misc.js');
-const { inlineCode, bold, italic, userMention } = require('discord.js');
+const { ageToFertilityModifier, changeCharacter, postInLogChannel } = require('../misc.js');
+const { inlineCode, bold, italic, userMention, EmbedBuilder } = require('discord.js');
 
 const BLUE_COLOR = 0x0000A3;
 const GREEN_COLOR = 0x00A300;
@@ -8,6 +8,7 @@ const RED_COLOR = 0xA30000;
 const LIGHT_YELLOW_COLOR = 0xFFFFA3;
 const YELLOW_COLOR = 0xA3A300;
 const ORANGE_COLOR = 0xFFA500;
+const MAX_EMBED_DESCRIPTION_LENGTH = 3000;
 
 // Returns a random integer between 1 and max (inclusive)
 function randomInteger(max) {
@@ -214,7 +215,7 @@ function rollDeathAndGetResult(character, nextYear) {
   return { resultDescription, color, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath };
 }
 
-async function saveDeathResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives) {
+async function saveDeathResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives, shouldPostInLogChannel) {
   // Get player that plays the character
   const player = await Players.findOne({ where: { characterId: character.id } });
 
@@ -227,8 +228,8 @@ async function saveDeathResultToDatabase(character, interactionUser, nextYear, r
   // DeathRollDeaths table, as well as updating the character
   // deathRollX corresponding to their age next year - 3
   if (status === 'gains_pve_deaths') {
-    await changeCharacterAndLog(
-      interactionUser, character, {
+    await changeCharacter(
+      interactionUser, character, shouldPostInLogChannel, {
       newPveDeaths: character.pveDeaths + deathsFromRoll,
       [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
     });
@@ -244,7 +245,7 @@ async function saveDeathResultToDatabase(character, interactionUser, nextYear, r
 
   } else if (status === 'dies') {
     // Update the character's deathRollX
-    await changeCharacterAndLog(interactionUser, character, {
+    await changeCharacter(interactionUser, character, shouldPostInLogChannel, {
       [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
     });
 
@@ -256,24 +257,63 @@ async function saveDeathResultToDatabase(character, interactionUser, nextYear, r
       playedById: player ? player.id : null
     });
 
-    await postInLogChannel(
-      'Character Scheduled for Death',
-      '**Scheduled by: ' + userMention(interactionUser.id) + '** (during death rolls)\n\n' +
-      'Name: `' + character.name + '`\n' +
-      'Date of Death: `' + dayOfDeath + ' ' + monthOfDeath + ', \'' + yearOfDeath + '`\n' +
-      (player ? 'Played by: ' + userMention(player.id) : 'Played by: None'),
-      BLUE_COLOR
-    );
+    if (shouldPostInLogChannel) {
+      await postInLogChannel(
+        'Character Scheduled for Death',
+        '**Scheduled by: ' + userMention(interactionUser.id) + '** (during death rolls)\n\n' +
+        'Name: `' + character.name + '`\n' +
+        'Date of Death: `' + dayOfDeath + ' ' + monthOfDeath + ', \'' + yearOfDeath + '`\n' +
+        (player ? 'Played by: ' + userMention(player.id) : 'Played by: None'),
+        BLUE_COLOR
+      );
+
+    }
 
     // Add to summary tracking
     diedCharacters.push({ character, player, dayOfDeath, monthOfDeath, yearOfDeath });
   }
   else if (status === 'unharmed') {
     // Just update the character's deathRollX
-    await changeCharacterAndLog(interactionUser, character, {
+    await changeCharacter(interactionUser, character, shouldPostInLogChannel, {
       [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
     });
   }
+}
+
+function makeDeathRollsSummaryEmbeds(linesList, embedTitle, embedColor) {
+  // Whenever a description is too long, split into multiple embeds
+  // A description is too long if it exceeds 4096 characters
+  let currentDescriptionLength = 0;
+  const currentDescriptionLines = [];
+  const embeds = [];
+
+  for (const line of linesList) {
+    if (currentDescriptionLength + line.length + 1 > MAX_EMBED_DESCRIPTION_LENGTH) {
+      // Create an embed with the current description and start a new one
+      const embed = new EmbedBuilder()
+        .setTitle(embedTitle)
+        .setDescription(currentDescriptionLines.join('\n'))
+        .setColor(embedColor);
+      embeds.push(embed);
+      currentDescriptionLines.length = 0;
+      currentDescriptionLines.push(line);
+      currentDescriptionLength = line.length + 1; // +1 for the newline
+    } else {
+      currentDescriptionLines.push(line);
+      currentDescriptionLength += line.length + 1; // +1 for the newline
+    }
+  }
+
+  // Add the last embed if there's any remaining description
+  if (currentDescriptionLines.length > 0) {
+    const embed = new EmbedBuilder()
+      .setTitle(embedTitle)
+      .setDescription(currentDescriptionLines.join('\n'))
+      .setColor(embedColor);
+    embeds.push(embed);
+  }
+
+  return embeds;
 }
 
 
@@ -288,5 +328,6 @@ module.exports = {
   buildOffspringPairLine,
   calculateDeathRoll,
   rollDeathAndGetResult,
-  saveDeathResultToDatabase
+  saveDeathResultToDatabase,
+  makeDeathRollsSummaryEmbeds
 };

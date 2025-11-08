@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags } = require('discord.js');
-const { Players, Characters, Worlds, Affiliations, Deceased, Relationships, PlayableChildren } = require('../../dbObjects.js');
+const { Players, Characters, Worlds, Affiliations, Deceased, Relationships, PlayableChildren, DeathRollDeaths } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 const { citizensDoc, offspringDoc } = require('../../sheets.js');
 const { GoogleSpreadsheetRow } = require('google-spreadsheet');
@@ -114,7 +114,14 @@ module.exports = {
     })
 
     const playableChildrenSheet = offspringDoc.sheetsByTitle['Playable Children'];
-    await playableChildrenSheet.resize({ rowCount: playableChildren.length + 1 });
+
+    try {
+      await playableChildrenSheet.resize({ rowCount: playableChildren.length + 1 });
+    }
+    catch (error) {
+      console.error('Error resizing Playable Children sheet:', error);
+    }
+
     await playableChildrenSheet.loadCells();
 
     for (const [i, playableChild] of playableChildren.entries()) {
@@ -147,8 +154,6 @@ module.exports = {
       }
       commentsCell.value = playableChild.comments;
 
-      // console.log(playableChild.character)
-
       const parentNames = []
       parentNames.push(playableChild.character.parent1.name)
 
@@ -166,7 +171,6 @@ module.exports = {
         contacts.push((await client.users.fetch(playableChild.contact2Snowflake)).username);
       }
 
-      // console.log(contacts)
       contactsCell.value = contacts.join(', ')
     }
     await playableChildrenSheet.saveUpdatedCells();
@@ -186,109 +190,111 @@ module.exports = {
       affiliationSheets.set(affiliation, citizensDoc.sheetsByTitle[affiliation.name]);
     }
 
-    try {
-      const activePlayers = await Players.findAll({
-        where: { isActive: true },
-        include: { model: Characters, as: 'character' }
-      });
+    const activePlayers = await Players.findAll({
+      where: { isActive: true },
+      include: { model: Characters, as: 'character' }
+    });
 
-      const socialClassToRank = new Map();
-      socialClassToRank.set('Ruler', 4);
-      socialClassToRank.set('Noble', 3);
-      socialClassToRank.set('Notable', 2);
-      socialClassToRank.set('Commoner', 1);
+    const socialClassToRank = new Map();
+    socialClassToRank.set('Ruler', 4);
+    socialClassToRank.set('Noble', 3);
+    socialClassToRank.set('Notable', 2);
+    socialClassToRank.set('Commoner', 1);
 
-      for (const [affiliation, affiliationSheet] of affiliationSheets) {
-        const affiliationPlayers = activePlayers.filter(activePlayer => activePlayer.character.affiliationId === affiliation.id);
 
-        affiliationPlayers.sort((playerA, playerB) => {
-          const socialClassCompare = socialClassToRank.get(playerB.character.socialClassName) - socialClassToRank.get(playerA.character.socialClassName);
-          if (socialClassCompare === 0) {
-            return playerA.character.yearOfMaturity - playerB.character.yearOfMaturity;
-          }
-          else {
-            return socialClassCompare;
-          }
-        })
+    for (const [affiliation, affiliationSheet] of affiliationSheets) {
+      const affiliationPlayers = activePlayers.filter(activePlayer => activePlayer.character.affiliationId === affiliation.id);
 
+      affiliationPlayers.sort((playerA, playerB) => {
+        const socialClassCompare = socialClassToRank.get(playerB.character.socialClassName) - socialClassToRank.get(playerA.character.socialClassName);
+        if (socialClassCompare === 0) {
+          return playerA.character.yearOfMaturity - playerB.character.yearOfMaturity;
+        }
+        else {
+          return socialClassCompare;
+        }
+      })
+
+      try {
         await affiliationSheet.resize({ rowCount: affiliationPlayers.length + 1 });
-        await affiliationSheet.loadCells()
+      }
+      catch (error) {
+        console.error(`Error resizing ${affiliation.name} sheet:`, error);
+      }
+      await affiliationSheet.loadCells()
 
-        for (const [i, player] of affiliationPlayers.entries()) {
-          const socialClassCell = affiliationSheet.getCell(i + 1, 0);
-          const roleCell = affiliationSheet.getCell(i + 1, 1);
-          const nameCell = affiliationSheet.getCell(i + 1, 2);
-          const timezoneCell = affiliationSheet.getCell(i + 1, 3);
-          const commentsCell = affiliationSheet.getCell(i + 1, 4);
-          const pveDeathsCell = affiliationSheet.getCell(i + 1, 5);
-          const yearOfMaturityCell = affiliationSheet.getCell(i + 1, 6);
-          const ageCell = affiliationSheet.getCell(i + 1, 7);
-          const deathRoll1Cell = affiliationSheet.getCell(i + 1, 8);
-          const deathRoll2Cell = affiliationSheet.getCell(i + 1, 9);
-          const deathRoll3Cell = affiliationSheet.getCell(i + 1, 10);
-          const deathRoll4Cell = affiliationSheet.getCell(i + 1, 11);
-          const deathRoll5Cell = affiliationSheet.getCell(i + 1, 12);
-          const snowflakeCell = affiliationSheet.getCell(i + 1, 13);
+      for (const [i, player] of affiliationPlayers.entries()) {
+        const socialClassCell = affiliationSheet.getCell(i + 1, 0);
+        const roleCell = affiliationSheet.getCell(i + 1, 1);
+        const nameCell = affiliationSheet.getCell(i + 1, 2);
+        const timezoneCell = affiliationSheet.getCell(i + 1, 3);
+        const commentsCell = affiliationSheet.getCell(i + 1, 4);
+        const pveDeathsCell = affiliationSheet.getCell(i + 1, 5);
+        const yearOfMaturityCell = affiliationSheet.getCell(i + 1, 6);
+        const ageCell = affiliationSheet.getCell(i + 1, 7);
+        const deathRoll1Cell = affiliationSheet.getCell(i + 1, 8);
+        const deathRoll2Cell = affiliationSheet.getCell(i + 1, 9);
+        const deathRoll3Cell = affiliationSheet.getCell(i + 1, 10);
+        const deathRoll4Cell = affiliationSheet.getCell(i + 1, 11);
+        const deathRoll5Cell = affiliationSheet.getCell(i + 1, 12);
+        const snowflakeCell = affiliationSheet.getCell(i + 1, 13);
 
 
-          socialClassCell.value = player.character.socialClassName;
-          roleCell.value = player.character.role === null ? '' : player.character.role;
-          nameCell.value = player.character.name;
-          timezoneCell.value = player.timezone === null ? '' : player.timezone;
-          commentsCell.value = player.character.comments === null ? '' : player.character.comments;
-          snowflakeCell.value = player.id
+        socialClassCell.value = player.character.socialClassName;
+        roleCell.value = player.character.role === null ? '' : player.character.role;
+        nameCell.value = player.character.name;
+        timezoneCell.value = player.timezone === null ? '' : player.timezone;
+        commentsCell.value = player.character.comments === null ? '' : player.character.comments;
+        snowflakeCell.value = player.id
 
-          if (player.character.socialClassName !== 'Commoner' || affiliation.name === 'Wanderer') {
-            pveDeathsCell.value = player.character.pveDeaths;
-            yearOfMaturityCell.value = player.character.yearOfMaturity;
-            ageCell.value = world.currentYear - player.character.yearOfMaturity;
-            deathRoll1Cell.value = player.character.deathRoll1 ? player.character.deathRoll1 : '-';
-            deathRoll2Cell.value = player.character.deathRoll2 ? player.character.deathRoll2 : '-';
-            deathRoll3Cell.value = player.character.deathRoll3 ? player.character.deathRoll3 : '-';
-            deathRoll4Cell.value = player.character.deathRoll4 ? player.character.deathRoll4 : '-';
-            deathRoll5Cell.value = player.character.deathRoll5 ? player.character.deathRoll5 : '-';
-          }
-          else {
-            pveDeathsCell.value = '-';
-            yearOfMaturityCell.value = '-';
-            ageCell.value = '-';
-            deathRoll1Cell.value = '-';
-            deathRoll2Cell.value = '-';
-            deathRoll3Cell.value = '-';
-            deathRoll4Cell.value = '-';
-            deathRoll5Cell.value = '-';
-          }
-
-          const borderLeft = {
-            left: {
-              style: 'SOLID', width: 1, color: {}, colorStyle: { rgbColor: {} }
-            }
-          }
-          // Add formatting (mainly borders)
-          pveDeathsCell.borders = borderLeft;
-          deathRoll1Cell.borders = borderLeft;
-          deathRoll2Cell.borders = borderLeft;
-          deathRoll3Cell.borders = borderLeft;
-          deathRoll4Cell.borders = borderLeft;
-          deathRoll5Cell.borders = borderLeft;
-          snowflakeCell.borders = borderLeft;
-
-          pveDeathsCell.horizontalAlignment = 'CENTER';
-          yearOfMaturityCell.horizontalAlignment = 'CENTER';
-          ageCell.horizontalAlignment = 'CENTER';
-          deathRoll1Cell.horizontalAlignment = 'CENTER';
-          deathRoll2Cell.horizontalAlignment = 'CENTER';
-          deathRoll3Cell.horizontalAlignment = 'CENTER';
-          deathRoll4Cell.horizontalAlignment = 'CENTER';
-          deathRoll5Cell.horizontalAlignment = 'CENTER';
+        if (player.character.socialClassName !== 'Commoner' || affiliation.name === 'Wanderer') {
+          pveDeathsCell.value = player.character.pveDeaths;
+          yearOfMaturityCell.value = player.character.yearOfMaturity;
+          ageCell.value = world.currentYear - player.character.yearOfMaturity;
+          deathRoll1Cell.value = player.character.deathRoll1 ? player.character.deathRoll1 : '-';
+          deathRoll2Cell.value = player.character.deathRoll2 ? player.character.deathRoll2 : '-';
+          deathRoll3Cell.value = player.character.deathRoll3 ? player.character.deathRoll3 : '-';
+          deathRoll4Cell.value = player.character.deathRoll4 ? player.character.deathRoll4 : '-';
+          deathRoll5Cell.value = player.character.deathRoll5 ? player.character.deathRoll5 : '-';
+        }
+        else {
+          pveDeathsCell.value = '-';
+          yearOfMaturityCell.value = '-';
+          ageCell.value = '-';
+          deathRoll1Cell.value = '-';
+          deathRoll2Cell.value = '-';
+          deathRoll3Cell.value = '-';
+          deathRoll4Cell.value = '-';
+          deathRoll5Cell.value = '-';
         }
 
-        await affiliationSheet.saveUpdatedCells();
+        const borderLeft = {
+          left: {
+            style: 'SOLID', width: 1, color: {}, colorStyle: { rgbColor: {} }
+          }
+        }
+        // Add formatting (mainly borders)
+        pveDeathsCell.borders = borderLeft;
+        deathRoll1Cell.borders = borderLeft;
+        deathRoll2Cell.borders = borderLeft;
+        deathRoll3Cell.borders = borderLeft;
+        deathRoll4Cell.borders = borderLeft;
+        deathRoll5Cell.borders = borderLeft;
+        snowflakeCell.borders = borderLeft;
+
+        pveDeathsCell.horizontalAlignment = 'CENTER';
+        yearOfMaturityCell.horizontalAlignment = 'CENTER';
+        ageCell.horizontalAlignment = 'CENTER';
+        deathRoll1Cell.horizontalAlignment = 'CENTER';
+        deathRoll2Cell.horizontalAlignment = 'CENTER';
+        deathRoll3Cell.horizontalAlignment = 'CENTER';
+        deathRoll4Cell.horizontalAlignment = 'CENTER';
+        deathRoll5Cell.horizontalAlignment = 'CENTER';
       }
+
+      await affiliationSheet.saveUpdatedCells();
     }
-    catch (error) {
-      console.log(error);
-    }
+
 
     // Write deceased to sheet
     const deceasedSheet = citizensDoc.sheetsByTitle['Deceased'];
@@ -334,7 +340,11 @@ module.exports = {
       }
     })
 
-    await deceasedSheet.resize({ rowCount: sortedDeceaseds.length + 1 });
+    try {
+      await deceasedSheet.resize({ rowCount: sortedDeceaseds.length + 1 });
+    } catch (error) {
+      console.error('Error resizing deceased sheet:', error);
+    }
     await deceasedSheet.loadCells();
     for (const [i, deceased] of sortedDeceaseds.entries()) {
       const nameCell = deceasedSheet.getCell(i + 1, 0);
@@ -356,10 +366,70 @@ module.exports = {
     await deceasedSheet.saveUpdatedCells();
 
 
-    console.log('Finished writing data to new sheets.')
+
+    // Write dying sheet (those that failed death rolls)
+    const dyingSheet = citizensDoc.sheetsByTitle['Dying'];
+
+    const deathRollDeaths = await DeathRollDeaths.findAll({
+      include: {
+        model: Characters, as: 'character',
+      }
+    });
+
+    // Sort by date of death (year, month, day) and then name
+    const sortedDeathRollDeaths = deathRollDeaths.sort((deathA, deathB) => {
+      const yearDifference = deathA.yearOfDeath - deathB.yearOfDeath;
+
+      if (yearDifference === 0) {
+        const monthDifference = monthOrder.get(deathA.monthOfDeath) - monthOrder.get(deathB.monthOfDeath);
+
+        if (monthDifference === 0) {
+          const dayDifference = deathA.dayOfDeath - deathB.dayOfDeath;
+          if (dayDifference === 0) {
+            if (deathA.character.name < deathB.character.name) {
+              return -1;
+            }
+            if (deathA.character.name > deathB.character.name) {
+              return 1;
+            }
+            return 0;
+          }
+          else {
+            return dayDifference;
+          }
+        }
+        else {
+          return monthDifference;
+        }
+      }
+      else {
+        return yearDifference;
+      }
+    });
+
+    try {
+      await dyingSheet.resize({ rowCount: sortedDeathRollDeaths.length + 1 });
+    }
+    catch (error) {
+      console.error('Error resizing dying sheet:', error);
+    }
+    await dyingSheet.loadCells();
+
+    for (const [i, deathRollDeath] of sortedDeathRollDeaths.entries()) {
+      const nameCell = dyingSheet.getCell(i + 1, 0);
+      const dateOfDeathCell = dyingSheet.getCell(i + 1, 1);
+
+      nameCell.value = deathRollDeath.character.name;
+      dateOfDeathCell.value = `${deathRollDeath.dateOfDeath}`;
+    }
+    await dyingSheet.saveUpdatedCells();
+
+
+
+    console.log('Finished writing data to new sheets.');
 
     return interaction.editReply({
       content: 'The data has been written.', flags: MessageFlags.Ephemeral
-    })
+    });
   }
 }

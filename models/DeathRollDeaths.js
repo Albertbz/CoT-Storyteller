@@ -22,6 +22,15 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       notNull: true,
     },
+    dateOfDeath: {
+      type: DataTypes.VIRTUAL,
+      get() {
+        return `${this.dayOfDeath} ${this.monthOfDeath}, '${this.yearOfDeath}`
+      },
+      set(value) {
+        throw new Error('Do not try to set the dateOfDeath value!')
+      }
+    },
     playedById: {
       type: DataTypes.STRING,
     }

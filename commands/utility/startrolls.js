@@ -1,10 +1,9 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, subtext, EmbedBuilder, WorkerContextFetchingStrategy, italic, bold } = require('discord.js');
-const { MessageBuilder } = require('@discordjs/builders');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, subtext, EmbedBuilder, WorkerContextFetchingStrategy, italic, bold, spoiler } = require('discord.js');
 const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel, assignCharacterToPlayer, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, addDeceasedToDatabase, changeCharacterAndLog } = require('../../misc.js');
-const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, determineOffspringResult, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathResultToDatabase } = require('../../helpers/rollHelper.js');
+const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, determineOffspringResult, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathResultToDatabase, makeDeathRollsSummaryEmbeds } = require('../../helpers/rollHelper.js');
 
 // Centralized messages
 const CANCEL_MESSAGE = 'Something went wrong. Please let Albert know.';
@@ -39,8 +38,13 @@ module.exports = {
         .setDescription('Start death rolls.')
         .addBooleanOption(option =>
           option
-            .setName('automatic')
+            .setName('skip_interactions')
             .setDescription('If true, will not wait for user interactions and will process all death rolls automatically.')
+        )
+        .addBooleanOption(option =>
+          option
+            .setName('should_log')
+            .setDescription('If false, will disable all logging for these rolls.')
         )
     ),
   async execute(interaction) {
@@ -160,13 +164,26 @@ module.exports = {
       });
 
       const interactionUser = interaction.user;
-      const collectorFilter = i => i.user.id === interactionUser.id;
+      const collectorFilter = i => {
+        try {
+          console.log(`Collector received interaction from user ID: ${i.user.id} (${i.user.username}), expected user ID: ${interactionUser.id} (${interactionUser.username})`);
+          return i.user.id === interactionUser.id;
+        }
+        catch (error) {
+          console.error('Error in collector filter:', error);
+        }
+      };
       const finalRelationshipSummaries = [];
       const finalBastardSummaries = [];
 
       try {
         const startInteraction = await startMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-        await startInteraction.update({});
+        try {
+          await startInteraction.deferUpdate();
+        }
+        catch (error) {
+          console.log('Error deferring startInteraction:', error);
+        }
 
         if (startInteraction.customId === 'start') {
           for (const [_, bearingCharacter] of bearingCharacters) {
@@ -206,7 +223,12 @@ module.exports = {
 
             try {
               const rollInteraction = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-              await rollInteraction.update({});
+              try {
+                await rollInteraction.deferUpdate();
+              }
+              catch (error) {
+                console.log('Error deferring rollInteraction:', error);
+              }
 
               if (rollInteraction.customId === 'roll') {
                 const bearingCharacterAge = world.currentYear - bearingCharacter.yearOfMaturity
@@ -307,7 +329,12 @@ module.exports = {
 
                 try {
                   const resultInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-                  await resultInteraction.update({});
+                  try {
+                    await resultInteraction.deferUpdate();
+                  }
+                  catch (error) {
+                    console.log('Error deferring resultInteraction:', error);
+                  }
 
                   if (resultInteraction.customId === 'continue') {
 
@@ -395,7 +422,12 @@ module.exports = {
 
             try {
               const rollInteraction = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-              await rollInteraction.update({});
+              try {
+                await rollInteraction.deferUpdate();
+              }
+              catch (error) {
+                console.log('Error deferring rollInteraction (bastard):', error);
+              }
 
               if (rollInteraction.customId === 'roll') {
                 const characterAge = world.currentYear - character.yearOfMaturity;
@@ -433,7 +465,12 @@ module.exports = {
 
                 try {
                   const resultInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-                  await resultInteraction.update({});
+                  try {
+                    await resultInteraction.deferUpdate();
+                  }
+                  catch (error) {
+                    console.log('Error deferring resultInteraction (bastard):', error);
+                  }
 
                   if (resultInteraction.customId === 'continue') {
                     if (successfulRoll) {
@@ -546,7 +583,8 @@ module.exports = {
      * Do death rolls
      */
     else if (interaction.options.getSubcommand() === 'death') {
-      const automatic = interaction.options.getBoolean('automatic') || false;
+      const skipInteractions = interaction.options.getBoolean('skip_interactions') ?? false;
+      const shouldLog = interaction.options.getBoolean('should_log') ?? true;
 
       const nextYear = world.currentYear + 1;
 
@@ -675,16 +713,21 @@ module.exports = {
 
       try {
         const startInteraction = await startMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-        await startInteraction.update({});
+        try {
+          await startInteraction.deferUpdate();
+        }
+        catch (error) {
+          console.log('Failed to defer startInteraction (death rolls):', error);
+        }
 
         if (startInteraction.customId === 'start_death_rolls') {
           // For each character, calculate death roll and show the embed that the character is in
           for (const [index, character] of eligibleCharacters.entries()) {
-            // If automatic, skip interaction steps and log to console
-            if (automatic) {
-              console.log(`Processing death roll for character ${character.name} (${index + 1} of ${eligibleCharacters.length})`);
+            // Skip interactions if specified
+            if (skipInteractions) {
+              // console.log(`Processing death roll for character ${character.name} (${index + 1} of ${eligibleCharacters.length})`);
               const { resultDescription, color, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath } = rollDeathAndGetResult(character, nextYear);
-              await saveDeathResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives);
+              await saveDeathResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives, shouldLog);
               continue;
             }
 
@@ -705,15 +748,13 @@ module.exports = {
             });
 
             try {
-              // If automatic, skip waiting for interaction
-              if (automatic) {
-                const { resultDescription, color, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath } = rollDeathAndGetResult(character, nextYear);
-                await saveDeathResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives);
-                continue;
-              }
-
               const rollInteraction = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-              await rollInteraction.update({});
+              try {
+                await rollInteraction.deferUpdate();
+              }
+              catch (error) {
+                console.log('Failed to defer rollInteraction (death):', error);
+              }
 
               if (rollInteraction.customId === 'roll_death_rolls') {
                 const { resultDescription, color, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath } = rollDeathAndGetResult(character, nextYear);
@@ -732,209 +773,122 @@ module.exports = {
 
                 try {
                   const saveAndContinueInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-                  await saveAndContinueInteraction.update({});
+                  try {
+                    await saveAndContinueInteraction.deferUpdate();
+                  }
+                  catch (error) {
+                    console.log('Failed to defer saveAndContinueInteraction:', error);
+                  }
 
                   if (saveAndContinueInteraction.customId === 'save_and_continue_death_rolls') {
-                    await saveDeathResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives);
+                    await saveDeathResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives, shouldLog);
                   }
                 }
                 catch (error) {
+                  console.log(error);
                   if (error.code === 'InteractionCollectorError') {
                     return resultMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
                   }
-                  console.log(error);
                   return resultMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
                 }
               }
             }
             catch (error) {
+              console.log(error);
               if (error.code === 'InteractionCollectorError') {
                 return rollMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
               }
-              console.log(error);
               return rollMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
             }
           }
         }
       }
       catch (error) {
+        console.log(error);
         if (error.code === 'InteractionCollectorError') {
           return startMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
         }
-        console.log(error);
         return startMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
       }
 
+      // Print the number of characters that lost lives or died
+      console.log(`Death rolls complete. ${diedCharacters.length} characters died, ${lost3PveLives.length} lost 3 PvE lives, ${lost2PveLives.length} lost 2 PvE lives, ${lost1PveLife.length} lost 1 PvE life.`);
+
       // Summarize results
       // Make embeds for each category, these categories being:
-      // - Lost 1 PvE life
-      // - Lost 2 PvE lives
-      // - Lost 3 PvE lives
       // - Died
+      // - Lost 3 PvE lives
+      // - Lost 2 PvE lives
+      // - Lost 1 PvE life
       const summaryEmbeds = [];
 
-      const MAX_EMBED_DESCRIPTION_LENGTH = 4096;
-
-      if (lost1PveLife.length > 0) {
-        const lost1PveLifeList = lost1PveLife.map(({ character, player }) => `${inlineCode(character.name)} (Played by: ${player ? userMention(player.id) : 'None'})`);
-        // Whenever a description is too long, split into multiple embeds
-        // A description is too long if it exceeds 4096 characters
-        let currentDescription = '';
-        const lost1PveLifeEmbeds = [];
-
-        for (const line of lost1PveLifeList) {
-          if (currentDescription.length + line.length + 1 > MAX_EMBED_DESCRIPTION_LENGTH) {
-            // Create an embed with the current description and start a new one
-            const embed = new EmbedBuilder()
-              .setTitle('Characters that lost 1 PvE life')
-              .setDescription(currentDescription)
-              .setColor(LIGHT_YELLOW_COLOR);
-            lost1PveLifeEmbeds.push(embed);
-            currentDescription = line + '\n';
-          } else {
-            currentDescription += line + '\n';
-          }
-        }
-
-        // Add the last embed if there's any remaining description
-        if (currentDescription.length > 0) {
-          const embed = new EmbedBuilder()
-            .setTitle('Characters that lost 1 PvE life')
-            .setDescription(currentDescription)
-            .setColor(LIGHT_YELLOW_COLOR);
-          lost1PveLifeEmbeds.push(embed);
-        }
-
-        summaryEmbeds.push(...lost1PveLifeEmbeds);
-      }
-
-      if (lost2PveLives.length > 0) {
-        const lost2PveLivesList = lost2PveLives.map(({ character, player }) => `${inlineCode(character.name)} (Played by: ${player ? userMention(player.id) : 'None'})`);
-        // Whenever a description is too long, split into multiple embeds
-        // A description is too long if it exceeds 4096 characters
-        let currentDescription = '';
-        const lost2PveLivesEmbeds = [];
-
-        for (const line of lost2PveLivesList) {
-          if (currentDescription.length + line.length + 1 > MAX_EMBED_DESCRIPTION_LENGTH) {
-            // Create an embed with the current description and start a new one
-            const embed = new EmbedBuilder()
-              .setTitle('Characters that lost 2 PvE lives')
-              .setDescription(currentDescription)
-              .setColor(YELLOW_COLOR);
-            lost2PveLivesEmbeds.push(embed);
-            currentDescription = line + '\n';
-          } else {
-            currentDescription += line + '\n';
-          }
-        }
-
-        // Add the last embed if there's any remaining description
-        if (currentDescription.length > 0) {
-          const embed = new EmbedBuilder()
-            .setTitle('Characters that lost 2 PvE lives')
-            .setDescription(currentDescription)
-            .setColor(YELLOW_COLOR);
-          lost2PveLivesEmbeds.push(embed);
-        }
-
-        summaryEmbeds.push(...lost2PveLivesEmbeds);
+      if (diedCharacters.length > 0) {
+        const diedCharactersList = diedCharacters.map(({ character, player, dayOfDeath, monthOfDeath, yearOfDeath }) => `${inlineCode(character.name)} | ${inlineCode(`${dayOfDeath} ${monthOfDeath} ${yearOfDeath}`)} (${spoiler(player ? userMention(player.id) : 'None')})`);
+        const diedCharactersEmbeds = makeDeathRollsSummaryEmbeds(diedCharactersList, 'Characters that will die in Year ' + nextYear, RED_COLOR);
+        summaryEmbeds.push(...diedCharactersEmbeds);
       }
 
       if (lost3PveLives.length > 0) {
-        const lost3PveLivesList = lost3PveLives.map(({ character, player }) => `${inlineCode(character.name)} (Played by: ${player ? userMention(player.id) : 'None'})`);
-        // Whenever a description is too long, split into multiple embeds
-        // A description is too long if it exceeds 4096 characters
-        let currentDescription = '';
-        const lost3PveLivesEmbeds = [];
-
-        for (const line of lost3PveLivesList) {
-          if (currentDescription.length + line.length + 1 > MAX_EMBED_DESCRIPTION_LENGTH) {
-            // Create an embed with the current description and start a new one
-            const embed = new EmbedBuilder()
-              .setTitle('Characters that lost 3 PvE lives')
-              .setDescription(currentDescription)
-              .setColor(ORANGE_COLOR);
-            lost3PveLivesEmbeds.push(embed);
-            currentDescription = line + '\n';
-          } else {
-            currentDescription += line + '\n';
-          }
-        }
-
-        // Add the last embed if there's any remaining description
-        if (currentDescription.length > 0) {
-          const embed = new EmbedBuilder()
-            .setTitle('Characters that lost 3 PvE lives')
-            .setDescription(currentDescription)
-            .setColor(ORANGE_COLOR);
-          lost3PveLivesEmbeds.push(embed);
-        }
-
+        const lost3PveLivesList = lost3PveLives.map(({ character, player }) => `${inlineCode(character.name)} (${spoiler(player ? userMention(player.id) : 'None')})`);
+        const lost3PveLivesEmbeds = makeDeathRollsSummaryEmbeds(lost3PveLivesList, 'Characters that have lost 3 PvE lives', ORANGE_COLOR);
         summaryEmbeds.push(...lost3PveLivesEmbeds);
       }
 
-      if (diedCharacters.length > 0) {
-        const diedCharactersList = diedCharacters.map(({ character, player, dayOfDeath, monthOfDeath, yearOfDeath }) => `${inlineCode(character.name)} - Dying on ${inlineCode(`${dayOfDeath} ${monthOfDeath}, \'${yearOfDeath}`)} (Played by: ${player ? userMention(player.id) : 'None'})`);
-        // Whenever a description is too long, split into multiple embeds
-        // A description is too long if it exceeds 4096 characters
-        let currentDescription = '';
-        const diedCharactersEmbeds = [];
+      if (lost2PveLives.length > 0) {
+        const lost2PveLivesList = lost2PveLives.map(({ character, player }) => `${inlineCode(character.name)} (${spoiler(player ? userMention(player.id) : 'None')})`);
+        const lost2PveLivesEmbeds = makeDeathRollsSummaryEmbeds(lost2PveLivesList, 'Characters that have lost 2 PvE lives', YELLOW_COLOR);
+        summaryEmbeds.push(...lost2PveLivesEmbeds);
+      }
 
-        for (const line of diedCharactersList) {
-          if (currentDescription.length + line.length + 1 > MAX_EMBED_DESCRIPTION_LENGTH) {
-            // Create an embed with the current description and start a new one
-            const embed = new EmbedBuilder()
-              .setTitle('Characters that died')
-              .setDescription(currentDescription)
-              .setColor(RED_COLOR);
-            diedCharactersEmbeds.push(embed);
-            currentDescription = line + '\n';
-          } else {
-            currentDescription += line + '\n';
-          }
-        }
-
-        // Add the last embed if there's any remaining description
-        if (currentDescription.length > 0) {
-          const embed = new EmbedBuilder()
-            .setTitle('Characters that died')
-            .setDescription(currentDescription)
-            .setColor(RED_COLOR);
-          diedCharactersEmbeds.push(embed);
-        }
-
-        summaryEmbeds.push(...diedCharactersEmbeds);
+      if (lost1PveLife.length > 0) {
+        const lost1PveLifeList = lost1PveLife.map(({ character, player }) => `${inlineCode(character.name)} (${spoiler(player ? userMention(player.id) : 'None')})`);
+        const lost1PveLifeEmbeds = makeDeathRollsSummaryEmbeds(lost1PveLifeList, 'Characters that have lost 1 PvE life', LIGHT_YELLOW_COLOR);
+        summaryEmbeds.push(...lost1PveLifeEmbeds);
       }
 
       const MAX_EMBEDS = 10;
       const MAX_EMBEDS_LENGTH_TOTAL = 6000;
+
+      const summaryMessageURLs = [];
+
       // Send the summary embeds if any
       if (summaryEmbeds.length > 0) {
-        const messages = [];
-        let currentMessage = new MessageBuilder();
+        let currentMessageEmbeds = [];
+        let currentMessageEmbedsTotalLength = 0;
 
         // If too many embeds, or embeds exceed Discord's limit, split into multiple messages
         for (const embed of summaryEmbeds) {
-          if (currentMessage.embeds.length >= MAX_EMBEDS || currentMessage.length + embed.length > MAX_EMBEDS_LENGTH_TOTAL) {
-            messages.push(currentMessage);
-            currentMessage = new MessageBuilder();
+          if (currentMessageEmbeds.length >= MAX_EMBEDS || currentMessageEmbedsTotalLength + embed.length > MAX_EMBEDS_LENGTH_TOTAL) {
+            // Send current message
+            const sentMessage = await channel.send({ embeds: currentMessageEmbeds });
+            summaryMessageURLs.push(sentMessage.url);
+            // Start new message
+            currentMessageEmbeds = [embed];
+            currentMessageEmbedsTotalLength = embed.length;
+          } else {
+            currentMessageEmbeds.push(embed);
+            currentMessageEmbedsTotalLength += embed.length;
           }
-          currentMessage.addEmbeds([embed]);
         }
 
-        if (currentMessage.length > 0) {
-          messages.push(currentMessage);
+        if (currentMessageEmbeds.length > 0) {
+          const sentMessage = await channel.send({ embeds: currentMessageEmbeds });
+          summaryMessageURLs.push(sentMessage.url);
         }
 
-        for (const message of messages) {
-          await startMessage.edit({ embeds: message.embeds, components: [] });
-        }
+        // Make an embed for the original message with link to the summary messages
+        const summaryEmbed = new EmbedBuilder()
+          .setColor(GREEN_COLOR)
+          .setTitle('Death Rolls Summary')
+          .setDescription(
+            'See the summary messages here:\n\n' +
+            summaryMessageURLs.map((url, index) => `**Summary Message ${index + 1}:** ${url}`).join('\n')
+          );
 
-        return null;
+        return startMessage.edit({ components: [], embeds: [summaryEmbed] });
+      } else {
+        return startMessage.edit({ content: 'Finished death rolls. No characters lost PvE lives or died.', components: [], embeds: [] });
       }
-
-      return null;
     }
   }
 }
