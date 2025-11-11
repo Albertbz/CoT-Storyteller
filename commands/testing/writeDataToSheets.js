@@ -3,22 +3,7 @@ const { Players, Characters, Worlds, Affiliations, Deceased, Relationships, Play
 const { Op } = require('sequelize');
 const { citizensDoc, offspringDoc } = require('../../sheets.js');
 const { GoogleSpreadsheetRow } = require('google-spreadsheet');
-
-function ageToFertilityModifier(age) {
-  if (age >= 7) return 0;
-  if (age >= 6) return 0.3;
-  if (age >= 5) return 0.5;
-  if (age < 5) return 1;
-}
-
-async function getFertilityModifier(yearOfMaturity1, yearOfMaturity2 = undefined) {
-  const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
-
-  const age1 = world.currentYear - yearOfMaturity1;
-  const age2 = yearOfMaturity2 === undefined ? 1 : world.currentYear - yearOfMaturity2;
-
-  return ageToFertilityModifier(age1) * ageToFertilityModifier(age2);
-}
+const { getFertilityModifier } = require('../../helpers/rollHelper.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -63,10 +48,11 @@ module.exports = {
       const committedCell = relationshipsSheet.getCell(i + 1, 3)
       const titleCell = relationshipsSheet.getCell(i + 1, 4)
 
+      const fertilityModifiers = await getFertilityModifier(relationship.bearingCharacter.yearOfMaturity, relationship.conceivingCharacter.yearOfMaturity);
 
       bearingCell.value = relationship.bearingCharacter.name;
       conceivingCell.value = relationship.conceivingCharacter.name;
-      fertilityCell.value = await getFertilityModifier(relationship.bearingCharacter.yearOfMaturity, relationship.conceivingCharacter.yearOfMaturity);
+      fertilityCell.value = fertilityModifiers.combinedFertilityModifier;
       committedCell.value = relationship.isCommitted ? 'Yes' : 'No';
       titleCell.value = relationship.inheritingTitle;
     }
@@ -96,8 +82,10 @@ module.exports = {
       const nameCell = bastardRollsSheet.getCell(i + 1, 0);
       const fertilityCell = bastardRollsSheet.getCell(i + 1, 1);
 
+      const fertilityModifiers = await getFertilityModifier(character.yearOfMaturity);
+
       nameCell.value = character.name;
-      fertilityCell.value = await getFertilityModifier(character.yearOfMaturity);
+      fertilityCell.value = fertilityModifiers.combinedFertilityModifier;
     }
     await bastardRollsSheet.saveUpdatedCells()
 

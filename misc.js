@@ -52,7 +52,12 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
 
   const existsWithName = await Characters.findOne({ where: { name: name } });
   if (existsWithName) {
-    throw new Error('A character with the same name already exists.');
+    // Ignore if name is 'Son' or 'Daughter'
+    if (name === 'Son' || name === 'Daughter') {
+      // Allow creation
+    } else {
+      throw new Error('A character with the same name already exists.');
+    }
   }
 
   try {
@@ -206,7 +211,7 @@ async function addPlayableChildToDatabase(storyteller, { characterId, legitimacy
 
     await postInLogChannel(
       'Playable Child Created',
-      '**Created by: ' + userMention(storyteller.id) + '** (during offspring rolls)\n\n' +
+      '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
       'Name: ' + inlineCode(childCharacter.name) + '\n' +
       'Legitimacy: ' + inlineCode(playableChild.legitimacy) + '\n' +
       'Parent1: ' + inlineCode(parent1Character.name) + '\n' +
@@ -463,8 +468,8 @@ async function postInLogChannel(title, description, color) {
     .setDescription(description)
     .setColor(color)
   const logChannel = await client.channels.fetch(channels.storytellerLog);
-  logChannel.send({ embeds: [embedLog] });
-  return;
+  await logChannel.send({ embeds: [embedLog] });
+  return embedLog;
 }
 
 function ageToFertilityModifier(age) {

@@ -1,4 +1,4 @@
-const { Players, DeathRollDeaths, Characters } = require('../dbObjects.js');
+const { Players, DeathRollDeaths, Characters, Worlds } = require('../dbObjects.js');
 const { ageToFertilityModifier, changeCharacter, postInLogChannel } = require('../misc.js');
 const { inlineCode, bold, italic, userMention, EmbedBuilder } = require('discord.js');
 
@@ -53,7 +53,21 @@ function calculateOffspringRoll({ age1, age2 = 0, isBastardRoll = false } = {}) 
     }
   }
 
-  return { result: ['Failed Fertility Roll'], fertilityCheck, fertilityModifier };
+  return { result: ['Failed Fertility Roll'], fertilityCheck, offspringCheck: 0, fertilityModifier };
+}
+
+async function getFertilityModifier(yearOfMaturity1, yearOfMaturity2 = undefined) {
+  const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+
+  const age1 = world.currentYear - yearOfMaturity1;
+  const age2 = yearOfMaturity2 === undefined ? 1 : world.currentYear - yearOfMaturity2;
+
+  const fertilityModifier1 = ageToFertilityModifier(age1);
+  const fertilityModifier2 = yearOfMaturity2 === undefined ? 1 : ageToFertilityModifier(age2);
+  const combinedFertilityModifier = fertilityModifier1 * fertilityModifier2;
+
+  // Return both individual and combined fertility modifiers
+  return { fertilityModifier1, fertilityModifier2, combinedFertilityModifier };
 }
 
 // Human-friendly offspring formatting used by commands
@@ -154,7 +168,6 @@ function buildOffspringPairLine(bearingName, conceivingName, rollRes, checks = {
  *  - deathsFromRoll: Number of PvE deaths from the roll (0 if unharmed).
  *  - status: One of 'unharmed', 'gains_pve_deaths', 'dies'.
  */
-
 function calculateDeathRoll(character, worldYear) {
   const roll = randomInteger(100);
   let deathsFromRoll = 0;
@@ -260,7 +273,7 @@ async function saveDeathResultToDatabase(character, interactionUser, nextYear, r
     if (shouldPostInLogChannel) {
       await postInLogChannel(
         'Character Scheduled for Death',
-        '**Scheduled by: ' + userMention(interactionUser.id) + '** (during death rolls)\n\n' +
+        '**Scheduled by: ' + userMention(interactionUser.id) + '**\n\n' +
         'Name: `' + character.name + '`\n' +
         'Date of Death: `' + dayOfDeath + ' ' + monthOfDeath + ', \'' + yearOfDeath + '`\n' +
         (player ? 'Played by: ' + userMention(player.id) : 'Played by: None'),
@@ -316,11 +329,52 @@ function makeDeathRollsSummaryEmbeds(linesList, embedTitle, embedColor) {
   return embeds;
 }
 
+// Build an embed that shows the roll chance thresholds for relationships and bastards
+function buildChanceDescription(thresholds, labels) {
+  let desc = '';
+  let prev = 1;
+  for (let i = 0; i < thresholds.length; i++) {
+    const t = thresholds[i];
+    const label = labels[i];
+    if (t === 100) {
+      const end = t - 1;
+      if (prev < end) desc += `**${label}:** ${prev}-${end}\n`;
+      else if (prev === end) desc += `**${label}:** ${prev}\n`;
+      desc += `**Triplets+ (3-6 children):** 100\n`;
+    } else {
+      const end = t - 1;
+      if (prev < end) desc += `**${label}:** ${prev}-${end}\n`;
+      else if (prev === end) desc += `**${label}:** ${prev}\n`;
+      prev = t;
+    }
+  }
+  return desc;
+}
+
+function buildOffspringChanceEmbed() {
+  const rollChancesDescription = '**Relationships**\n' + buildChanceDescription(REL_THRESHOLDS, OFFSPRING_LABELS) + '\n**Bastards**\n' + buildChanceDescription(BAST_THRESHOLDS, OFFSPRING_LABELS);
+
+  const rollChancesEmbed = new EmbedBuilder()
+    .setTitle('Offspring roll chances')
+    .setDescription(rollChancesDescription)
+    .setColor(BLUE_COLOR);
+  return rollChancesEmbed;
+}
+
 
 module.exports = {
   REL_THRESHOLDS,
   BAST_THRESHOLDS,
   OFFSPRING_LABELS,
+  COLORS: {
+    BLUE_COLOR,
+    GREEN_COLOR,
+    RED_COLOR,
+    LIGHT_YELLOW_COLOR,
+    YELLOW_COLOR,
+    ORANGE_COLOR
+  },
+  randomInteger,
   determineOffspringResult,
   calculateOffspringRoll,
   formatOffspringCounts,
@@ -329,5 +383,7 @@ module.exports = {
   calculateDeathRoll,
   rollDeathAndGetResult,
   saveDeathResultToDatabase,
-  makeDeathRollsSummaryEmbeds
+  makeDeathRollsSummaryEmbeds,
+  buildOffspringChanceEmbed,
+  getFertilityModifier
 };

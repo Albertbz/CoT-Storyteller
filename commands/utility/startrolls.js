@@ -3,7 +3,7 @@ const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships,
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase } = require('../../misc.js');
-const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathResultToDatabase, makeDeathRollsSummaryEmbeds } = require('../../helpers/rollHelper.js');
+const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathResultToDatabase, makeDeathRollsSummaryEmbeds, buildOffspringChanceEmbed } = require('../../helpers/rollHelper.js');
 
 // Centralized messages
 const CANCEL_MESSAGE = 'Something went wrong. Please let Albert know.';
@@ -135,33 +135,7 @@ module.exports = {
         .setColor(BLUE_COLOR);
 
       // Build an embed that shows the roll chance thresholds for relationships and bastards
-      function buildChanceDescription(thresholds, labels) {
-        let desc = '';
-        let prev = 1;
-        for (let i = 0; i < thresholds.length; i++) {
-          const t = thresholds[i];
-          const label = labels[i];
-          if (t === 100) {
-            const end = t - 1;
-            if (prev < end) desc += `**${label}:** ${prev}-${end}\n`;
-            else if (prev === end) desc += `**${label}:** ${prev}\n`;
-            desc += `**Triplets+ (3-6 children):** 100\n`;
-          } else {
-            const end = t - 1;
-            if (prev < end) desc += `**${label}:** ${prev}-${end}\n`;
-            else if (prev === end) desc += `**${label}:** ${prev}\n`;
-            prev = t;
-          }
-        }
-        return desc;
-      }
-
-      const rollChancesDescription = '**Relationships**\n' + buildChanceDescription(REL_THRESHOLDS, OFFSPRING_LABELS) + '\n**Bastards**\n' + buildChanceDescription(BAST_THRESHOLDS, OFFSPRING_LABELS);
-
-      const rollChancesEmbed = new EmbedBuilder()
-        .setTitle('Offspring roll chances')
-        .setDescription(rollChancesDescription)
-        .setColor(BLUE_COLOR);
+      const rollChancesEmbed = buildOffspringChanceEmbed();
 
       const controlEmbed = new EmbedBuilder()
         .setTitle('Ready to start')
@@ -354,6 +328,21 @@ module.exports = {
                   const resultInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
                   try {
                     await resultInteraction.deferUpdate();
+
+                    if (successfulRolls.length > 0) {
+                      const savingEmbed = new EmbedBuilder()
+                        .setTitle('Result of roll')
+                        .setDescription(
+                          bold('Rolls:') + '\n' +
+                          offspringRollsText.join('\n\n') +
+                          '\n\n\n' +
+                          bold('Result:') + '\n' +
+                          offspringResultText + '\n\n' +
+                          italic('Saving result to database...'))
+                        .setColor(color)
+                      await resultMessage.edit({ embeds: [relEmbed, bastEmbed, rollChancesEmbed, savingEmbed] });
+                    }
+
                   }
                   catch (error) {
                     console.log('Error deferring resultInteraction:', error);
@@ -497,6 +486,15 @@ module.exports = {
                   const resultInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
                   try {
                     await resultInteraction.deferUpdate();
+
+                    if (successfulRoll) {
+                      const savingEmbed = new EmbedBuilder()
+                        .setTitle('Result of roll')
+                        .setDescription(offspringRollsText + '\n\n' + offspringResultText + '\n\n' + italic('Saving result to database...'))
+                        .setColor(color)
+                      await resultMessage.edit({ embeds: [relEmbed, bastEmbed, rollChancesEmbed, savingEmbed] });
+                    }
+
                   }
                   catch (error) {
                     console.log('Error deferring resultInteraction (bastard):', error);
@@ -507,43 +505,19 @@ module.exports = {
                       for (const childRoll of rollRes) {
                         let affiliationId = (await Affiliations.findOne({ where: { name: 'Wanderer' } })).id;
 
-                        const childCharacter = await Characters.create({
+                        const childCharacter = await addCharacterToDatabase(interactionUser, {
                           name: childRoll,
                           sex: childRoll === 'Son' ? 'Male' : 'Female',
                           affiliationId: affiliationId,
                           socialClassName: 'Notable',
                           yearOfMaturity: world.currentYear + 3,
-                          parent1Id: character.id,
+                          parent1Id: character.id
                         });
-
-                        await postInLogChannel(
-                          'Character Created',
-                          '**Created by: ' + userMention(interactionUser.id) + '** (during offspring rolls)\n\n' +
-                          'Name: `' + childCharacter.name + '`\n' +
-                          'Sex: `' + childCharacter.sex + '`\n' +
-                          'Affiliation: `' + (await childCharacter.getAffiliation()).name + '`\n' +
-                          'Social class: `' + childCharacter.socialClassName + '`\n' +
-                          'Year of Maturity: `' + childCharacter.yearOfMaturity + '`',
-                          GREEN_COLOR
-                        );
 
                         try {
                           const parent1Snowflake = await getPlayerSnowflakeForCharacter(character.id);
-                          const playableChild = await PlayableChildren.create({
-                            characterId: childCharacter.id,
-                            legitimacy: 'Illegitimate',
-                            contact1Snowflake: parent1Snowflake,
-                          });
 
-                          await postInLogChannel(
-                            'Playable Child Created',
-                            '**Created by: ' + userMention(interactionUser.id) + '** (during offspring rolls)\n\n' +
-                            'Name: ' + inlineCode(childCharacter.name) + '\n' +
-                            'Legitimacy: ' + inlineCode(playableChild.legitimacy) + '\n' +
-                            'Parent1: ' + inlineCode(character.name) + '\n' +
-                            'Contact1: ' + (playableChild.contact1Snowflake ? userMention(playableChild.contact1Snowflake) : 'None'),
-                            GREEN_COLOR
-                          );
+                          await addPlayableChildToDatabase(interactionUser, { characterId: childCharacter.id, legitimacy: 'Illegitimate', contact1Snowflake: parent1Snowflake });
                         } catch (error) {
                           console.log(error);
                           throw new Error('Something went wrong when creating the playable child.');

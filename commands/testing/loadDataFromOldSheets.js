@@ -298,6 +298,7 @@ module.exports = {
     let message = await xelaLogChannel.messages
       .fetch({ limit: 1 })
       .then(messagePage => (messagePage.size === 1 ? messagePage.at(0) : null));
+    messages.push(message);
 
     while (message) {
       await xelaLogChannel.messages
