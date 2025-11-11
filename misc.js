@@ -13,6 +13,7 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
     await postInLogChannel(
       'Player Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
+      'ID: ' + inlineCode(player.id) + '\n' +
       'Discord User: ' + userMention(player.id) + '\n' +
       'VS Username: ' + inlineCode(player.ign) + '\n' +
       'Timezone: ' + inlineCode(player.timezone ? player.timezone : 'Undefined') + '\n',
@@ -49,6 +50,11 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
     affiliationId = wandererAffiliation.id;
   }
 
+  const existsWithName = await Characters.findOne({ where: { name: name } });
+  if (existsWithName) {
+    throw new Error('A character with the same name already exists.');
+  }
+
   try {
     const character = await Characters.create({
       name: name,
@@ -68,6 +74,7 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
     await postInLogChannel(
       'Character Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
+      'ID: ' + inlineCode(character.id) + '\n' +
       'Name: ' + inlineCode(character.name) + '\n' +
       'Sex: ' + inlineCode(character.sex) + '\n' +
       'Affiliation: ' + inlineCode(affiliation.name) + '\n' +
@@ -301,7 +308,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
   }
 }
 
-async function addDeceasedToDatabase(storyteller, { characterId, yearOfDeath, monthOfDeath, dayOfDeath, causeOfDeath, playedById } = {}) {
+async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, yearOfDeath, monthOfDeath, dayOfDeath, causeOfDeath, playedById } = {}) {
   // storyteller is required
   if (!storyteller) {
     throw new Error('storyteller is required');
@@ -318,6 +325,31 @@ async function addDeceasedToDatabase(storyteller, { characterId, yearOfDeath, mo
     });
 
     const character = await Characters.findOne({ where: { id: characterId } });
+
+    // If exists in deathRollsDeaths, remove from there
+    const existingDeathRollRecord = await DeathRollDeaths.findOne({ where: { characterId: characterId } });
+    if (existingDeathRollRecord) {
+      await existingDeathRollRecord.destroy();
+    }
+
+    // Set player's character to null if applicable
+    let player = null;
+    if (playedById) {
+      player = await Players.findOne({ where: { id: playedById } });
+      if (player) {
+        await player.setCharacter(null);
+      }
+    }
+    // Remove roles of member if specified
+    if (removeRoles && playedById) {
+      if (player) {
+        const guild = await client.guilds.fetch(guilds.cot);
+        const member = await guild.members.fetch(player.id);
+        if (member) {
+          await member.roles.remove([roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
+        }
+      }
+    }
 
     await postInLogChannel(
       'Character made Deceased',

@@ -142,6 +142,12 @@ module.exports = {
       return players.some(dbPlayer => dbPlayer.ign === player.LastKnownPlayername);
     });
 
+    // Make attachment of all VS usernames whose characters need to be removed from sheets
+    const characterRemovalUsernames = currentlyPlayingPlayers.map(player => player.LastKnownPlayername);
+    const characterRemovalAttachment = {
+      attachment: Buffer.from(characterRemovalUsernames.join('\n'), 'utf-8'),
+      name: 'character_removal_usernames.txt'
+    };
 
 
     // Log the currently playing players
@@ -152,10 +158,10 @@ module.exports = {
     // Filter out those players from the filtered whitelist list that are in the
     // currently playing players list, and add their IDs to the affectedMembers list.
     // If found, remove from filteredWhitelistedPlayers list and add character
-    // to charactersToRemove list
+    // to playersToUpdate list
     const affectedMembers = [];
     const playersToUpdate = [];
-    currentlyPlayingPlayers.forEach(player => {
+    for (const player of currentlyPlayingPlayers) {
       const dbPlayer = players.find(dbP => dbP.ign === player.LastKnownPlayername);
       if (dbPlayer) {
         affectedMembers.push({ id: dbPlayer.id, ign: player.LastKnownPlayername });
@@ -168,14 +174,7 @@ module.exports = {
           filteredWhitelistedPlayers.splice(index, 1);
         }
       }
-    });
-
-    // Make attachment of all VS usernames whose characters need to be removed from sheets
-    const characterRemovalUsernames = currentlyPlayingPlayers.map(player => player.LastKnownPlayername);
-    const characterRemovalAttachment = {
-      attachment: Buffer.from(characterRemovalUsernames.join('\n'), 'utf-8'),
-      name: 'character_removal_usernames.txt'
-    };
+    }
 
     // Edit the reply with the message lines so far, and get the message object
     const replyMessage = await interaction.editReply({ content: messageLines.join('\n') + '\n\n*Finding missing Discord members... please wait...*' });
@@ -373,8 +372,7 @@ module.exports = {
               }
               else {
                 // Make deceased by adding to the Deceased table and removing character link from player
-                await addDeceasedToDatabase(interactionUser, { characterId: player.character.id, causeOfDeath: 'Inactivity', yearOfDeath: world.currentYear, monthOfDeath: 'January', dayOfDeath: 1, playedById: player.id });
-                await player.setCharacter(null);
+                await addDeceasedToDatabase(interactionUser, false, { characterId: player.character.id, causeOfDeath: 'Inactivity', yearOfDeath: world.currentYear, monthOfDeath: 'January', dayOfDeath: 1, playedById: player.id });
                 console.log(`Character ${player.character.name} marked as deceased in database (Notable or higher).`);
               }
             }

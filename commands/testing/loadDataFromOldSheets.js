@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags } = require('discord.js');
-const { Players, Characters, Affiliations, Relationships, Deceased, PlayableChildren, Worlds } = require('../../dbObjects.js');
+const { Players, Characters, Affiliations, Relationships, Deceased, PlayableChildren, Worlds, DeathRollDeaths } = require('../../dbObjects.js');
 const { notableOffspringDoc, citizenryRegistryDoc, offspringDoc } = require('../../sheets.js');
 const { Op } = require('sequelize');
 
@@ -40,6 +40,13 @@ module.exports = {
     // Load notable/offspring document
     await notableOffspringDoc.loadInfo();
     const ageSheet = notableOffspringDoc.sheetsByTitle['Age'];
+
+    // Load cells
+    await ageSheet.loadCells();
+
+    // Note down where the header starts
+    const headerRowIndex = 6;
+
     ageSheet.loadHeaderRow(6);
     const ageSheetRows = await ageSheet.getRows();
 
@@ -57,7 +64,12 @@ module.exports = {
 
     // Sync all aging people
     console.log('Syncing all aging characters.')
-    for (const ageRow of ageSheetRows) {
+    for (const [index, ageRow] of ageSheetRows.entries()) {
+      // Note down note on name cell
+      const nameCell = ageSheet.getCell(index + headerRowIndex, ageSheet.headerValues.indexOf('Character Name'));
+      const nameNote = nameCell.note;
+
+
       let player = null;
       let character = null;
 
@@ -67,6 +79,11 @@ module.exports = {
         continue;
       }
 
+      // Check whether member has 'New Member' role and log with name
+      const hasNewMemberRole = member.roles.cache.some(role => role.name === 'New Member');
+      if (hasNewMemberRole) {
+        console.log(`Has New Member role (${member.user.username}): ` + hasNewMemberRole);
+      }
 
       const affiliationName = ageRow.get('Affiliation');
       const isWanderer = affiliationName === 'Wanderer';
@@ -166,6 +183,30 @@ module.exports = {
           console.log('Something went wrong with creating the character: ' + ageRow.get('Character Name'));
           console.log(error);
           continue;
+        }
+      }
+
+      // If note contains death info, create death entry
+      if (nameNote) {
+        if (nameNote.includes('Dying of old age:')) {
+          const dateOfDeath = nameNote.split('Dying of old age: ')[1];
+          const yearOfDeath = Number(dateOfDeath.split('\'')[1]);
+          const monthOfDeath = dateOfDeath.split(' ')[1].replace(',', '');
+          const dayOfDeath = Number(dateOfDeath.split(' ')[0].replace(/\D/g, ""));
+
+          try {
+            const deathRollDeath = await DeathRollDeaths.create({
+              characterId: character.id,
+              yearOfDeath: yearOfDeath,
+              monthOfDeath: monthOfDeath,
+              dayOfDeath: dayOfDeath,
+              playedById: player.id
+            });
+          }
+          catch (error) {
+            console.log('Something went wrong with creating the death entry for: ' + character.name);
+            console.log(error);
+          }
         }
       }
 

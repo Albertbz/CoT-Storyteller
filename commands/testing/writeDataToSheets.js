@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, HTTPError } = require('discord.js');
 const { Players, Characters, Worlds, Affiliations, Deceased, Relationships, PlayableChildren, DeathRollDeaths } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 const { citizensDoc, offspringDoc } = require('../../sheets.js');
@@ -239,7 +239,6 @@ module.exports = {
         const deathRoll5Cell = affiliationSheet.getCell(i + 1, 12);
         const snowflakeCell = affiliationSheet.getCell(i + 1, 13);
 
-
         socialClassCell.value = player.character.socialClassName;
         roleCell.value = player.character.role === null ? '' : player.character.role;
         nameCell.value = player.character.name;
@@ -290,6 +289,37 @@ module.exports = {
         deathRoll3Cell.horizontalAlignment = 'CENTER';
         deathRoll4Cell.horizontalAlignment = 'CENTER';
         deathRoll5Cell.horizontalAlignment = 'CENTER';
+
+        // If character exists in DeathRollDeaths, color the name cell red
+        // and add note with date of death
+        const deathRollDeath = await DeathRollDeaths.findOne({
+          where: { characterId: player.character.id }
+        });
+
+        if (deathRollDeath !== null) {
+          // Set the background color to light red (#f4c7c3)
+          // Translated to RGB with decimals: red: 0.957, green: 0.780, blue: 0.765
+          nameCell.backgroundColor = { red: 0.957, green: 0.780, blue: 0.765 };
+          const noteText = `Dying of old age: ${deathRollDeath.dateOfDeath}`;
+          nameCell.note = noteText;
+        }
+        else {
+          // Take alternating coloring into account
+          // White (1, 1, 1) for even rows, light gray (#f6f8f9) for odd rows
+          // Translated to RGB with decimals: red: 0.965, green: 0.973, blue: 0.9765
+          if (i % 2 === 0) {
+            nameCell.backgroundColor = { red: 1, green: 1, blue: 1 };
+          }
+          else {
+            nameCell.backgroundColor = { red: 0.965, green: 0.973, blue: 0.9765 };
+          }
+
+          // Remove any existing notes
+          const existingNote = nameCell.note;
+          if (existingNote !== null) {
+            nameCell.note = null;
+          }
+        }
       }
 
       await affiliationSheet.saveUpdatedCells();
@@ -364,66 +394,6 @@ module.exports = {
     }
 
     await deceasedSheet.saveUpdatedCells();
-
-
-
-    // Write dying sheet (those that failed death rolls)
-    const dyingSheet = citizensDoc.sheetsByTitle['Dying'];
-
-    const deathRollDeaths = await DeathRollDeaths.findAll({
-      include: {
-        model: Characters, as: 'character',
-      }
-    });
-
-    // Sort by date of death (year, month, day) and then name
-    const sortedDeathRollDeaths = deathRollDeaths.sort((deathA, deathB) => {
-      const yearDifference = deathA.yearOfDeath - deathB.yearOfDeath;
-
-      if (yearDifference === 0) {
-        const monthDifference = monthOrder.get(deathA.monthOfDeath) - monthOrder.get(deathB.monthOfDeath);
-
-        if (monthDifference === 0) {
-          const dayDifference = deathA.dayOfDeath - deathB.dayOfDeath;
-          if (dayDifference === 0) {
-            if (deathA.character.name < deathB.character.name) {
-              return -1;
-            }
-            if (deathA.character.name > deathB.character.name) {
-              return 1;
-            }
-            return 0;
-          }
-          else {
-            return dayDifference;
-          }
-        }
-        else {
-          return monthDifference;
-        }
-      }
-      else {
-        return yearDifference;
-      }
-    });
-
-    try {
-      await dyingSheet.resize({ rowCount: sortedDeathRollDeaths.length + 1 });
-    }
-    catch (error) {
-      console.error('Error resizing dying sheet:', error);
-    }
-    await dyingSheet.loadCells();
-
-    for (const [i, deathRollDeath] of sortedDeathRollDeaths.entries()) {
-      const nameCell = dyingSheet.getCell(i + 1, 0);
-      const dateOfDeathCell = dyingSheet.getCell(i + 1, 1);
-
-      nameCell.value = deathRollDeath.character.name;
-      dateOfDeathCell.value = `${deathRollDeath.dateOfDeath}`;
-    }
-    await dyingSheet.saveUpdatedCells();
-
 
 
     console.log('Finished writing data to new sheets.');

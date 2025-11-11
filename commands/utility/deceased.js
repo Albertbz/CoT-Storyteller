@@ -2,7 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Affiliations, SocialClasses, Worlds, Deceased } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { postInLogChannel } = require('../../misc.js');
+const { postInLogChannel, addDeceasedToDatabase } = require('../../misc.js');
 
 
 module.exports = {
@@ -102,32 +102,14 @@ module.exports = {
 
       const character = await Characters.findOne({ where: { id: characterId } });
 
-      const deceased = await Deceased.create({
+      await addDeceasedToDatabase(interaction.user, true, {
         characterId: characterId,
         yearOfDeath: year,
         monthOfDeath: month,
         dayOfDeath: day,
         causeOfDeath: cause,
         playedById: playerId
-      })
-
-      if (player) {
-        await player.setCharacter(null);
-      }
-
-      if (member) {
-        await member.roles.remove([roles.commoner, roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer])
-      }
-
-      await postInLogChannel(
-        'Character made Deceased',
-        '**Made deceased by: ' + userMention(interaction.user.id) + '**\n\n' +
-        'Character: ' + inlineCode(character.name) + '\n\n' +
-        'Date of Death: ' + inlineCode(deceased.dateOfDeath) + '\n' +
-        'Cause of Death: ' + inlineCode(deceased.causeOfDeath) + '\n' +
-        'Played by: ' + userMention(deceased.playedById),
-        0x0000A3
-      )
+      });
 
       return interaction.editReply({ content: 'The character ' + inlineCode(character.name) + ' has been added to the deceased characters.', flags: MessageFlags.Ephemeral })
     }

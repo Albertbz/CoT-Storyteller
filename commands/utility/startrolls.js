@@ -2,8 +2,8 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { postInLogChannel, assignCharacterToPlayer, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, addDeceasedToDatabase, changeCharacterAndLog } = require('../../misc.js');
-const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, determineOffspringResult, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathResultToDatabase, makeDeathRollsSummaryEmbeds } = require('../../helpers/rollHelper.js');
+const { postInLogChannel, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase } = require('../../misc.js');
+const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathResultToDatabase, makeDeathRollsSummaryEmbeds } = require('../../helpers/rollHelper.js');
 
 // Centralized messages
 const CANCEL_MESSAGE = 'Something went wrong. Please let Albert know.';
@@ -59,15 +59,26 @@ module.exports = {
         .setLabel('Start')
         .setStyle(ButtonStyle.Primary);
 
+      const cancelButton = new ButtonBuilder()
+        .setCustomId('cancel')
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Danger);
+
       const startRow = new ActionRowBuilder()
-        .addComponents(startButton);
+        .addComponents(startButton, cancelButton);
 
       const rollButton = new ButtonBuilder()
         .setCustomId('roll')
         .setLabel('Roll')
         .setStyle(ButtonStyle.Primary);
+
+      const skipButton = new ButtonBuilder()
+        .setCustomId('skip_offspring_rolls')
+        .setLabel('Skip')
+        .setStyle(ButtonStyle.Secondary);
+
       const rollRow = new ActionRowBuilder()
-        .addComponents(rollButton);
+        .addComponents(rollButton, skipButton);
 
       const continueButton = new ButtonBuilder()
         .setCustomId('continue')
@@ -185,6 +196,13 @@ module.exports = {
           console.log('Error deferring startInteraction:', error);
         }
 
+        if (startInteraction.customId === 'cancel') {
+          // Handle cancellation
+          console.log('Offspring rolls cancelled by user.');
+          await startMessage.edit({ content: 'Offspring rolls have been cancelled.', components: [], embeds: [] });
+          return;
+        }
+
         if (startInteraction.customId === 'start') {
           for (const [_, bearingCharacter] of bearingCharacters) {
             const relationships = await Relationships.findAll({
@@ -228,6 +246,11 @@ module.exports = {
               }
               catch (error) {
                 console.log('Error deferring rollInteraction:', error);
+              }
+
+              if (rollInteraction.customId === 'skip_offspring_rolls') {
+                // Just continue to next roll
+                continue;
               }
 
               if (rollInteraction.customId === 'roll') {
@@ -388,6 +411,7 @@ module.exports = {
                 }
                 catch (error) {
                   if (error.code === 'InteractionCollectorError') {
+                    console.log('Result interaction collector timed out.', error.message);
                     return resultMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] })
                   }
                   console.log(error)
@@ -397,6 +421,7 @@ module.exports = {
             }
             catch (error) {
               if (error.code === 'InteractionCollectorError') {
+                console.log('Roll interaction collector timed out.', error.message);
                 return rollMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
               }
               console.log(error)
@@ -427,6 +452,11 @@ module.exports = {
               }
               catch (error) {
                 console.log('Error deferring rollInteraction (bastard):', error);
+              }
+
+              if (rollInteraction.customId === 'skip_offspring_rolls') {
+                // Just continue to next roll
+                continue;
               }
 
               if (rollInteraction.customId === 'roll') {
@@ -543,6 +573,7 @@ module.exports = {
         }
       } catch (error) {
         if (error.code === 'InteractionCollectorError') {
+          console.log('Start interaction collector timed out.', error.message);
           return startMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
         }
         console.log(error);
@@ -681,8 +712,13 @@ module.exports = {
         .setLabel('Roll')
         .setStyle(ButtonStyle.Primary);
 
+      const skipButton = new ButtonBuilder()
+        .setCustomId('skip_death_rolls')
+        .setLabel('Skip')
+        .setStyle(ButtonStyle.Secondary);
+
       const rollRow = new ActionRowBuilder()
-        .addComponents(rollButton);
+        .addComponents(rollButton, skipButton);
 
       // Make a button to start the rolls
       const startButton = new ButtonBuilder()
@@ -721,11 +757,24 @@ module.exports = {
         }
 
         if (startInteraction.customId === 'start_death_rolls') {
+          if (skipInteractions && shouldLog) {
+            // Make embed saying that death rolls are being processed without
+            // interactions, and that results will be logged so it will take some time
+            const processingEmbed = new EmbedBuilder()
+              .setTitle('Processing Death Rolls')
+              .setDescription('Death rolls are being processed without interactions. This may take some time. Results will be logged when complete.')
+              .setColor(BLUE_COLOR);
+
+            await startMessage.edit({
+              embeds: [processingEmbed],
+              components: [],
+            });
+          }
+
           // For each character, calculate death roll and show the embed that the character is in
           for (const [index, character] of eligibleCharacters.entries()) {
             // Skip interactions if specified
             if (skipInteractions) {
-              // console.log(`Processing death roll for character ${character.name} (${index + 1} of ${eligibleCharacters.length})`);
               const { resultDescription, color, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath } = rollDeathAndGetResult(character, nextYear);
               await saveDeathResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives, shouldLog);
               continue;
@@ -735,9 +784,17 @@ module.exports = {
 
             // Make embed for the current character with their name and their age
             const age = nextYear - character.yearOfMaturity;
+            const player = await Players.findOne({ where: { characterId: character.id } });
+            const description =
+              `
+              Name: ${inlineCode(character.name)}
+              Age: ${inlineCode(age)}
+              PvE Deaths: ${inlineCode(character.pveDeaths)}
+              Played by: ${player ? userMention(player.id) : inlineCode('None')}
+              `;
             const characterEmbed = new EmbedBuilder()
               .setTitle('Death Roll for ' + character.name)
-              .setDescription(inlineCode(character.name) + ' - Age: ' + age)
+              .setDescription(description)
               .setColor(BLUE_COLOR);
 
             // Add the character embed and change the button to roll
@@ -754,6 +811,11 @@ module.exports = {
               }
               catch (error) {
                 console.log('Failed to defer rollInteraction (death):', error);
+              }
+
+              if (rollInteraction.customId === 'skip_death_rolls') {
+                // Just continue to next character
+                continue;
               }
 
               if (rollInteraction.customId === 'roll_death_rolls') {
@@ -785,29 +847,29 @@ module.exports = {
                   }
                 }
                 catch (error) {
-                  console.log(error);
                   if (error.code === 'InteractionCollectorError') {
                     return resultMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
                   }
+                  console.log(error);
                   return resultMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
                 }
               }
             }
             catch (error) {
-              console.log(error);
               if (error.code === 'InteractionCollectorError') {
                 return rollMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
               }
+              console.log(error);
               return rollMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
             }
           }
         }
       }
       catch (error) {
-        console.log(error);
         if (error.code === 'InteractionCollectorError') {
           return startMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
         }
+        console.log(error);
         return startMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
       }
 
