@@ -15,6 +15,11 @@ module.exports = {
             .setName('include_denied')
             .setDescription('Whether to include denied tickets in the count.')
         )
+        .addIntegerOption(option =>
+          option
+            .setName('days')
+            .setDescription('Only show tickets from the last N days.')
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -35,6 +40,9 @@ module.exports = {
     let ticketsMessage = await ticketsChannel.messages
       .fetch({ limit: 1 })
       .then(messagePage => (messagePage.size === 1 ? messagePage.at(0) : null));
+    if (ticketsMessage) {
+      ticketsMessages.push(ticketsMessage);
+    }
 
     while (ticketsMessage) {
       await ticketsChannel.messages
@@ -54,6 +62,10 @@ module.exports = {
       .fetch({ limit: 1 })
       .then(messagePage => (messagePage.size === 1 ? messagePage.at(0) : null));
 
+    if (reportsMessage) {
+      reportsMessages.push(reportsMessage);
+    }
+
     while (reportsMessage) {
       await reportsChannel.messages
         .fetch({ limit: 100, before: reportsMessage.id })
@@ -69,6 +81,9 @@ module.exports = {
     let theftsMessage = await theftsChannel.messages
       .fetch({ limit: 1 })
       .then(messagePage => (messagePage.size === 1 ? messagePage.at(0) : null));
+    if (theftsMessage) {
+      theftsMessages.push(theftsMessage);
+    }
 
     while (theftsMessage) {
       await theftsChannel.messages
@@ -94,6 +109,14 @@ module.exports = {
     // Handle 'closed' subcommand
     if (subcommand === 'closed') {
       const includeDenied = interaction.options.getBoolean('include_denied') ?? false;
+      const days = interaction.options.getInteger('days') ?? null;
+
+      // If days is specified, filter messages to only those within the last N days
+      if (days !== null) {
+        const now = Date.now();
+        const cutoff = now - days * 24 * 60 * 60 * 1000;
+        ticketsMessages = ticketsMessages.filter(msg => msg.createdTimestamp >= cutoff);
+      }
 
       // Filter messages to those that say 'was closed by' in the content
       // Also include 'was denied by' if includeDenied is true
@@ -119,8 +142,11 @@ module.exports = {
         }
       }
 
+      // Set title and description suffix based on whether amount of days was specified
       embedTitle = includeDenied ? 'Closed/Denied Ticket Counts' : 'Closed Ticket Counts';
       descriptionSuffix = includeDenied ? 'closed or denied' : 'closed';
+      embedTitle += ` (Last ${days} Days)`;
+
     }
     else if (subcommand === 'created') {
       // Filter messages to those that say 'was created by' in the content
