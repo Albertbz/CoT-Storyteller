@@ -2,18 +2,12 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { postInLogChannel, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase } = require('../../misc.js');
+const { postInLogChannel, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
 const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathResultToDatabase, makeDeathRollsSummaryEmbeds, buildOffspringChanceEmbed } = require('../../helpers/rollHelper.js');
 
 // Centralized messages
 const CANCEL_MESSAGE = 'Something went wrong. Please let Albert know.';
 const TIMEOUT_MESSAGE = 'No response received for 5 minutes, cancelling the rolls.';
-const BLUE_COLOR = 0x0000A3;
-const GREEN_COLOR = 0x00A300;
-const RED_COLOR = 0xA30000;
-const LIGHT_YELLOW_COLOR = 0xFFFFA3;
-const YELLOW_COLOR = 0xA3A300;
-const ORANGE_COLOR = 0xFFA500;
 
 // Picks a random element from an array
 function pickRandomElement(arr) {
@@ -127,12 +121,12 @@ module.exports = {
       const relEmbed = new EmbedBuilder()
         .setTitle('**Offspring rolls — Relationships**')
         .setDescription(relationshipsDescription)
-        .setColor(BLUE_COLOR);
+        .setColor(COLORS.BLUE);
 
       const bastEmbed = new EmbedBuilder()
         .setTitle('**Offspring rolls — Bastards**')
         .setDescription(bastardsDescription)
-        .setColor(BLUE_COLOR);
+        .setColor(COLORS.BLUE);
 
       // Build an embed that shows the roll chance thresholds for relationships and bastards
       const rollChancesEmbed = buildOffspringChanceEmbed();
@@ -140,7 +134,7 @@ module.exports = {
       const controlEmbed = new EmbedBuilder()
         .setTitle('Ready to start')
         .setDescription('Please press Start when you are ready to start the offspring rolls.\n\nIf you do not interact with the buttons for 5 minutes, the rolls will stop.')
-        .setColor(BLUE_COLOR);
+        .setColor(COLORS.BLUE);
 
       const startMessage = await interaction.editReply({
         embeds: [relEmbed, bastEmbed, rollChancesEmbed, controlEmbed],
@@ -205,7 +199,7 @@ module.exports = {
                 'Conceiving partner(s):\n' +
                 conceivingCharacters.map(character => inlineCode(character.name) + ' (' + ageToFertilityModifier((world.currentYear - character.yearOfMaturity)) * 100 + '% fertile)').join('\n') + bastardNPC
               )
-              .setColor(BLUE_COLOR)
+              .setColor(COLORS.BLUE)
 
             const rollMessage = await startMessage.edit({
               embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
@@ -257,10 +251,10 @@ module.exports = {
                   relationship: null,
                   rolls: []
                 }
-                let color = RED_COLOR
+                let color = COLORS.RED
 
                 if (successfulRolls.length > 0) {
-                  color = GREEN_COLOR
+                  color = COLORS.GREEN
                   const chosen = pickRandomElement(successfulRolls)
                   const rollRes = chosen.rollRes
                   const conceivingCharacter = chosen.conceivingCharacter
@@ -359,11 +353,11 @@ module.exports = {
                         affiliationId = offspringResult.relationship.conceivingCharacter.affiliationId;
                       }
 
-                      const childCharacter = await addCharacterToDatabase(interactionUser, {
+                      const { character: childCharacter, _ } = await addCharacterToDatabase(interactionUser, {
                         name: childType,
                         sex: childType === 'Son' ? 'Male' : 'Female',
                         affiliationId: affiliationId,
-                        socialClassName: offspringResult.relationship ? (offspringResult.relationship.inheritingTitle === 'Noble' ? 'Noble' : 'Notable') : 'Notable',
+                        socialClassName: offspringResult.relationship ? (offspringResult.relationship.inheritedTitle === 'Noble' ? 'Noble' : 'Notable') : 'Notable',
                         yearOfMaturity: world.currentYear + 3,
                         parent1Id: offspringResult.relationship ? offspringResult.relationship.bearingCharacter.id : bearingCharacter.id,
                         parent2Id: offspringResult.relationship ? offspringResult.relationship.conceivingCharacter.id : null,
@@ -426,7 +420,7 @@ module.exports = {
             const embed = new EmbedBuilder()
               .setTitle('Bastard NPC roll')
               .setDescription('Rolling character: ' + inlineCode(character.name) + ' (' + fertilityModifier + '% fertile)')
-              .setColor(BLUE_COLOR);
+              .setColor(COLORS.BLUE);
 
             const rollMessage = await startMessage.edit({
               embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
@@ -457,10 +451,10 @@ module.exports = {
 
                 const successfulRoll = rollRes.includes('Son') || rollRes.includes('Daughter');
 
-                let color = RED_COLOR;
+                let color = COLORS.RED;
                 let offspringResultText = inlineCode(character.name) + ' did **not** get a child with an NPC.';
                 if (successfulRoll) {
-                  color = GREEN_COLOR;
+                  color = COLORS.GREEN;
                   const { text: offspringText } = formatOffspringCounts(rollRes);
                   offspringResultText = inlineCode(character.name) + ' got the following with an NPC:\n' + offspringText;
                 }
@@ -505,7 +499,7 @@ module.exports = {
                       for (const childRoll of rollRes) {
                         let affiliationId = (await Affiliations.findOne({ where: { name: 'Wanderer' } })).id;
 
-                        const childCharacter = await addCharacterToDatabase(interactionUser, {
+                        const { character: childCharacter } = await addCharacterToDatabase(interactionUser, {
                           name: childRoll,
                           sex: childRoll === 'Son' ? 'Male' : 'Female',
                           affiliationId: affiliationId,
@@ -564,7 +558,7 @@ module.exports = {
         const relSummaryEmbed = new EmbedBuilder()
           .setTitle('Offspring summary — Relationships')
           .setDescription(finalRelationshipSummaries.join('\n'))
-          .setColor(BLUE_COLOR);
+          .setColor(COLORS.BLUE);
         embedsToSend.push(relSummaryEmbed);
       }
 
@@ -572,7 +566,7 @@ module.exports = {
         const bastSummaryEmbed = new EmbedBuilder()
           .setTitle('Offspring summary — Bastards')
           .setDescription(finalBastardSummaries.join('\n'))
-          .setColor(BLUE_COLOR);
+          .setColor(COLORS.BLUE);
         embedsToSend.push(bastSummaryEmbed);
       }
 
@@ -646,7 +640,7 @@ module.exports = {
         const embed = new EmbedBuilder()
           .setTitle(`Eligible Characters for Death Rolls in Year ${nextYear} (Showing ${i + 1}-${i + chunk.length} of ${eligibleCharacters.length})`)
           .setDescription(description)
-          .setColor(BLUE_COLOR);
+          .setColor(COLORS.BLUE);
 
         embeds.push(embed);
       }
@@ -663,13 +657,13 @@ module.exports = {
       const deathRollChancesEmbed = new EmbedBuilder()
         .setTitle('Death Roll Chances')
         .setDescription(deathRollChancesDescription)
-        .setColor(BLUE_COLOR);
+        .setColor(COLORS.BLUE);
 
       // Make a start embed
       const startEmbed = new EmbedBuilder()
         .setTitle('Ready to start')
         .setDescription('Please press Start when you are ready to start the death rolls.')
-        .setColor(BLUE_COLOR);
+        .setColor(COLORS.BLUE);
 
       // Make continue button
       const saveAndContinueButton = new ButtonBuilder()
@@ -737,7 +731,7 @@ module.exports = {
             const processingEmbed = new EmbedBuilder()
               .setTitle('Processing Death Rolls')
               .setDescription('Death rolls are being processed without interactions. This may take some time. Results will be logged when complete.')
-              .setColor(BLUE_COLOR);
+              .setColor(COLORS.BLUE);
 
             await startMessage.edit({
               embeds: [processingEmbed],
@@ -769,7 +763,7 @@ module.exports = {
             const characterEmbed = new EmbedBuilder()
               .setTitle('Death Roll for ' + character.name)
               .setDescription(description)
-              .setColor(BLUE_COLOR);
+              .setColor(COLORS.BLUE);
 
             // Add the character embed and change the button to roll
             const rollMessage = await startMessage.edit({
@@ -860,25 +854,25 @@ module.exports = {
 
       if (diedCharacters.length > 0) {
         const diedCharactersList = diedCharacters.map(({ character, player, dayOfDeath, monthOfDeath, yearOfDeath }) => `${inlineCode(character.name)} | ${inlineCode(`${dayOfDeath} ${monthOfDeath} ${yearOfDeath}`)} (${spoiler(player ? userMention(player.id) : 'None')})`);
-        const diedCharactersEmbeds = makeDeathRollsSummaryEmbeds(diedCharactersList, 'Characters that will die in Year ' + nextYear, RED_COLOR);
+        const diedCharactersEmbeds = makeDeathRollsSummaryEmbeds(diedCharactersList, 'Characters that will die in Year ' + nextYear, COLORS.RED);
         summaryEmbeds.push(...diedCharactersEmbeds);
       }
 
       if (lost3PveLives.length > 0) {
         const lost3PveLivesList = lost3PveLives.map(({ character, player }) => `${inlineCode(character.name)} (${spoiler(player ? userMention(player.id) : 'None')})`);
-        const lost3PveLivesEmbeds = makeDeathRollsSummaryEmbeds(lost3PveLivesList, 'Characters that have lost 3 PvE lives', ORANGE_COLOR);
+        const lost3PveLivesEmbeds = makeDeathRollsSummaryEmbeds(lost3PveLivesList, 'Characters that have lost 3 PvE lives', COLORS.ORANGE);
         summaryEmbeds.push(...lost3PveLivesEmbeds);
       }
 
       if (lost2PveLives.length > 0) {
         const lost2PveLivesList = lost2PveLives.map(({ character, player }) => `${inlineCode(character.name)} (${spoiler(player ? userMention(player.id) : 'None')})`);
-        const lost2PveLivesEmbeds = makeDeathRollsSummaryEmbeds(lost2PveLivesList, 'Characters that have lost 2 PvE lives', YELLOW_COLOR);
+        const lost2PveLivesEmbeds = makeDeathRollsSummaryEmbeds(lost2PveLivesList, 'Characters that have lost 2 PvE lives', COLORS.YELLOW);
         summaryEmbeds.push(...lost2PveLivesEmbeds);
       }
 
       if (lost1PveLife.length > 0) {
         const lost1PveLifeList = lost1PveLife.map(({ character, player }) => `${inlineCode(character.name)} (${spoiler(player ? userMention(player.id) : 'None')})`);
-        const lost1PveLifeEmbeds = makeDeathRollsSummaryEmbeds(lost1PveLifeList, 'Characters that have lost 1 PvE life', LIGHT_YELLOW_COLOR);
+        const lost1PveLifeEmbeds = makeDeathRollsSummaryEmbeds(lost1PveLifeList, 'Characters that have lost 1 PvE life', COLORS.LIGHT_YELLOW);
         summaryEmbeds.push(...lost1PveLifeEmbeds);
       }
 
@@ -914,7 +908,7 @@ module.exports = {
 
         // Make an embed for the original message with link to the summary messages
         const summaryEmbed = new EmbedBuilder()
-          .setColor(GREEN_COLOR)
+          .setColor(COLORS.GREEN)
           .setTitle('Death Rolls Summary')
           .setDescription(
             'See the summary messages here:\n\n' +

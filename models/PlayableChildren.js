@@ -24,8 +24,9 @@ module.exports = (sequelize, DataTypes) => {
     },
     formattedDescription: {
       type: DataTypes.VIRTUAL,
-      get() {
-        return `ID: \`${this.id}\`\n\nCharacter ID: \`${this.characterId}\`\nContact 1 Discord User: ${this.contact1Snowflake ? `<@${this.contact1Snowflake}>` : '-'}\nContact 2 Discord User: ${this.contact2Snowflake ? `<@${this.contact2Snowflake}>` : '-'}\nComments: \`${this.comments ? this.comments : '-'}\`\nLegitimacy: \`${this.legitimacy ? this.legitimacy : '-'}\``;
+      async get() {
+        const character = await this.getCharacter();
+        return `ID: \`${this.id}\`\n\nCharacter: \`${character.name}\` (\`${character.id}\`)\nContact 1 Discord User: ${this.contact1Snowflake ? `<@${this.contact1Snowflake}>` : '-'}\nContact 2 Discord User: ${this.contact2Snowflake ? `<@${this.contact2Snowflake}>` : '-'}\nComments: \`${this.comments ? this.comments : '-'}\`\nLegitimacy: \`${this.legitimacy ? this.legitimacy : '-'}\``;
       },
       set(value) {
         throw new Error('Do not try to set the formattedDescription value!')

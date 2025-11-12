@@ -1,6 +1,16 @@
 const { EmbedBuilder, userMention, inlineCode } = require('discord.js');
 const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, Deceased, PlayableChildren } = require('./dbObjects.js');
 const { roles, channels, guilds } = require('./configs/ids.json');
+const { Op } = require('sequelize');
+
+const COLORS = {
+  BLUE: 0x0000A3,
+  GREEN: 0x00A300,
+  RED: 0xA30000,
+  LIGHT_YELLOW: 0xFFFFA3,
+  YELLOW: 0xA3A300,
+  ORANGE: 0xFFA500
+};
 
 async function addPlayerToDatabase(id, ign, timezone, storyteller) {
   try {
@@ -10,17 +20,14 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
       timezone: timezone
     });
 
-    await postInLogChannel(
+    const playerCreatedEmbed = await postInLogChannel(
       'Player Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
-      'ID: ' + inlineCode(player.id) + '\n' +
-      'Discord User: ' + userMention(player.id) + '\n' +
-      'VS Username: ' + inlineCode(player.ign) + '\n' +
-      'Timezone: ' + inlineCode(player.timezone ? player.timezone : 'Undefined') + '\n',
-      0x008000
+      (await player.formattedDescription),
+      COLORS.GREEN
     )
 
-    return player;
+    return { player, playerCreatedEmbed };
   }
   catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
@@ -76,21 +83,14 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
     const parent1 = await character.getParent1();
     const parent2 = await character.getParent2();
 
-    await postInLogChannel(
+    const characterCreatedEmbed = await postInLogChannel(
       'Character Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
-      'ID: ' + inlineCode(character.id) + '\n' +
-      'Name: ' + inlineCode(character.name) + '\n' +
-      'Sex: ' + inlineCode(character.sex) + '\n' +
-      'Affiliation: ' + inlineCode(affiliation.name) + '\n' +
-      'Social class: ' + inlineCode(character.socialClassName) + '\n' +
-      'Year of Maturity: ' + inlineCode(character.yearOfMaturity) + '\n' +
-      'Parent 1: ' + inlineCode(parent1 ? parent1.name : 'Unknown') + '\n' +
-      'Parent 2: ' + inlineCode(parent2 ? parent2.name : 'Unknown') + '\n',
-      0x008000
+      (await character.formattedDescription),
+      COLORS.GREEN
     )
-    // Return both the character and the text description
-    return character;
+    // Return both the character and the creation embed
+    return { character, characterCreatedEmbed };
   }
   catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
@@ -107,6 +107,11 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
   // storyteller is required
   if (!storyteller) {
     throw new Error('storyteller is required');
+  }
+
+  // Check whether committed is false but inheritedTitle is 'Noble'
+  if (!committed && inheritedTitle === 'Noble') {
+    throw new Error('A committed relationship cannot have an inherited title of Noble.');
   }
 
   // Get the characters
@@ -162,27 +167,44 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
     throw new Error('The conceiving partner, ' + inlineCode(conceivingCharacter.name) + ', is already a bearing partner in another relationship.');
   }
 
+  // Check whether the two characters are already in a relationship together
+  const existingRelationship = await Relationships.findOne({
+    where: {
+      [Op.or]: [
+        {
+          bearingCharacterId: bearingCharacter.id,
+          conceivingCharacterId: conceivingCharacter.id
+        },
+        {
+          bearingCharacterId: conceivingCharacter.id,
+          conceivingCharacterId: bearingCharacter.id
+        }
+      ]
+    }
+  })
+
+  if (existingRelationship) {
+    throw new Error('These two characters are already in a relationship together.');
+  }
+
   // If all checks have been passed, create the relationship
   try {
 
     const relationship = await Relationships.create({
       bearingCharacterId: bearingCharacter.id,
       conceivingCharacterId: conceivingCharacter.id,
-      committed: committed,
+      isCommitted: committed,
       inheritedTitle: inheritedTitle
     });
 
-    await postInLogChannel(
+    const relationshipCreatedEmbed = await postInLogChannel(
       'Relationship Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
-      'Bearing Character: ' + inlineCode(bearingCharacter.name) + '\n' +
-      'Conceiving Character: ' + inlineCode(conceivingCharacter.name) + '\n' +
-      'Committed: ' + inlineCode(committed ? 'Yes' : 'No') + '\n' +
-      'Inherited Title: ' + inlineCode(inheritedTitle) + '\n',
+      (await relationship.formattedDescription),
       0x008000
     )
 
-    return relationship;
+    return { relationship, relationshipCreatedEmbed };
   }
   catch (error) {
     console.log(error);
@@ -240,7 +262,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     })
 
     if (!player) {
-      throw new Error(userMention(member.id) + ' does not exist in the database.');
+      throw new Error(userMention(member.id) + ' does not exist in the database, so they cannot be assigned a character.');
     }
 
     // Check whether character is deceased
@@ -298,15 +320,15 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       await member.roles.add(roles.steelbearer);
     }
 
-    await postInLogChannel(
+    const assignedEmbed = await postInLogChannel(
       'Character assigned to Player',
       '**Assigned by: ' + userMention(storyteller.id) + '**\n\n' +
-      'Character: `' + character.name + '`\n' +
-      'Player: ' + userMention(playerId),
+      'Character: ' + inlineCode(character.name) + ` (${inlineCode(character.id)})` + '\n' +
+      'Player: ' + userMention(playerId) + ` (${inlineCode(playerId)})`,
       0x0000A3
     )
 
-    return true;
+    return assignedEmbed;
   }
   catch (error) {
     throw new Error(error.message);
@@ -463,13 +485,13 @@ async function changeCharacter(storyteller, character, shouldPostInLogChannel, {
 }
 
 async function postInLogChannel(title, description, color) {
-  const embedLog = new EmbedBuilder()
+  const logEmbed = new EmbedBuilder()
     .setTitle(title)
     .setDescription(description)
     .setColor(color)
   const logChannel = await client.channels.fetch(channels.storytellerLog);
-  await logChannel.send({ embeds: [embedLog] });
-  return embedLog;
+  await logChannel.send({ embeds: [logEmbed] });
+  return logEmbed;
 }
 
 function ageToFertilityModifier(age) {
@@ -479,4 +501,15 @@ function ageToFertilityModifier(age) {
   if (age < 5) return 1;
 }
 
-module.exports = { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, ageToFertilityModifier, addRelationshipToDatabase, addPlayableChildToDatabase, addDeceasedToDatabase, changeCharacter }; 
+module.exports = {
+  addPlayerToDatabase,
+  addCharacterToDatabase,
+  assignCharacterToPlayer,
+  postInLogChannel,
+  ageToFertilityModifier,
+  addRelationshipToDatabase,
+  addPlayableChildToDatabase,
+  addDeceasedToDatabase,
+  changeCharacter,
+  COLORS
+}; 

@@ -2,8 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Affiliations, SocialClasses, Worlds, PlayableChildren, Relationships } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { postInLogChannel } = require('../../misc.js');
-const { COLORS } = require('../../helpers/rollHelper.js');
+const { postInLogChannel, COLORS } = require('../../misc.js');
 
 
 module.exports = {
@@ -12,6 +11,17 @@ module.exports = {
     .setDescription('Remove something from the database.')
     .setContexts(InteractionContextType.Guild)
     .setDefaultMemberPermissions(0)
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('player')
+        .setDescription('Remove a player.')
+        .addUserOption(option =>
+          option
+            .setName('user')
+            .setDescription('The user to remove as a player.')
+            .setRequired(true)
+        )
+    )
     .addSubcommand(subcommand =>
       subcommand
         .setName('character')
@@ -173,6 +183,20 @@ module.exports = {
     let embedTitle = ''
     const interactionUserId = interaction.user.id;
 
+
+    /**
+     * Handle 'player' subcommand
+     */
+    if (subcommand === 'player') {
+      const user = interaction.options.getUser('user');
+
+      toRemove = await Players.findByPk(user.id);
+
+      entityName = `player ${userMention(user.id)}`;
+      embedTitle = 'Player Removed';
+    }
+
+
     /**
      * Handle 'character' subcommand
      */
@@ -243,8 +267,8 @@ module.exports = {
     // Make embed to ask for confirmation with info about the entity to be removed
     const embed = new EmbedBuilder()
       .setTitle(`Confirm Removal of ${subcommand.charAt(0).toUpperCase() + subcommand.slice(1)}`)
-      .setDescription(`Are you sure you want to remove the ${entityName}? This action cannot be undone.\n\n${toRemove.formattedDescription}`)
-      .setColor(COLORS.BLUE_COLOR);
+      .setDescription(`Are you sure you want to remove the ${entityName}? This action cannot be undone.\n\n${(await toRemove.formattedDescription)}`)
+      .setColor(COLORS.BLUE);
 
     const confirmMessage = await interaction.editReply({
       embeds: [embed],
@@ -269,16 +293,16 @@ module.exports = {
           embedTitle,
           `The ${entityName} was removed from the database by ${userMention(interactionUserId)}.
           
-          ${toRemove.formattedDescription || ''}`,
-          COLORS.RED_COLOR
+          ${(await toRemove.formattedDescription)}`,
+          COLORS.RED
         );
 
         await toRemove.destroy();
 
         const confirmationEmbed = new EmbedBuilder()
           .setTitle(embedTitle)
-          .setDescription(`The ${entityName} has been successfully removed from the database:\n\n${toRemove.formattedDescription}`)
-          .setColor(COLORS.GREEN_COLOR);
+          .setDescription(`The ${entityName} has been successfully removed from the database:\n\n${(await toRemove.formattedDescription)}`)
+          .setColor(COLORS.GREEN);
 
         await interaction.editReply({ embeds: [confirmationEmbed], components: [] });
       }

@@ -1,5 +1,3 @@
-const { format } = require("sequelize/lib/utils");
-
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('players', {
     id: {
@@ -23,8 +21,9 @@ module.exports = (sequelize, DataTypes) => {
     },
     formattedDescription: {
       type: DataTypes.VIRTUAL,
-      get() {
-        return `ID: \`${this.id}\`\n\nDiscord User: <@${this.id}>\nVS Username: \`${this.ign}\`\nTimezone: \`${this.timezone ? this.timezone : '-'}\`\nCharacter ID: \`${this.characterId ? this.characterId : '-'}\`\nActive: \`${this.isActive ? 'Yes' : 'No'}\``;
+      async get() {
+        const character = await this.getCharacter();
+        return `ID: \`${this.id}\`\n\nDiscord User: <@${this.id}>\nVS Username: \`${this.ign}\`\nTimezone: \`${this.timezone ? this.timezone : '-'}\`\nCharacter: ${character ? `\`${character.name}\` (\`${this.characterId}\`)` : '`-`'}\nActive: \`${this.isActive ? 'Yes' : 'No'}\``;
       },
       set(value) {
         throw new Error('Do not try to set the formattedDescription value!')

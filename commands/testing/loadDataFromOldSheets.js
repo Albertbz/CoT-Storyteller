@@ -631,14 +631,14 @@ module.exports = {
       }
 
       const isCommitted = relationshipRow.get('Committed') === 'Yes' ? true : false;
-      const inheritingTitle = relationshipRow.get('Inherited title');
+      const inheritedTitle = relationshipRow.get('Inherited title');
 
       try {
         const relationship = await Relationships.create({
           bearingCharacterId: bearingCharacter.id,
           conceivingCharacterId: conceivingCharacter.id,
           isCommitted: isCommitted,
-          inheritingTitle: inheritingTitle
+          inheritedTitle: inheritedTitle
         })
 
         // console.log('The relationship was added to the database succesfully:\n', relationship.toJSON());

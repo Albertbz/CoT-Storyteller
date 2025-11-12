@@ -2,8 +2,8 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { postInLogChannel, assignCharacterToPlayer, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase } = require('../../misc.js');
-const { calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringChanceEmbed, getFertilityModifier, COLORS } = require('../../helpers/rollHelper.js');
+const { ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
+const { calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringChanceEmbed, getFertilityModifier } = require('../../helpers/rollHelper.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -162,7 +162,7 @@ module.exports = {
       const rollEmbed = new EmbedBuilder()
         .setTitle('Offspring Roll for Relationship')
         .setDescription(rollDescription)
-        .setColor(COLORS.BLUE_COLOR);
+        .setColor(COLORS.BLUE);
 
 
       // Make the initial reply
@@ -188,7 +188,7 @@ module.exports = {
           // color based on result (red if no offspring, green if offspring)
           // description based on offspring result (offspring produced or failed)
           // as well as the the rolls themselves (fertility and offspring checks)
-          let color = COLORS.RED_COLOR;
+          let color = COLORS.RED;
           let resultDescription = ``;
           let isSuccessfulRoll = false;
 
@@ -197,7 +197,7 @@ module.exports = {
               ${inlineCode(relationship.bearingCharacter.name)} & ${inlineCode(relationship.conceivingCharacter.name)} (${roll.fertilityModifier}% fertile) produced:
               ${bold(formatOffspringCounts(roll.result).text)} *(Fertility: ${roll.fertilityCheck} / Offspring: ${roll.offspringCheck})*
             `;
-            color = COLORS.GREEN_COLOR;
+            color = COLORS.GREEN;
             isSuccessfulRoll = true;
           }
           else if (roll.result[0] === 'Failed Fertility Roll') {
@@ -247,15 +247,16 @@ module.exports = {
                   // Make character for each child
                   let childCharacter = null;
                   try {
-                    childCharacter = await addCharacterToDatabase(interactionUser, {
+                    const { character, _ } = await addCharacterToDatabase(interactionUser, {
                       name: childType,
                       sex: childType === 'Son' ? 'Male' : 'Female',
                       affiliationId: affiliationId,
-                      socialClassName: relationship.inheritingTitle === 'Noble' ? 'Noble' : 'Notable',
+                      socialClassName: relationship.inheritedTitle === 'Noble' ? 'Noble' : 'Notable',
                       yearOfMaturity: world.currentYear + 3,
                       parent1Id: relationship.bearingCharacter.id,
                       parent2Id: relationship.conceivingCharacter.id,
                     });
+                    childCharacter = character;
                   }
                   catch (error) {
                     console.log(error);
@@ -368,7 +369,7 @@ module.exports = {
       const rollEmbed = new EmbedBuilder()
         .setTitle('Bastard Offspring Roll')
         .setDescription(rollDescription)
-        .setColor(COLORS.BLUE_COLOR);
+        .setColor(COLORS.BLUE);
 
       // Make the initial reply
       const rollMessage = await interaction.editReply({
@@ -393,7 +394,7 @@ module.exports = {
           // color based on result (red if no offspring, green if offspring)
           // description based on offspring result (offspring produced or failed)
           // as well as the the rolls themselves (fertility and offspring checks)
-          let color = COLORS.RED_COLOR;
+          let color = COLORS.RED;
           let resultDescription = ``;
           let isSuccessfulRoll = false;
 
@@ -402,7 +403,7 @@ module.exports = {
               ${inlineCode(character.name)} (${roll.fertilityModifier}% fertile) produced: 
               ${bold(formatOffspringCounts(roll.result).text)} *(Fertility: ${roll.fertilityCheck} / Offspring: ${roll.offspringCheck})*
             `;
-            color = COLORS.GREEN_COLOR;
+            color = COLORS.GREEN;
             isSuccessfulRoll = true;
           }
           else if (roll.result[0] === 'Failed Fertility Roll') {
@@ -451,7 +452,7 @@ module.exports = {
                   // Make character for each child
                   let childCharacter = null;
                   try {
-                    childCharacter = await addCharacterToDatabase(interactionUser, {
+                    const { character, _ } = await addCharacterToDatabase(interactionUser, {
                       name: childType,
                       sex: childType === 'Son' ? 'Male' : 'Female',
                       affiliationId: affiliationId,
@@ -459,6 +460,7 @@ module.exports = {
                       yearOfMaturity: world.currentYear + 3,
                       parent1Id: character.id
                     });
+                    childCharacter = character;
                   }
                   catch (error) {
                     console.log(error);

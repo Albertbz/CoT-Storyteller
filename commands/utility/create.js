@@ -198,32 +198,16 @@ module.exports = {
 
       // Create the player
       try {
-        const player = await addPlayerToDatabase(user.id, ign, timezone, interaction.user);
+        const { player, playerCreatedEmbed } = await addPlayerToDatabase(user.id, ign, timezone, interaction.user);
 
-        const playerCreatedText =
-          '**Player was created with the following information:**\n' +
-          'Discord User: ' + userMention(player.id) + '\n' +
-          'VS Username: ' + inlineCode(player.ign) + '\n' +
-          'Timezone: ' + inlineCode(player.timezone ? player.timezone : 'Undefined') + '\n';
-
+        // If not creating a character, finish here
+        if (!creatingCharacter) return interaction.editReply({ embeds: [playerCreatedEmbed], flags: MessageFlags.Ephemeral });
 
         // Create the character if any of the arguments were provided
-        if (!creatingCharacter) return interaction.editReply({ content: playerCreatedText, flags: MessageFlags.Ephemeral });
+        const { character, characterCreatedEmbed } = await addCharacterToDatabase(interaction.user, { name, sex, affiliationId, socialClassName });
+        const assignedEmbed = await assignCharacterToPlayer(character.id, player.id, interaction.user);
 
-        const character = await addCharacterToDatabase(interaction.user, { name, sex, affiliationId, socialClassName });
-        await assignCharacterToPlayer(character.id, player.id, interaction.user);
-
-        const affiliation = await Affiliations.findOne({ where: { id: affiliationId } });
-
-        const characterCreatedText =
-          '**Character was created with the following information and set as the Player\'s character:**\n' +
-          'Name: ' + inlineCode(character.name) + '\n' +
-          'Sex: ' + inlineCode(character.sex) + '\n' +
-          'Affiliation: ' + inlineCode(affiliation.name) + '\n' +
-          'Social class: ' + inlineCode(character.socialClassName) + '\n' +
-          'Year of Maturity: ' + inlineCode(character.yearOfMaturity) + '\n';
-
-        return interaction.editReply({ content: playerCreatedText + '\n\n' + characterCreatedText, flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ embeds: [playerCreatedEmbed, characterCreatedEmbed, assignedEmbed], flags: MessageFlags.Ephemeral });
       }
       catch (error) {
         return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
@@ -241,25 +225,26 @@ module.exports = {
       const linkToUser = user !== null;
 
       try {
-        const character = await addCharacterToDatabase(interaction.user, { name, sex, affiliationId, socialClassName });
 
-        const affiliation = await character.getAffiliation();
-
-        const characterCreatedText =
-          '**Character was created with the following information:**\n' +
-          'Name: ' + inlineCode(character.name) + '\n' +
-          'Sex: ' + inlineCode(character.sex) + '\n' +
-          'Affiliation: ' + inlineCode(affiliation.name) + '\n' +
-          'Social class: ' + inlineCode(character.socialClassName) + '\n' +
-          'Year of Maturity: ' + inlineCode(character.yearOfMaturity) + '\n'
-        if (!linkToUser) return interaction.editReply({ content: characterCreatedText, flags: MessageFlags.Ephemeral });
-
+        let character, characterCreatedEmbed;
         try {
-          await assignCharacterToPlayer(character.id, user.id, interaction.user);
-          return interaction.editReply({ content: characterCreatedText + '\n\n' + '**Aditionally, the character was assigned to:** ' + userMention(user.id), flags: MessageFlags.Ephemeral })
+          const result = await addCharacterToDatabase(interaction.user, { name, sex, affiliationId, socialClassName });
+          character = result.character;
+          characterCreatedEmbed = result.characterCreatedEmbed;
         }
         catch (error) {
-          return interaction.editReply({ content: `${characterCreatedText}\n\n**Attempted to assign character to the specified player, but ${error.message}** `, flags: MessageFlags.Ephemeral })
+          return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
+        }
+
+
+        if (!linkToUser) return interaction.editReply({ embeds: [characterCreatedEmbed], flags: MessageFlags.Ephemeral });
+
+        try {
+          const assignedEmbed = await assignCharacterToPlayer(character.id, user.id, interaction.user);
+          return interaction.editReply({ embeds: [characterCreatedEmbed, assignedEmbed], flags: MessageFlags.Ephemeral })
+        }
+        catch (error) {
+          return interaction.editReply({ content: error.message, embeds: [characterCreatedEmbed], flags: MessageFlags.Ephemeral })
         }
       }
       catch (error) {
@@ -274,10 +259,8 @@ module.exports = {
       const inheritedTitle = interaction.options.getString('inheritedtitle') ?? 'None';
 
       try {
-        const relationship = await addRelationshipToDatabase(interaction.user, { bearingCharacterId, conceivingCharacterId, committed, inheritedTitle });
-        const bearingCharacter = await relationship.getBearingCharacter();
-        const conceivingCharacter = await relationship.getConceivingCharacter();
-        return interaction.editReply({ content: 'The relationship between ' + inlineCode(bearingCharacter.name) + ' and ' + inlineCode(conceivingCharacter.name) + ' was created.', flags: MessageFlags.Ephemeral });
+        const { relationship, relationshipCreatedEmbed } = await addRelationshipToDatabase(interaction.user, { bearingCharacterId, conceivingCharacterId, committed, inheritedTitle });
+        return interaction.editReply({ embeds: [relationshipCreatedEmbed], flags: MessageFlags.Ephemeral });
       }
       catch (error) {
         // console.log(error);

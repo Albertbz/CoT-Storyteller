@@ -45,10 +45,9 @@ module.exports = {
     try {
       const character = await Characters.findOne({ where: { id: characterId } });
 
-      await assignCharacterToPlayer(character.id, user.id, interaction.user);
+      const assignedEmbed = await assignCharacterToPlayer(character.id, user.id, interaction.user);
 
-      const replyText = 'The character ' + inlineCode(character.name) + ' was assigned to ' + userMention(user.id) + '.';
-      return interaction.editReply({ content: replyText, flags: MessageFlags.Ephemeral });
+      return interaction.editReply({ embeds: [assignedEmbed], flags: MessageFlags.Ephemeral });
     }
     catch (error) {
       return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });

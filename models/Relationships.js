@@ -1,5 +1,3 @@
-const { format } = require("sequelize/lib/utils");
-
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('relationships', {
     id: {
@@ -9,23 +7,27 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.UUIDV4
     },
     bearingCharacterId: {
-      type: DataTypes.UUID
+      type: DataTypes.UUID,
+      allowNull: false
     },
     conceivingCharacterId: {
-      type: DataTypes.UUID
+      type: DataTypes.UUID,
+      allowNull: false
     },
     isCommitted: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
     },
-    inheritingTitle: {
+    inheritedTitle: {
       type: DataTypes.STRING,
       defaultValue: 'None'
     },
     formattedDescription: {
       type: DataTypes.VIRTUAL,
-      get() {
-        return `ID: \`${this.id}\`\n\nBearing Character ID: \`${this.bearingCharacterId}\`\nConceiving Character ID: \`${this.conceivingCharacterId}\`\nIs Committed: \`${this.isCommitted ? 'Yes' : 'No'}\`\nInheriting Title: \`${this.inheritingTitle}\``;
+      async get() {
+        const bearingCharacter = await this.getBearingCharacter();
+        const conceivingCharacter = await this.getConceivingCharacter();
+        return `ID: \`${this.id}\`\n\nBearing Character: \`${bearingCharacter.name}\` (\`${bearingCharacter.id}\`)\nConceiving Character: \`${conceivingCharacter.name}\` (\`${conceivingCharacter.id}\`)\nIs Committed: \`${this.isCommitted ? 'Yes' : 'No'}\`\nInherited Title: \`${this.inheritedTitle}\``;
       },
       set(value) {
         throw new Error('Do not try to set the formattedDescription value!')

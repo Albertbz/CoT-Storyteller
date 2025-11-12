@@ -1,13 +1,8 @@
 const { Players, DeathRollDeaths, Characters, Worlds } = require('../dbObjects.js');
 const { ageToFertilityModifier, changeCharacter, postInLogChannel } = require('../misc.js');
 const { inlineCode, bold, italic, userMention, EmbedBuilder } = require('discord.js');
+const { COLORS } = require('../misc.js');
 
-const BLUE_COLOR = 0x0000A3;
-const GREEN_COLOR = 0x00A300;
-const RED_COLOR = 0xA30000;
-const LIGHT_YELLOW_COLOR = 0xFFFFA3;
-const YELLOW_COLOR = 0xA3A300;
-const ORANGE_COLOR = 0xFFA500;
 const MAX_EMBED_DESCRIPTION_LENGTH = 3000;
 
 // Returns a random integer between 1 and max (inclusive)
@@ -53,7 +48,7 @@ function calculateOffspringRoll({ age1, age2 = 0, isBastardRoll = false } = {}) 
     }
   }
 
-  return { result: ['Failed Fertility Roll'], fertilityCheck, offspringCheck: 0, fertilityModifier };
+  return { result: ['Failed Fertility Roll'], fertilityCheck, offspringCheck: undefined, fertilityModifier };
 }
 
 async function getFertilityModifier(yearOfMaturity1, yearOfMaturity2 = undefined) {
@@ -213,16 +208,16 @@ function rollDeathAndGetResult(character, nextYear) {
   const yearOfDeath = nextYear;
 
   let resultDescription = '';
-  let color = BLUE_COLOR;
+  let color = COLORS.BLUE;
   if (status === 'unharmed') {
     resultDescription = inlineCode(character.name) + ' (' + age + ' years old) rolled ' + inlineCode(roll) + ' and did not lose any PvE lives.';
-    color = GREEN_COLOR;
+    color = COLORS.GREEN;
   } else if (status === 'gains_pve_deaths') {
     resultDescription = inlineCode(character.name) + ' (' + age + ' years old) rolled ' + inlineCode(roll) + ' and lost ' + inlineCode(deathsFromRoll) + ' PvE li' + (deathsFromRoll > 1 ? 'ves' : 'fe') + '.';
-    color = ORANGE_COLOR;
+    color = COLORS.ORANGE;
   } else if (status === 'dies') {
     resultDescription = inlineCode(character.name) + ' (' + age + ' years old) rolled ' + inlineCode(roll) + ' and will die on ' + inlineCode(dayOfDeath + ' ' + monthOfDeath + ', \'' + yearOfDeath) + '.';
-    color = RED_COLOR;
+    color = COLORS.RED;
   }
 
   return { resultDescription, color, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath };
@@ -277,7 +272,7 @@ async function saveDeathResultToDatabase(character, interactionUser, nextYear, r
         'Name: `' + character.name + '`\n' +
         'Date of Death: `' + dayOfDeath + ' ' + monthOfDeath + ', \'' + yearOfDeath + '`\n' +
         (player ? 'Played by: ' + userMention(player.id) : 'Played by: None'),
-        BLUE_COLOR
+        COLORS.BLUE
       );
 
     }
@@ -357,7 +352,7 @@ function buildOffspringChanceEmbed() {
   const rollChancesEmbed = new EmbedBuilder()
     .setTitle('Offspring roll chances')
     .setDescription(rollChancesDescription)
-    .setColor(BLUE_COLOR);
+    .setColor(COLORS.BLUE);
   return rollChancesEmbed;
 }
 
@@ -366,14 +361,6 @@ module.exports = {
   REL_THRESHOLDS,
   BAST_THRESHOLDS,
   OFFSPRING_LABELS,
-  COLORS: {
-    BLUE_COLOR,
-    GREEN_COLOR,
-    RED_COLOR,
-    LIGHT_YELLOW_COLOR,
-    YELLOW_COLOR,
-    ORANGE_COLOR
-  },
   randomInteger,
   determineOffspringResult,
   calculateOffspringRoll,

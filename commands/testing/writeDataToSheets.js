@@ -54,7 +54,7 @@ module.exports = {
       conceivingCell.value = relationship.conceivingCharacter.name;
       fertilityCell.value = fertilityModifiers.combinedFertilityModifier;
       committedCell.value = relationship.isCommitted ? 'Yes' : 'No';
-      titleCell.value = relationship.inheritingTitle;
+      titleCell.value = relationship.inheritedTitle;
     }
     await relationshipsSheet.saveUpdatedCells();
 
