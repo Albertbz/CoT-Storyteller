@@ -1,5 +1,5 @@
 const { EmbedBuilder, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, Deceased, PlayableChildren } = require('./dbObjects.js');
+const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
 const { roles, channels, guilds } = require('./configs/ids.json');
 const { Op } = require('sequelize');
 
@@ -280,11 +280,29 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       throw new Error(inlineCode(character.name) + ' is already assigned to another player.');
     }
 
+    // If playable child, make sure that is mature
+    const playableChild = await PlayableChildren.findOne({ where: { characterId: characterId } });
+    if (playableChild) {
+      const currentYear = (await Worlds.findOne({ where: { name: 'Elstrand' } })).currentYear;
+      if (character.yearOfMaturity > currentYear) {
+        throw new Error(inlineCode(character.name) + ' is a playable child and is not yet mature.');
+      }
+    }
+
+    /**
+     * Checks successful, proceed with assignment
+     */
+
     // Remove all roles that they could have had
     await member.roles.remove([roles.commoner, roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
 
     // Update the association
     await player.update({ characterId: characterId });
+
+    // If the character was a playable child, remove that entry
+    if (playableChild) {
+      await playableChild.destroy();
+    }
 
     // Assign roles based on affiliation and social class
     try {
@@ -334,16 +352,24 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
   }
 
   try {
-    const deceased = await Deceased.create({
-      characterId: characterId,
-      yearOfDeath: yearOfDeath,
-      monthOfDeath: monthOfDeath,
-      dayOfDeath: dayOfDeath,
-      causeOfDeath: causeOfDeath,
-      playedById: playedById
-    });
-
-    const character = await Characters.findOne({ where: { id: characterId } });
+    let deceased = null;
+    try {
+      deceased = await Deceased.create({
+        characterId: characterId,
+        yearOfDeath: yearOfDeath,
+        monthOfDeath: monthOfDeath,
+        dayOfDeath: dayOfDeath,
+        causeOfDeath: causeOfDeath,
+        playedById: playedById
+      });
+    }
+    catch (error) {
+      if (error.name === 'SequelizeUniqueConstraintError') {
+        throw new Error('This character is already marked as deceased.');
+      }
+      console.log(error);
+      throw new Error('Something went wrong with adding the deceased character.');
+    }
 
     // If exists in deathRollsDeaths, remove from there
     const existingDeathRollRecord = await DeathRollDeaths.findOne({ where: { characterId: characterId } });
@@ -370,21 +396,17 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
       }
     }
 
-    await postInLogChannel(
+    const deceasedCreatedEmbed = await postInLogChannel(
       'Character made Deceased',
       '**Made deceased by: ' + userMention(storyteller.id) + '**\n\n' +
-      'Character: ' + inlineCode(character.name) + '\n\n' +
-      'Date of Death: ' + inlineCode(deceased.dateOfDeath) + '\n' +
-      'Cause of Death: ' + inlineCode(deceased.causeOfDeath) + '\n' +
-      'Played by: ' + userMention(deceased.playedById),
-      0x0000A3
+      (await deceased.formattedDescription),
+      COLORS.BLUE
     );
 
-    return deceased;
+    return { deceased, deceasedCreatedEmbed };
   }
   catch (error) {
-    console.log(error);
-    throw new Error('Something went wrong with adding the deceased character.');
+    throw new Error(error.message);
   }
 }
 

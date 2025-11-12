@@ -1,3 +1,5 @@
+const { format } = require("sequelize/lib/utils");
+
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('deceased', {
     id: {
@@ -33,6 +35,16 @@ module.exports = (sequelize, DataTypes) => {
     },
     playedById: {
       type: DataTypes.STRING
+    },
+    formattedDescription: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        const character = await this.getCharacter();
+        return `ID: \`${this.id}\`\n\nCharacter: \`${character.name}\` (\`${character.id}\`)\nDate of Death: \`${this.dateOfDeath}\`\nCause of Death: \`${this.causeOfDeath ? this.causeOfDeath : '-'}\`\nPlayed By: ${this.playedById ? `<@${this.playedById}>` : '-'}`;
+      },
+      set(value) {
+        throw new Error('Do not try to set the formattedDescription value!')
+      }
     }
   });
 }

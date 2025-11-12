@@ -102,7 +102,7 @@ module.exports = {
 
       const character = await Characters.findOne({ where: { id: characterId } });
 
-      await addDeceasedToDatabase(interaction.user, true, {
+      const { deceased, deceasedCreatedEmbed } = await addDeceasedToDatabase(interaction.user, true, {
         characterId: characterId,
         yearOfDeath: year,
         monthOfDeath: month,
@@ -111,14 +111,10 @@ module.exports = {
         playedById: playerId
       });
 
-      return interaction.editReply({ content: 'The character ' + inlineCode(character.name) + ' has been added to the deceased characters.', flags: MessageFlags.Ephemeral })
+      return interaction.editReply({ embeds: [deceasedCreatedEmbed], flags: MessageFlags.Ephemeral })
     }
     catch (error) {
-      if (error.name === 'SequelizeUniqueConstraintError') {
-        return interaction.editReply({ content: 'This character is already marked as deceased.', flags: MessageFlags.Ephemeral });
-      }
-      console.log(error);
-      return interaction.editReply({ content: 'Something went wrong with making the character deceased.', flags: MessageFlags.Ephemeral });
+      return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
     }
   }
 }
