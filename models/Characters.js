@@ -65,5 +65,15 @@ module.exports = (sequelize, DataTypes) => {
     deathRoll5: {
       type: DataTypes.INTEGER
     },
+    formattedDescription: {
+      type: DataTypes.VIRTUAL,
+      get() {
+        const deathRolls = [this.deathRoll1, this.deathRoll2, this.deathRoll3, this.deathRoll4, this.deathRoll5].filter(roll => roll !== null && roll !== undefined);
+        return `ID: \`${this.id}\`\n\nName: \`${this.name}\`\nSex: \`${this.sex}\`\nAffiliation ID: \`${this.affiliationId}\`\nSocial Class: \`${this.socialClassName}\`\nYear of Maturity: \`${this.yearOfMaturity}\`\nRole: \`${this.role ? this.role : '-'}\`\nPvE Deaths: \`${this.pveDeaths}\`\nComments: \`${this.comments ? this.comments : '-'}\`\nParent 1 ID: \`${this.parent1Id ? this.parent1Id : '-'}\`\nParent 2 ID: \`${this.parent2Id ? this.parent2Id : '-'}\`\nIs Rolling for Bastards: \`${this.isRollingForBastards ? `Yes` : `No`}\`\nSteelbearer State: \`${this.steelbearerState ? this.steelbearerState : '-'}\`\nDeath Rolls: \`${deathRolls.length > 0 ? deathRolls.join(', ') : '-'}\``;
+      },
+      set(value) {
+        throw new Error('Do not try to set the formattedDescription value!')
+      }
+    }
   });
 }

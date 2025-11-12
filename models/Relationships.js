@@ -1,3 +1,5 @@
+const { format } = require("sequelize/lib/utils");
+
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('relationships', {
     id: {
@@ -19,6 +21,15 @@ module.exports = (sequelize, DataTypes) => {
     inheritingTitle: {
       type: DataTypes.STRING,
       defaultValue: 'None'
+    },
+    formattedDescription: {
+      type: DataTypes.VIRTUAL,
+      get() {
+        return `ID: \`${this.id}\`\n\nBearing Character ID: \`${this.bearingCharacterId}\`\nConceiving Character ID: \`${this.conceivingCharacterId}\`\nIs Committed: \`${this.isCommitted ? 'Yes' : 'No'}\`\nInheriting Title: \`${this.inheritingTitle}\``;
+      },
+      set(value) {
+        throw new Error('Do not try to set the formattedDescription value!')
+      }
     }
   });
 }

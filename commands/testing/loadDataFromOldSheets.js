@@ -147,7 +147,7 @@ module.exports = {
             socialClassName: socialClassName,
             pveDeaths: ageRow.get('PvE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
-            steelbearer: steelbearer,
+            steelbearerState: steelbearer,
             role: role,
             comments: comments,
             deathRoll1: ageRow.get('Year 4'),
