@@ -247,7 +247,7 @@ module.exports = {
                   // Make character for each child
                   let childCharacter = null;
                   try {
-                    const { character, _ } = await addCharacterToDatabase(interactionUser, {
+                    const result = await addCharacterToDatabase(interactionUser, {
                       name: childType,
                       sex: childType === 'Son' ? 'Male' : 'Female',
                       affiliationId: affiliationId,
@@ -256,7 +256,7 @@ module.exports = {
                       parent1Id: relationship.bearingCharacter.id,
                       parent2Id: relationship.conceivingCharacter.id,
                     });
-                    childCharacter = character;
+                    childCharacter = result.character;
                   }
                   catch (error) {
                     console.log(error);
@@ -273,7 +273,7 @@ module.exports = {
                     const contact1Snowflake = parent1Snowflake ?? parent2Snowflake ?? null;
                     const contact2Snowflake = (parent1Snowflake && parent2Snowflake) ? parent2Snowflake : null;
 
-                    const newPlayableChild = await addPlayableChildToDatabase(interactionUser, {
+                    const { newPlayableChild, playableChildCreatedEmbed } = await addPlayableChildToDatabase(interactionUser, {
                       characterId: childCharacter.id,
                       legitimacy: relationship.isCommitted ? 'Legitimate' : 'Illegitimate',
                       contact1Snowflake: contact1Snowflake,
@@ -327,7 +327,7 @@ module.exports = {
     else if (interaction.options.getSubcommand() === 'bastard') {
       const characterId = interaction.options.getString('character');
 
-      const character = await Characters.findOne({ where: { id: characterId } });
+      const character = await Characters.findByPk(characterId);
       if (!character) {
         return interaction.editReply({ content: 'Character not found.', embeds: [], components: [] });
       }
@@ -452,7 +452,7 @@ module.exports = {
                   // Make character for each child
                   let childCharacter = null;
                   try {
-                    const { character, _ } = await addCharacterToDatabase(interactionUser, {
+                    const result = await addCharacterToDatabase(interactionUser, {
                       name: childType,
                       sex: childType === 'Son' ? 'Male' : 'Female',
                       affiliationId: affiliationId,
@@ -460,7 +460,7 @@ module.exports = {
                       yearOfMaturity: world.currentYear + 3,
                       parent1Id: character.id
                     });
-                    childCharacter = character;
+                    childCharacter = result.character;
                   }
                   catch (error) {
                     console.log(error);
@@ -472,7 +472,7 @@ module.exports = {
                     // Resolve player snowflake for the parent (may be null)
                     const parentSnowflake = await getPlayerSnowflakeForCharacter(character.id);
 
-                    const newPlayableChild = await addPlayableChildToDatabase(interactionUser, {
+                    const { newPlayableChild, playableChildCreatedEmbed } = await addPlayableChildToDatabase(interactionUser, {
                       characterId: childCharacter.id,
                       legitimacy: 'Illegitimate',
                       contact1Snowflake: parentSnowflake,

@@ -227,21 +227,13 @@ async function addPlayableChildToDatabase(storyteller, { characterId, legitimacy
       contact2Snowflake: contact2Snowflake
     });
 
-    const childCharacter = await Characters.findOne({ where: { id: characterId } });
-    const parent1Character = await childCharacter.getParent1();
-    const parent2Character = await childCharacter.getParent2();
-
-    await postInLogChannel(
+    const playableChildCreatedEmbed = await postInLogChannel(
       'Playable Child Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
-      'Name: ' + inlineCode(childCharacter.name) + '\n' +
-      'Legitimacy: ' + inlineCode(playableChild.legitimacy) + '\n' +
-      'Parent1: ' + inlineCode(parent1Character.name) + '\n' +
-      'Parent2: ' + inlineCode(parent2Character ? parent2Character.name : 'NPC') + '\n' +
-      'Contact1: ' + (playableChild.contact1Snowflake ? userMention(playableChild.contact1Snowflake) : 'None') + '\n' +
-      'Contact2: ' + (playableChild.contact2Snowflake ? userMention(playableChild.contact2Snowflake) : 'None'),
-      0x008000
+      (await playableChild.formattedDescription),
+      COLORS.GREEN
     )
+    return { playableChild, playableChildCreatedEmbed };
   }
   catch (error) {
     console.log(error);
