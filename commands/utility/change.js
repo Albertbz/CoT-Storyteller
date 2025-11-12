@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses, Worlds, PlayableChildren } = require('../../dbObjects.js');
+const { Players, Characters, Affiliations, SocialClasses, Worlds, PlayableChildren, Relationships } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel } = require('../../misc.js');
@@ -174,6 +174,10 @@ module.exports = {
           option
             .setName('sex_new')
             .setDescription('The new sex of the child.')
+            .addChoices(
+              { name: 'Male', value: 'Male' },
+              { name: 'Female', value: 'Female' }
+            )
         )
         .addStringOption(option =>
           option
@@ -204,6 +208,7 @@ module.exports = {
           option
             .setName('comments_new')
             .setDescription('The new comments of the child.')
+            .setAutocomplete(true)
         )
         .addUserOption(option =>
           option
@@ -216,11 +221,42 @@ module.exports = {
             .setDescription('The new second contact of the child.')
         )
     )
-  ,
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('relationship')
+        .setDescription('Change something about a relationship.')
+        .addStringOption(option =>
+          option
+            .setName('relationship')
+            .setDescription('The relationship to change something about.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('committed_new')
+            .setDescription('The new committed status of the relationship.')
+            .addChoices(
+              { name: 'Yes', value: 'Yes' },
+              { name: 'No', value: 'No' }
+            )
+        )
+        .addStringOption(option =>
+          option
+            .setName('inheritedtitle_new')
+            .setDescription('The new inherited title for offspring of the relationship.')
+            .addChoices(
+              { name: 'None', value: 'None' },
+              { name: 'Noble', value: 'Noble' }
+            )
+        )
+    ),
   async autocomplete(interaction) {
     let choices;
+    const subcommand = interaction.options.getSubcommand();
 
-    if (interaction.options.getSubcommand() === 'character') {
+    // Handle autocompletes for character subcommand
+    if (subcommand === 'character') {
       const focusedOption = interaction.options.getFocused(true);
 
       if (focusedOption.name === 'name') {
@@ -228,10 +264,11 @@ module.exports = {
 
         const characters = await Characters.findAll({
           where: { name: { [Op.startsWith]: focusedValue } },
-          attributes: ['name', 'id']
+          attributes: ['name', 'id'],
+          limit: 25
         });
 
-        choices = characters.splice(0, 25).map(character => ({ name: character.name, value: character.id }));
+        choices = characters.map(character => ({ name: character.name, value: character.id }));
       }
 
       if (focusedOption.name === 'affiliation_new') {
@@ -239,25 +276,29 @@ module.exports = {
 
         const affilations = await Affiliations.findAll({
           where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
-          attributes: ['name', 'id']
+          attributes: ['name', 'id'],
+          limit: 25
         })
 
-        choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+        choices = affilations.map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
       }
     }
 
-    if (interaction.options.getSubcommand() === 'affiliation') {
+    // Handle autocompletes for affiliation subcommand
+    if (subcommand === 'affiliation') {
       const focusedValue = interaction.options.getFocused();
 
       const affilations = await Affiliations.findAll({
         where: { name: { [Op.startsWith]: focusedValue } },
-        attributes: ['name', 'id']
+        attributes: ['name', 'id'],
+        limit: 25
       })
 
-      choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+      choices = affilations.map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
     }
 
-    if (interaction.options.getSubcommand() === 'child') {
+    // Handle autocompletes for child subcommand
+    if (subcommand === 'child') {
       const focusedOption = interaction.options.getFocused(true);
 
       if (focusedOption.name === 'name') {
@@ -272,32 +313,108 @@ module.exports = {
             ],
             where: { name: { [Op.startsWith]: focusedValue } },
           },
-          attributes: ['id']
+          attributes: ['id'],
+          limit: 25
         });
 
-        choices = children.splice(0, 25).map(child => {
+        choices = children.map(child => {
           const parentNames = []
           parentNames.push(child.character.parent1.name)
 
           if (child.character.parent2) {
-            parentNames.push(child.character.parent2.name)
+            parentNames.push(child.character.parent2.name.substring(0, 30))
           }
 
           return ({
-            name: child.character.name + ' | ' + parentNames.join(' - '),
+            name: (child.character.name.substring(0, 30) + ' | ' + parentNames.join(' & ')),
             value: child.id
           })
         }
         );
       }
+      else if (focusedOption.name === 'affiliation_new') {
+        const focusedValue = interaction.options.getFocused();
+
+        const affilations = await Affiliations.findAll({
+          where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
+          attributes: ['name', 'id'],
+          limit: 25
+        })
+
+        choices = affilations.map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+      }
+      else if (focusedOption.name === 'comments_new') {
+        // Get the child to fetch current comments from
+        const childCharacterId = interaction.options.getString('name');
+        const childCharacter = await PlayableChildren.findOne({
+          where: { id: childCharacterId }
+        });
+
+        const currentComments = childCharacter ? childCharacter.comments : '';
+
+        // If no input yet, suggest current comments
+        // Otherwise, suggest the input
+        const focusedValue = interaction.options.getFocused();
+        if (focusedValue.length > 0) {
+          choices = [
+            { name: focusedValue, value: focusedValue }
+          ];
+        }
+        else {
+          if (currentComments) {
+            choices = [
+              { name: currentComments ?? '', value: currentComments ?? '' }
+            ];
+          }
+          else {
+            choices = [];
+          }
+        }
+
+      }
     }
+
+    // Handle autocompletes for relationship subcommand
+    if (subcommand === 'relationship') {
+      const focusedValue = interaction.options.getFocused();
+
+      // Find relationships where the focused character name is a parent
+      const relationships = await Relationships.findAll({
+        include: [
+          { model: Characters, as: 'bearingCharacter' },
+          { model: Characters, as: 'conceivingCharacter' }
+        ],
+        where: {
+          [Op.or]: [
+            { '$bearingCharacter.name$': { [Op.startsWith]: `%${focusedValue}%` } },
+            { '$conceivingCharacter.name$': { [Op.startsWith]: `%${focusedValue}%` } }
+          ]
+        },
+        limit: 25
+      });
+
+      choices = relationships.map(rel => {
+        const bearingCharacterName = rel.bearingCharacter ? rel.bearingCharacter.name : 'Unknown';
+        const conceivingCharacterName = rel.conceivingCharacter ? rel.conceivingCharacter.name : 'Unknown';
+        return {
+          name: `${bearingCharacterName} & ${conceivingCharacterName}`,
+          value: rel.id
+        };
+      });
+    }
+
+
     await interaction.respond(choices);
   },
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    // Change player info
-    if (interaction.options.getSubcommand() === 'player') {
+    const subcommand = interaction.options.getSubcommand();
+
+    /**
+     * Handle changing player info
+     */
+    if (subcommand === 'player') {
       const user = interaction.options.getUser('user');
       const newIgn = interaction.options.getString('ign_new');
       const newTimezone = interaction.options.getString('timezone_new');
@@ -349,7 +466,11 @@ module.exports = {
 
       return interaction.editReply({ content: changedText, flags: MessageFlags.Ephemeral })
     }
-    else if (interaction.options.getSubcommand() === 'character') {
+
+    /**
+     * Handle changing character info
+     */
+    if (subcommand === 'character') {
       const characterId = interaction.options.getString('name');
       const newName = interaction.options.getString('name_new');
       const newSex = interaction.options.getString('sex_new');
@@ -513,7 +634,11 @@ module.exports = {
 
       return interaction.editReply({ content: changedText.join('\n'), flags: MessageFlags.Ephemeral })
     }
-    else if (interaction.options.getSubcommand() === 'year') {
+
+    /**
+     * Handle changing current year
+     */
+    if (subcommand === 'year') {
       const newYear = interaction.options.getNumber('year_new');
 
       const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
@@ -530,7 +655,11 @@ module.exports = {
 
       return interaction.editReply({ content: 'The current year has been changed to ' + newYear, flags: MessageFlags.Ephemeral });
     }
-    else if (interaction.options.getSubcommand() === 'affiliation') {
+
+    /**
+     * Handle changing affiliation info
+     */
+    if (subcommand === 'affiliation') {
       const affilationId = interaction.options.getString('name');
       const newAffiliationName = interaction.options.getString('name_new');
       const newEmojiName = interaction.options.getString('emoji_new');
@@ -566,6 +695,174 @@ module.exports = {
       changes.unshift('**The following was changed for ' + inlineCode(affiliation.name) + ':**');
       return interaction.editReply({ content: changes.join('\n'), flags: MessageFlags.Ephemeral });
     }
+
+    /**
+     * Handle changing playable child info
+     */
+    if (subcommand === 'child') {
+      const playableChildId = interaction.options.getString('name');
+      const newName = interaction.options.getString('name_new');
+      const newYearOfMaturity = interaction.options.getInteger('yearofmaturity_new');
+      const newSex = interaction.options.getString('sex_new');
+      const newAffiliationId = interaction.options.getString('affiliation_new');
+      const newLegitimacy = interaction.options.getString('legitimacy_new');
+      const newInheritedTitle = interaction.options.getString('inheritedtitle_new');
+      const newComments = interaction.options.getString('comments_new');
+      const newContact1 = interaction.options.getUser('contact1_new');
+      const newContact2 = interaction.options.getUser('contact2_new');
+
+      const playableChild = await PlayableChildren.findOne({
+        include: {
+          model: Characters, as: 'character',
+          include: [
+            { model: Characters, as: 'parent1' },
+            { model: Characters, as: 'parent2' }
+          ]
+        },
+        where: { id: playableChildId }
+      });
+
+      if (!playableChild) {
+        return interaction.editReply({ content: 'The specified playable child does not exist in the database.', flags: MessageFlags.Ephemeral });
+      }
+
+      const changes = [];
+
+      if (newName) {
+        const oldName = playableChild.character.name;
+        await playableChild.character.update({ name: newName });
+
+        changes.push('Name: ' + inlineCode(oldName) + ' -> ' + inlineCode(newName));
+      }
+
+      if (newYearOfMaturity) {
+        const oldYearOfMaturity = playableChild.character.yearOfMaturity;
+        await playableChild.character.update({ yearOfMaturity: newYearOfMaturity });
+
+        changes.push('Year of Maturity: ' + inlineCode(oldYearOfMaturity) + ' -> ' + inlineCode(newYearOfMaturity));
+      }
+
+      if (newSex) {
+        const oldSex = playableChild.character.sex;
+        await playableChild.character.update({ sex: newSex });
+
+        changes.push('Sex: ' + inlineCode(oldSex) + ' -> ' + inlineCode(newSex));
+      }
+
+      if (newAffiliationId) {
+        const oldAffiliation = await Affiliations.findOne({ where: { id: playableChild.character.affiliationId } });
+        const newAffiliation = await Affiliations.findOne({ where: { id: newAffiliationId } });
+
+        await playableChild.character.update({ affiliationId: newAffiliationId });
+
+        changes.push('Affiliation: ' + inlineCode(oldAffiliation.name) + ' -> ' + inlineCode(newAffiliation.name));
+      }
+
+      if (newLegitimacy) {
+        const oldLegitimacy = playableChild.legitimacy;
+        await playableChild.update({ legitimacy: newLegitimacy });
+
+        changes.push('Legitimacy: ' + inlineCode(oldLegitimacy) + ' -> ' + inlineCode(newLegitimacy));
+      }
+
+      if (newInheritedTitle) {
+        const oldInheritedTitle = playableChild.inheritedTitle ? playableChild.inheritedTitle : 'None';
+        const inheritedTitleValue = newInheritedTitle === 'None' ? null : newInheritedTitle;
+        await playableChild.update({ inheritedTitle: inheritedTitleValue });
+
+        changes.push('Inherited Title: ' + inlineCode(oldInheritedTitle) + ' -> ' + inlineCode(newInheritedTitle));
+      }
+
+      if (newComments) {
+        const oldComments = playableChild.comments ? playableChild.comments : 'None';
+        await playableChild.update({ comments: newComments });
+
+        changes.push('Comments: ' + inlineCode(oldComments) + ' -> ' + inlineCode(newComments));
+      }
+
+      if (newContact1) {
+        const oldContact1Snowflake = playableChild.contact1Snowflake;
+        const newContact1Snowflake = newContact1 ? newContact1.id : null;
+        await playableChild.update({ contact1Snowflake: newContact1Snowflake });
+
+        changes.push('Contact 1: ' + (oldContact1Snowflake ? userMention(oldContact1Snowflake) : 'None') + ' -> ' + userMention(newContact1Snowflake));
+      }
+
+      if (newContact2) {
+        const oldContact2Snowflake = playableChild.contact2Snowflake;
+        const newContact2Snowflake = newContact2 ? newContact2.id : null;
+        await playableChild.update({ contact2Snowflake: newContact2Snowflake });
+
+        changes.push('Contact 2: ' + (oldContact2Snowflake ? userMention(oldContact2Snowflake) : 'None') + ' -> ' + userMention(newContact2Snowflake));
+      }
+
+      if (changes.length === 0) {
+        return interaction.editReply({ content: 'Please specify what to change.', flags: MessageFlags.Ephemeral });
+      }
+
+      await postInLogChannel(
+        'Playable Child Changed',
+        '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
+        'Playable Child: ' + inlineCode(playableChild.character.name) + '\n\n' +
+        changes.join('\n'),
+        0xD98C00
+      )
+
+      changes.unshift('**The following was changed for the playable child ' + inlineCode(playableChild.character.name) + ':**');
+      return interaction.editReply({ content: changes.join('\n'), flags: MessageFlags.Ephemeral });
+    }
+
+    /**
+     * Handle changing relationship info
+     */
+    if (subcommand === 'relationship') {
+      const relationshipId = interaction.options.getString('relationship');
+      const newCommitted = interaction.options.getString('committed_new');
+      const newInheritedTitle = interaction.options.getString('inheritedtitle_new');
+
+      const relationship = await Relationships.findOne({
+        include: [
+          { model: Characters, as: 'bearingCharacter' },
+          { model: Characters, as: 'conceivingCharacter' }
+        ],
+        where: { id: relationshipId }
+      });
+
+      const changes = []
+
+      if (newCommitted) {
+        const oldCommitted = relationship.isCommitted ? 'Yes' : 'No';
+        const committedValue = newCommitted === 'Yes' ? true : false;
+        await relationship.update({ isCommitted: committedValue });
+
+        changes.push('Committed: ' + inlineCode(oldCommitted) + ' -> ' + inlineCode(newCommitted));
+      }
+
+      if (newInheritedTitle) {
+        const oldInheritedTitle = relationship.inheritedTitle ? relationship.inheritedTitle : 'None';
+        const inheritedTitleValue = newInheritedTitle === 'None' ? null : newInheritedTitle;
+        await relationship.update({ inheritedTitle: inheritedTitleValue });
+
+        changes.push('Inherited Title: ' + inlineCode(oldInheritedTitle) + ' -> ' + inlineCode(newInheritedTitle));
+      }
+
+      if (changes.length === 0) {
+        return interaction.editReply({ content: 'Please specify what to change.', flags: MessageFlags.Ephemeral });
+      }
+
+      await postInLogChannel(
+        'Relationship Changed',
+        '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
+        'Relationship: ' + inlineCode(relationship.bearingCharacter.name + ' & ' + relationship.conceivingCharacter.name) + '\n\n' +
+        changes.join('\n'),
+        0xD98C00
+      )
+
+      changes.unshift('**The following was changed for the relationship between ' + inlineCode(relationship.bearingCharacter.name + ' & ' + relationship.conceivingCharacter.name) + ':**');
+      return interaction.editReply({ content: changes.join('\n'), flags: MessageFlags.Ephemeral });
+    }
+
+
 
     return interaction.editReply({ content: 'Hmm, whatever you just did shouldn\'t be possible. What did you do?', flags: MessageFlags.Ephemeral })
   }

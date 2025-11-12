@@ -23,7 +23,7 @@ require('./models/DeathRollDeaths.js')(sequelize, Sequelize.DataTypes);
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 
 sequelize.sync({ force }).then(async () => {
-  await Worlds.create({ name: 'Elstrand', currentYear: 21 });
+  await Worlds.create({ name: 'Elstrand', currentYear: 22 });
 
   await Affiliations.create({ roleId: roles.eshaeryn, name: 'Ayrin', emojiName: 'ayrin', isRuling: true, state: 'Open', role1: 'Farmers', role2: 'Miners', role3: 'Lumberjacks' });
   await Affiliations.create({ roleId: roles.firstLanding, name: 'Farring', emojiName: 'farring', isRuling: true, state: 'Open', role1: 'Soldiers', role2: 'Farmers', role3: 'Builders' });

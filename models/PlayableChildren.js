@@ -7,7 +7,8 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.UUIDV4
     },
     characterId: {
-      type: DataTypes.UUID
+      type: DataTypes.UUID,
+      unique: true
     },
     contact1Snowflake: {
       type: DataTypes.STRING
