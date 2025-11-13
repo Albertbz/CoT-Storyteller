@@ -94,7 +94,27 @@ module.exports = {
         });
     }
 
-    // Combine all messages
+    // Get all old tickets messages
+    const oldTicketsChannel = interaction.client.channels.cache.get('1327766228424589322');
+    console.log('\nFetching messages from old tickets channel...');
+    let oldTicketsMessages = [];
+    let oldTicketsMessage = await oldTicketsChannel.messages
+      .fetch({ limit: 1 })
+      .then(messagePage => (messagePage.size === 1 ? messagePage.at(0) : null));
+    if (oldTicketsMessage) {
+      oldTicketsMessages.push(oldTicketsMessage);
+    }
+
+    while (oldTicketsMessage) {
+      await oldTicketsChannel.messages
+        .fetch({ limit: 100, before: oldTicketsMessage.id })
+        .then(messagePage => {
+          messagePage.forEach(msg => oldTicketsMessages.push(msg));
+          oldTicketsMessage = 0 < messagePage.size ? messagePage.at(messagePage.size - 1) : null;
+        });
+    }
+
+    // Combine all messages except old tickets (they use other formats)
     ticketsMessages = ticketsMessages.concat(reportsMessages, theftsMessages);
 
     console.log(`Fetched ${ticketsMessages.length} messages from tickets channels.`);
@@ -129,6 +149,9 @@ module.exports = {
         }
       });
 
+      // Log how many messages are being processed
+      console.log(`Processing ${ticketsMessages.length} closed/denied ticket messages...`);
+
 
       // Count tickets per user
       for (const msg of ticketsMessages) {
@@ -142,10 +165,39 @@ module.exports = {
         }
       }
 
+      // If days is specified, filter old tickets messages to only those within the last N days
+      if (days !== null) {
+        const now = Date.now();
+        const cutoff = now - days * 24 * 60 * 60 * 1000;
+        oldTicketsMessages = oldTicketsMessages.filter(msg => msg.createdTimestamp >= cutoff);
+      }
+
+      // Filter old tickets messages similarly, but with new format where
+      // there is a field 'Closed by' as name and value being the user mention
+      // No need to check for denied separately, as closed tickets include both closed and denied
+      oldTicketsMessages = oldTicketsMessages.filter(msg => {
+        return msg.embeds.length > 0 && msg.embeds[0].fields.some(field => field.name === 'Closed by');
+      });
+
+      // Count tickets per user from old tickets messages
+      for (const msg of oldTicketsMessages) {
+        const closedByField = msg.embeds[0].fields.find(field => field.name === 'Closed by');
+        if (closedByField) {
+          const closerId = closedByField.value.replace('<@', '').replace('>', '').replace('!', '').replace(',', '');
+          ticketCounts.set(closerId, (ticketCounts.get(closerId) || 0) + 1);
+        }
+      }
+
+      // Log how many old messages are being processed
+      console.log(`Processing ${oldTicketsMessages.length} old closed/denied ticket messages...`);
+
+
       // Set title and description suffix based on whether amount of days was specified
       embedTitle = includeDenied ? 'Closed/Denied Ticket Counts' : 'Closed Ticket Counts';
       descriptionSuffix = includeDenied ? 'closed or denied' : 'closed';
-      embedTitle += ` (Last ${days} Days)`;
+      if (days !== null) {
+        embedTitle += ` (Last ${days} Days)`;
+      }
 
     }
     else if (subcommand === 'created') {
@@ -179,7 +231,7 @@ module.exports = {
         embeds.push(new EmbedBuilder()
           .setColor('#0099ff')
           .setTitle(embedTitle)
-          .setDescription(`Total tickets: ${ticketsMessages.length}\n${description}`));
+          .setDescription(`Total tickets: ${ticketsMessages.length + oldTicketsMessages.length}\n${description}`));
         // Reset description for the next embed
         description = newLine;
       }
@@ -194,7 +246,7 @@ module.exports = {
       embeds.push(new EmbedBuilder()
         .setColor('#0099ff')
         .setTitle(embedTitle)
-        .setDescription(`Total tickets: ${ticketsMessages.length}\n${description}`));
+        .setDescription(`Total tickets: ${ticketsMessages.length + oldTicketsMessages.length}\n${description}`));
     }
 
     console.log(`Total tickets counted: ${amount}`);
