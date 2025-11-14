@@ -267,7 +267,7 @@ module.exports = {
     // Make embed to ask for confirmation with info about the entity to be removed
     const embed = new EmbedBuilder()
       .setTitle(`Confirm Removal of ${subcommand.charAt(0).toUpperCase() + subcommand.slice(1)}`)
-      .setDescription(`Are you sure you want to remove the ${entityName}? This action cannot be undone.\n\n${(await toRemove.formattedDescription)}`)
+      .setDescription(`Are you sure you want to remove the ${entityName}? This action cannot be undone.\n\n${(await toRemove.formattedInfo)}`)
       .setColor(COLORS.BLUE);
 
     const confirmMessage = await interaction.editReply({
@@ -293,7 +293,7 @@ module.exports = {
           embedTitle,
           `The ${entityName} was removed from the database by ${userMention(interactionUserId)}.
           
-          ${(await toRemove.formattedDescription)}`,
+          ${(await toRemove.logInfo)}`,
           COLORS.RED
         );
 
@@ -301,7 +301,7 @@ module.exports = {
 
         const confirmationEmbed = new EmbedBuilder()
           .setTitle(embedTitle)
-          .setDescription(`The ${entityName} has been successfully removed from the database:\n\n${(await toRemove.formattedDescription)}`)
+          .setDescription(`The ${entityName} has been successfully removed from the database:\n\n${(await toRemove.formattedInfo)}`)
           .setColor(COLORS.GREEN);
 
         await interaction.editReply({ embeds: [confirmationEmbed], components: [] });

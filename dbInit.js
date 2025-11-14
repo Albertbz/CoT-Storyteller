@@ -29,7 +29,7 @@ sequelize.sync({ force }).then(async () => {
   await Affiliations.create({ roleId: roles.firstLanding, name: 'Farring', emojiName: 'farring', isRuling: true, state: 'Open', role1: 'Soldiers', role2: 'Farmers', role3: 'Builders' });
   await Affiliations.create({ roleId: roles.theBarrowlands, name: 'Nightlocke', emojiName: 'nightlocke', isRuling: true, state: 'Open', role1: 'Builders', role2: 'Lumberjacks', role3: 'Farmers' });
   await Affiliations.create({ roleId: roles.riverhelm, name: 'Rivertal', emojiName: 'rivertal', isRuling: true, state: 'Open', role1: 'Builders', role2: 'Farmers', role3: 'Cooks' });
-  await Affiliations.create({ roleId: roles.theHeartlands, name: 'Sabr', emojiName: 'sabr', isRuling: true, state: 'Open', role1: 'Tailors', role2: 'Builders', role3: 'Cooks' });
+  await Affiliations.create({ roleId: roles.theHeartlands, name: 'Sabr', emojiName: 'sabr', isRuling: true, state: 'Open', role1: 'Builders', role2: 'Soldiers', role3: 'Miners' });
   await Affiliations.create({ roleId: roles.vernados, name: 'Stout', emojiName: 'stout', isRuling: true, state: 'Open', role1: 'Cooks', role2: 'Builders', role3: 'Soldiers' });
   await Affiliations.create({ roleId: roles.velkharaan, name: 'Wildhart', emojiName: 'wildhart', isRuling: true, state: 'Open', role1: 'Builders', role2: 'Carpenters', role3: 'Soldiers' });
   await Affiliations.create({ roleId: roles.wanderer, name: 'Wanderer' });

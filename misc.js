@@ -20,12 +20,18 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
       timezone: timezone
     });
 
-    const playerCreatedEmbed = await postInLogChannel(
+    await postInLogChannel(
       'Player Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
-      (await player.formattedDescription),
+      (await player.logInfo),
       COLORS.GREEN
     )
+
+    // Make an embed for player creation to return
+    const playerCreatedEmbed = new EmbedBuilder()
+      .setTitle('Player Created')
+      .setDescription((await player.formattedInfo))
+      .setColor(COLORS.GREEN);
 
     return { player, playerCreatedEmbed };
   }
@@ -78,17 +84,19 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
       parent2Id: parent2Id
     })
 
-    const affiliation = await Affiliations.findOne({ where: { id: affiliationId } });
-
-    const parent1 = await character.getParent1();
-    const parent2 = await character.getParent2();
-
-    const characterCreatedEmbed = await postInLogChannel(
+    await postInLogChannel(
       'Character Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
-      (await character.formattedDescription),
+      (await character.logInfo),
       COLORS.GREEN
     )
+
+    // Make an embed for character creation to return
+    const characterCreatedEmbed = new EmbedBuilder()
+      .setTitle('Character Created')
+      .setDescription((await character.formattedInfo))
+      .setColor(COLORS.GREEN);
+
     // Return both the character and the creation embed
     return { character, characterCreatedEmbed };
   }
@@ -197,12 +205,18 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
       inheritedTitle: inheritedTitle
     });
 
-    const relationshipCreatedEmbed = await postInLogChannel(
+    await postInLogChannel(
       'Relationship Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
-      (await relationship.formattedDescription),
-      0x008000
+      (await relationship.logInfo),
+      COLORS.GREEN
     )
+
+    // Make an embed for relationship creation to return
+    const relationshipCreatedEmbed = new EmbedBuilder()
+      .setTitle('Relationship Created')
+      .setDescription((await relationship.formattedInfo))
+      .setColor(COLORS.GREEN);
 
     return { relationship, relationshipCreatedEmbed };
   }
@@ -227,12 +241,19 @@ async function addPlayableChildToDatabase(storyteller, { characterId, legitimacy
       contact2Snowflake: contact2Snowflake
     });
 
-    const playableChildCreatedEmbed = await postInLogChannel(
+    await postInLogChannel(
       'Playable Child Created',
       '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
-      (await playableChild.formattedDescription),
+      (await playableChild.logInfo),
       COLORS.GREEN
     )
+
+    // Make an embed for playable child creation to return
+    const playableChildCreatedEmbed = new EmbedBuilder()
+      .setTitle('Playable Child Created')
+      .setDescription((await playableChild.formattedInfo))
+      .setColor(COLORS.GREEN);
+
     return { playableChild, playableChildCreatedEmbed };
   }
   catch (error) {
@@ -330,13 +351,22 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       await member.roles.add(roles.steelbearer);
     }
 
-    const assignedEmbed = await postInLogChannel(
+    await postInLogChannel(
       'Character assigned to Player',
       '**Assigned by: ' + userMention(storyteller.id) + '**\n\n' +
       'Character: ' + inlineCode(character.name) + ` (${inlineCode(character.id)})` + '\n' +
       'Player: ' + userMention(playerId) + ` (${inlineCode(playerId)})`,
-      0x0000A3
+      COLORS.BLUE
     )
+
+    // Make an embed for assignment to return
+    const assignedEmbed = new EmbedBuilder()
+      .setTitle('Character assigned to Player')
+      .setDescription(
+        'Character: ' + inlineCode(character.name) + '\n' +
+        'Player: ' + userMention(playerId)
+      )
+      .setColor(COLORS.BLUE);
 
     return assignedEmbed;
   }
@@ -396,12 +426,18 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
       }
     }
 
-    const deceasedCreatedEmbed = await postInLogChannel(
+    await postInLogChannel(
       'Character made Deceased',
       '**Made deceased by: ' + userMention(storyteller.id) + '**\n\n' +
-      (await deceased.formattedDescription),
+      (await deceased.logInfo),
       COLORS.BLUE
     );
+
+    // Make an embed for deceased creation to return
+    const deceasedCreatedEmbed = new EmbedBuilder()
+      .setTitle('Character made Deceased')
+      .setDescription((await deceased.formattedInfo))
+      .setColor(COLORS.BLUE);
 
     return { deceased, deceasedCreatedEmbed };
   }
@@ -492,7 +528,7 @@ async function changeCharacter(storyteller, character, shouldPostInLogChannel, {
     await postInLogChannel(
       'Character Changed',
       changeDescription,
-      0xD98C00
+      COLORS.ORANGE
     );
   }
 

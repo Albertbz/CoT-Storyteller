@@ -36,14 +36,35 @@ module.exports = (sequelize, DataTypes) => {
     playedById: {
       type: DataTypes.STRING
     },
-    formattedDescription: {
+    logInfo: {
       type: DataTypes.VIRTUAL,
       async get() {
         const character = await this.getCharacter();
-        return `ID: \`${this.id}\`\n\nCharacter: \`${character.name}\` (\`${character.id}\`)\nDate of Death: \`${this.dateOfDeath}\`\nCause of Death: \`${this.causeOfDeath ? this.causeOfDeath : '-'}\`\nPlayed By: ${this.playedById ? `<@${this.playedById}>` : '-'}`;
+        return (
+          `id: \`${this.id}\`\n` +
+          `\n` +
+          `character: \`${character.name}\` (\`${character.id}\`)\n` +
+          `dateOfDeath: \`${this.dateOfDeath}\`\n` +
+          `causeOfDeath: \`${this.causeOfDeath ? this.causeOfDeath : '-'}\`\n` +
+          `playedBy: ${this.playedById ? `<@${this.playedById}> (\`${this.playedById}\`)` : '`-`'}`
+        );
       },
       set(value) {
-        throw new Error('Do not try to set the formattedDescription value!')
+        throw new Error('Do not try to set the logInfo value!')
+      }
+    },
+    formattedInfo: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        const character = await this.getCharacter();
+        return (
+          `**Character:** ${character ? character.name : '-'}\n` +
+          `**Date of Death:** ${this.dateOfDeath}\n` +
+          `**Cause of Death:** ${this.causeOfDeath ? this.causeOfDeath : '-'}\n` +
+          `**Played By:** ${this.playedById ? `<@${this.playedById}>` : '-'}\n`);
+      },
+      set(value) {
+        throw new Error('Do not try to set the formattedInfo value!')
       }
     }
   });

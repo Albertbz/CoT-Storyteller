@@ -39,13 +39,24 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       defaultValue: 'Farmers'
     },
-    formattedDescription: {
+    logInfo: {
       type: DataTypes.VIRTUAL,
       get() {
-        return `ID: \`${this.id}\`\n\nName: \`${this.name}\`\nIs Ruling: \`${this.isRuling ? 'Yes' : 'No'}\`\nRole ID: \`${this.roleId ? this.roleId : '-'}\`\nEmoji Name: \`${this.emojiName ? this.emojiName : '-'}\`\nState: \`${this.state}\`\nRole 1: \`${this.role1}\`\nRole 2: \`${this.role2}\`\nRole 3: \`${this.role3}\``;
+        return (
+          `id: \`${this.id}\`\n` +
+          `\n` +
+          `name: \`${this.name}\`\n` +
+          `isRuling: \`${this.isRuling ? 'Yes' : 'No'}\`\n` +
+          `roleId: \`${this.roleId ? this.roleId : '-'}\`\n` +
+          `emojiName: \`${this.emojiName ? this.emojiName : '-'}\`\n` +
+          `state: \`${this.state}\`\n` +
+          `role1: \`${this.role1}\`\n` +
+          `role2: \`${this.role2}\`\n` +
+          `role3: \`${this.role3}\``
+        );
       },
       set(value) {
-        throw new Error('Do not try to set the formattedDescription value!')
+        throw new Error('Do not try to set the logInfo value!')
       }
     }
   });
