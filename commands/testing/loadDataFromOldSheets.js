@@ -127,7 +127,7 @@ module.exports = {
         if (!isWanderer) {
           const socialClassName = houseRow.get('Social Class');
           const comments = houseRow.get('Comments') === '' ? undefined : houseRow.get('Comments');
-          let steelbearer = null;
+          let steelbearer = 'None';
           if (comments && comments.includes('Steelbearer')) {
             if (comments.includes('(Ruler)')) {
               steelbearer = 'Ruler'

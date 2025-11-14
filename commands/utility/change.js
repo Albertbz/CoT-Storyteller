@@ -2,7 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Affiliations, SocialClasses, Worlds, PlayableChildren, Relationships } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { postInLogChannel } = require('../../misc.js');
+const { postInLogChannel, changeCharacterInfo } = require('../../misc.js');
 
 
 module.exports = {
@@ -111,8 +111,8 @@ module.exports = {
             .setName('rollingforbastards_new')
             .setDescription('The new rolling for bastards status.')
             .addChoices(
-              { name: 'Yes', value: 'True' },
-              { name: 'No', value: 'False' }
+              { name: 'Yes', value: 'Yes' },
+              { name: 'No', value: 'No' }
             )
         )
     )
@@ -477,162 +477,36 @@ module.exports = {
       const newAffiliationId = interaction.options.getString('affiliation_new');
       const newSocialClassName = interaction.options.getString('socialclass_new');
       const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
-      const newPvEDeaths = interaction.options.getNumber('pvedeaths_new');
+      const newPveDeaths = interaction.options.getNumber('pvedeaths_new');
       const newRole = interaction.options.getString('role_new');
-      const newSteelbearer = interaction.options.getString('steelbearer_new');
+      const newSteelbearerState = interaction.options.getString('steelbearer_new');
       const newComments = interaction.options.getString('comments_new');
-      const newRollingForBastards = interaction.options.getString('rollingforbastards_new') === 'True' ? true : (interaction.options.getString('rollingforbastards_new') === 'False' ? false : null);
+      const newIsRollingForBastards = interaction.options.getString('rollingforbastards_new') === 'Yes' ? true : (interaction.options.getString('rollingforbastards_new') === 'No' ? false : null);
 
       const character = await Characters.findOne({
         include: { model: Affiliations, as: 'affiliation' },
         where: { id: characterId }
       })
 
-      const player = await Players.findOne({
-        where: { characterId: character.id }
-      })
+      try {
+        const { character: updatedCharacter, characterChangedEmbed } = await changeCharacterInfo(interaction.user, character, true, {
+          newName: newName,
+          newSex: newSex,
+          newAffiliationId: newAffiliationId,
+          newSocialClassName: newSocialClassName,
+          newYearOfMaturity: newYearOfMaturity,
+          newPveDeaths: newPveDeaths,
+          newRole: newRole,
+          newSteelbearerState: newSteelbearerState,
+          newComments: newComments,
+          newIsRollingForBastards: newIsRollingForBastards
+        })
 
-      const isCurrentlyPlayed = player !== null;
-      let member = null;
-      if (isCurrentlyPlayed) {
-        try {
-          member = await interaction.guild.members.fetch(player.id);
-        }
-        catch (error) {
-          return interaction.editReply({ content: 'Could not find the Discord member for the player currently playing this character. Have they left the server?', flags: MessageFlags.Ephemeral });
-        }
+        return interaction.editReply({ embeds: [characterChangedEmbed], flags: MessageFlags.Ephemeral })
       }
-
-      let changedText = [];
-
-      if (newName !== null) {
-        const oldName = character.name;
-        await character.update({ name: newName });
-        changedText.push('Name: ' + inlineCode(oldName ? oldName : 'Undefined') + ' -> ' + inlineCode(newName));
+      catch (error) {
+        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
       }
-
-      if (newSex !== null) {
-        const oldSex = character.sex;
-        await character.update({ sex: newSex });
-        changedText.push('Sex: ' + inlineCode(oldSex ? oldSex : 'Undefined') + ' -> ' + inlineCode(newSex));
-      }
-
-      if (newAffiliationId !== null) {
-        const oldAffiliation = await Affiliations.findOne({ where: { id: character.affiliationId } });
-        const newAffiliation = await Affiliations.findOne({ where: { id: newAffiliationId } });
-
-        await character.update({ affiliationId: newAffiliationId });
-
-        // If currently played, update Discord role
-        if (isCurrentlyPlayed) {
-          // Update Discord role
-          await member.roles.remove([roles.eshaeryn, roles.firstLanding, roles.riverhelm, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
-          await member.roles.add(newAffiliation.roleId);
-        }
-
-        changedText.push('Affiliation: ' + inlineCode(oldAffiliation.name) + ' -> ' + inlineCode(newAffiliation.name));
-      }
-
-      if (newSocialClassName !== null) {
-        const oldSocialClass = await SocialClasses.findOne({ where: { name: character.socialClassName } });
-        const newSocialClass = await SocialClasses.findOne({ where: { name: newSocialClassName } });
-
-        // Check whether changing to commoner from non-commoner
-        if (newSocialClassName === 'Commoner' && oldSocialClass.name !== 'Commoner') {
-          changedText.push('Cannot change to Commoner from a higher social class.');
-        }
-        else {
-          await character.update({ socialClassName: newSocialClassName });
-
-          // If currently played, update Discord role
-          if (isCurrentlyPlayed) {
-            await member.roles.remove([roles.notable, roles.noble, roles.ruler]);
-
-            if (newSocialClass.name === 'Ruler') {
-              await member.roles.add([roles.notable, roles.noble, roles.ruler]);
-            }
-            else if (newSocialClass.name === 'Noble') {
-              await member.roles.add([roles.notable, roles.noble]);
-            }
-            else if (newSocialClass.name === 'Notable') {
-              await member.roles.add(roles.notable);
-            }
-          }
-
-          changedText.push('Social class: ' + inlineCode(oldSocialClass.name) + ' -> ' + inlineCode(newSocialClass.name));
-        }
-
-      }
-
-      if (newYearOfMaturity !== null) {
-        const oldYearOfMaturity = character.yearOfMaturity;
-        await character.update({ yearOfMaturity: newYearOfMaturity });
-        changedText.push('Year of Maturity: ' + inlineCode(oldYearOfMaturity) + ' -> ' + inlineCode(newYearOfMaturity));
-      }
-
-      if (newPvEDeaths !== null) {
-        const oldPvEDeaths = character.pveDeaths;
-        await character.update({ pveDeaths: newPvEDeaths });
-        changedText.push('PvE Deaths: ' + inlineCode(oldPvEDeaths) + ' -> ' + inlineCode(newPvEDeaths));
-      }
-
-      if (newRole !== null) {
-        const oldRole = character.role;
-        await character.update({ role: newRole });
-        changedText.push('Role: ' + inlineCode(oldRole ? oldRole : 'Undefined') + ' -> ' + inlineCode(newRole));
-      }
-
-      if (newSteelbearer !== null) {
-        const oldSteelbearer = character.steelbearer;
-
-        if (newSteelbearer === 'None') {
-          await character.update({ steelbearer: null });
-        }
-        else {
-          await character.update({ steelbearer: newSteelbearer });
-        }
-
-        if (isCurrentlyPlayed) {
-          await member.roles.remove(roles.steelbearer);
-          if (character.steelbearer) await member.roles.add(roles.steelbearer);
-        }
-
-        changedText.push('Steelbearer: ' + inlineCode(oldSteelbearer) + ' -> ' + inlineCode(newSteelbearer));
-      }
-
-      if (newComments !== null) {
-        const oldComments = character.comments;
-        await character.update({ comments: newComments });
-        changedText.push('Comments: ' + inlineCode(oldComments ? oldComments : 'None') + ' -> ' + inlineCode(newComments));
-      }
-
-      if (newRollingForBastards !== null) {
-        // Check whether not commoner
-        if (character.socialClassName === 'Commoner') {
-          changedText.push('Cannot change Rolling for Bastards for Commoner characters.');
-        }
-        else {
-          const oldRollingForBastards = character.isRollingForBastards;
-          await character.update({ isRollingForBastards: newRollingForBastards });
-          changedText.push('Rolling for Bastards: ' + inlineCode(oldRollingForBastards ? 'Yes' : 'No') + ' -> ' + inlineCode(newRollingForBastards ? 'Yes' : 'No'));
-        }
-      }
-
-      if (changedText.length === 0) {
-        changedText.push('Please specify what to change.');
-      }
-      else {
-        await postInLogChannel(
-          'Character Info Changed',
-          '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
-          'Character: ' + inlineCode(character.name) + '\n\n' +
-          changedText.join('\n'),
-          0xD98C00
-        )
-        changedText.unshift('**The following was changed for ' + inlineCode(character.name) + ':**');
-      }
-
-      return interaction.editReply({ content: changedText.join('\n'), flags: MessageFlags.Ephemeral })
     }
 
     /**

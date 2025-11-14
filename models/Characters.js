@@ -18,11 +18,10 @@ module.exports = (sequelize, DataTypes) => {
     },
     affiliationId: {
       type: DataTypes.UUID,
-      notNull: true
     },
     socialClassName: {
       type: DataTypes.STRING,
-      notNull: true,
+      allowNull: false,
       defaultValue: 'Commoner'
     },
     yearOfMaturity: {
@@ -51,6 +50,8 @@ module.exports = (sequelize, DataTypes) => {
     },
     steelbearerState: {
       type: DataTypes.STRING,
+      defaultValue: 'None',
+      allowNull: false
     },
     deathRoll1: {
       type: DataTypes.INTEGER
@@ -87,7 +88,7 @@ module.exports = (sequelize, DataTypes) => {
           `parent1: ${parent1 ? `${parent1.name} (\`${this.parent1Id}\`)` : '`-`'}\n` +
           `parent2: ${parent2 ? `${parent2.name} (\`${this.parent2Id}\`)` : '`-`'}\n` +
           `isRollingforBastards: \`${this.isRollingForBastards ? `Yes` : `No`}\`\n` +
-          `steelbearerState: \`${this.steelbearerState ? this.steelbearerState : '-'}\`\n` +
+          `steelbearerState: \`${this.steelbearerState}\`\n` +
           `deathRoll1: \`${this.deathRoll1 ? this.deathRoll1 : '-'}\`\n` +
           `deathRoll2: \`${this.deathRoll2 ? this.deathRoll2 : '-'}\`\n` +
           `deathRoll3: \`${this.deathRoll3 ? this.deathRoll3 : '-'}\`\n` +
@@ -184,7 +185,7 @@ module.exports = (sequelize, DataTypes) => {
 
 
           // Only add other info if steelbearer state is set
-          if (this.steelbearerState) {
+          if (this.steelbearerState !== 'None') {
             const otherInfo = (
               `### Other Info\n` +
               `**Steelbearer Type:** ${this.steelbearerState ? this.steelbearerState : `-`}`

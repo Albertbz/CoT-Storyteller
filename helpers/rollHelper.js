@@ -1,5 +1,5 @@
 const { Players, DeathRollDeaths, Characters, Worlds } = require('../dbObjects.js');
-const { ageToFertilityModifier, changeCharacter, postInLogChannel } = require('../misc.js');
+const { ageToFertilityModifier, changeCharacterInfo, postInLogChannel } = require('../misc.js');
 const { inlineCode, bold, italic, userMention, EmbedBuilder } = require('discord.js');
 const { COLORS } = require('../misc.js');
 
@@ -236,7 +236,7 @@ async function saveDeathResultToDatabase(character, interactionUser, nextYear, r
   // DeathRollDeaths table, as well as updating the character
   // deathRollX corresponding to their age next year - 3
   if (status === 'gains_pve_deaths') {
-    await changeCharacter(
+    await changeCharacterInfo(
       interactionUser, character, shouldPostInLogChannel, {
       newPveDeaths: character.pveDeaths + deathsFromRoll,
       [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
@@ -253,7 +253,7 @@ async function saveDeathResultToDatabase(character, interactionUser, nextYear, r
 
   } else if (status === 'dies') {
     // Update the character's deathRollX
-    await changeCharacter(interactionUser, character, shouldPostInLogChannel, {
+    await changeCharacterInfo(interactionUser, character, shouldPostInLogChannel, {
       [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
     });
 
@@ -282,7 +282,7 @@ async function saveDeathResultToDatabase(character, interactionUser, nextYear, r
   }
   else if (status === 'unharmed') {
     // Just update the character's deathRollX
-    await changeCharacter(interactionUser, character, shouldPostInLogChannel, {
+    await changeCharacterInfo(interactionUser, character, shouldPostInLogChannel, {
       [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
     });
   }

@@ -347,7 +347,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       await member.roles.add(roles.notable);
     }
 
-    if (character.steelbearer) {
+    if (character.steelbearerState !== 'None') {
       await member.roles.add(roles.steelbearer);
     }
 
@@ -448,90 +448,351 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
 
 // Changes the provided values of a character and posts the change to the log
 // channel using postInLogChannel.
-async function changeCharacter(storyteller, character, shouldPostInLogChannel, { newName, newSex, newAffiliationId, newSocialClassName, newYearOfMaturity, newRole, newPveDeaths, newComments, newParent1Id, newParent2Id, newIsRollingForBastards, newSteelbearerState, newDeathRoll1, newDeathRoll2, newDeathRoll3, newDeathRoll4, newDeathRoll5 } = {}) {
-  const oldValues = {
-    name: character.name,
-    sex: character.sex,
-    affiliationId: character.affiliationId,
-    socialClassName: character.socialClassName,
-    yearOfMaturity: character.yearOfMaturity,
-    role: character.role,
-    pveDeaths: character.pveDeaths,
-    comments: character.comments,
-    parent1Id: character.parent1Id,
-    parent2Id: character.parent2Id,
-    isRollingForBastards: character.isRollingForBastards,
-    steelbearerState: character.steelbearerState,
-    deathRoll1: character.deathRoll1,
-    deathRoll2: character.deathRoll2,
-    deathRoll3: character.deathRoll3,
-    deathRoll4: character.deathRoll4,
-    deathRoll5: character.deathRoll5
-  };
+async function changeCharacterInfo(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newAffiliationId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newSteelbearerState = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null } = {}) {
+  let newValues = {};
+  let oldValues = {};
 
-  const newValues = {
-  };
+  // Save all old and new values for the values that are changing
+  if (newName !== null && newName !== character.name) newValues.name = newName; oldValues.name = character.name;
+  if (newSex !== null && newSex !== character.sex) newValues.sex = newSex; oldValues.sex = character.sex;
+  if (newAffiliationId !== null && newAffiliationId !== character.affiliationId) newValues.affiliationId = newAffiliationId; oldValues.affiliationId = character.affiliationId;
+  if (newSocialClassName !== null && newSocialClassName !== character.socialClassName) newValues.socialClassName = newSocialClassName; oldValues.socialClassName = character.socialClassName;
+  if (newYearOfMaturity !== null && newYearOfMaturity !== character.yearOfMaturity) newValues.yearOfMaturity = newYearOfMaturity; oldValues.yearOfMaturity = character.yearOfMaturity;
+  if (newRole !== null && newRole !== character.role) newValues.role = newRole; oldValues.role = character.role;
+  if (newPveDeaths !== null && newPveDeaths !== character.pveDeaths) newValues.pveDeaths = newPveDeaths; oldValues.pveDeaths = character.pveDeaths;
+  if (newComments !== null && newComments !== character.comments) newValues.comments = newComments; oldValues.comments = character.comments;
+  if (newParent1Id !== null && newParent1Id !== character.parent1Id) newValues.parent1Id = newParent1Id; oldValues.parent1Id = character.parent1Id;
+  if (newParent2Id !== null && newParent2Id !== character.parent2Id) newValues.parent2Id = newParent2Id; oldValues.parent2Id = character.parent2Id;
+  if (newIsRollingForBastards !== null && newIsRollingForBastards !== character.isRollingForBastards) newValues.isRollingForBastards = newIsRollingForBastards; oldValues.isRollingForBastards = character.isRollingForBastards;
+  if (newSteelbearerState !== null && newSteelbearerState !== character.steelbearerState) newValues.steelbearerState = newSteelbearerState; oldValues.steelbearerState = character.steelbearerState;
+  if (newDeathRoll1 !== null && newDeathRoll1 !== character.deathRoll1) newValues.deathRoll1 = newDeathRoll1; oldValues.deathRoll1 = character.deathRoll1;
+  if (newDeathRoll2 !== null && newDeathRoll2 !== character.deathRoll2) newValues.deathRoll2 = newDeathRoll2; oldValues.deathRoll2 = character.deathRoll2;
+  if (newDeathRoll3 !== null && newDeathRoll3 !== character.deathRoll3) newValues.deathRoll3 = newDeathRoll3; oldValues.deathRoll3 = character.deathRoll3;
+  if (newDeathRoll4 !== null && newDeathRoll4 !== character.deathRoll4) newValues.deathRoll4 = newDeathRoll4; oldValues.deathRoll4 = character.deathRoll4;
+  if (newDeathRoll5 !== null && newDeathRoll5 !== character.deathRoll5) newValues.deathRoll5 = newDeathRoll5; oldValues.deathRoll5 = character.deathRoll5;
 
-  if (newName !== undefined) newValues.name = newName;
-  if (newSex !== undefined) newValues.sex = newSex;
-  if (newAffiliationId !== undefined) newValues.affiliationId = newAffiliationId;
-  if (newSocialClassName !== undefined) newValues.socialClassName = newSocialClassName;
-  if (newYearOfMaturity !== undefined) newValues.yearOfMaturity = newYearOfMaturity;
-  if (newRole !== undefined) newValues.role = newRole;
-  if (newPveDeaths !== undefined) newValues.pveDeaths = newPveDeaths;
-  if (newComments !== undefined) newValues.comments = newComments;
-  if (newParent1Id !== undefined) newValues.parent1Id = newParent1Id;
-  if (newParent2Id !== undefined) newValues.parent2Id = newParent2Id;
-  if (newIsRollingForBastards !== undefined) newValues.isRollingForBastards = newIsRollingForBastards;
-  if (newSteelbearerState !== undefined) newValues.steelbearerState = newSteelbearerState;
-  if (newDeathRoll1 !== undefined) newValues.deathRoll1 = newDeathRoll1;
-  if (newDeathRoll2 !== undefined) newValues.deathRoll2 = newDeathRoll2;
-  if (newDeathRoll3 !== undefined) newValues.deathRoll3 = newDeathRoll3;
-  if (newDeathRoll4 !== undefined) newValues.deathRoll4 = newDeathRoll4;
-  if (newDeathRoll5 !== undefined) newValues.deathRoll5 = newDeathRoll5;
+  // Check if anything is actually changing
+  if (Object.keys(newValues).length === 0) {
+    throw new Error('No changes provided.');
+  }
 
-  // console.log(newValues);
 
-  let changeDescription =
-    '**Changed by: ' + userMention(storyteller.id) + '**\n\n' +
-    'Character: ' + inlineCode(character.name) + '\n\n';
-
-  for (const [key, newValue] of Object.entries(newValues)) {
-    const oldValue = oldValues[key];
-    if (oldValue !== newValue) {
-      changeDescription += inlineCode(key) + ': ' + inlineCode(oldValue === null ? '-' : String(oldValue)) + ' -> ' + inlineCode(newValue === null ? '-' : String(newValue)) + '\n';
+  /**
+   * Go through relevant new values and do checks to make sure they are valid
+   */
+  // Check name uniqueness
+  if (newValues.name) {
+    const existsWithName = await Characters.findOne({ where: { name: newValues.name } });
+    if (existsWithName && existsWithName.id !== character.id) {
+      throw new Error('A character with the same name already exists.');
     }
   }
 
-  // Update the character with new values
-  await character.update({
-    name: newValues.name !== undefined ? newValues.name : character.name,
-    sex: newValues.sex !== undefined ? newValues.sex : character.sex,
-    affiliationId: newValues.affiliationId !== undefined ? newValues.affiliationId : character.affiliationId,
-    socialClassName: newValues.socialClassName !== undefined ? newValues.socialClassName : character.socialClassName,
-    yearOfMaturity: newValues.yearOfMaturity !== undefined ? newValues.yearOfMaturity : character.yearOfMaturity,
-    role: newValues.role !== undefined ? newValues.role : character.role,
-    pveDeaths: newValues.pveDeaths !== undefined ? newValues.pveDeaths : character.pveDeaths,
-    comments: newValues.comments !== undefined ? newValues.comments : character.comments,
-    parent1Id: newValues.parent1Id !== undefined ? newValues.parent1Id : character.parent1Id,
-    parent2Id: newValues.parent2Id !== undefined ? newValues.parent2Id : character.parent2Id,
-    isRollingForBastards: newValues.isRollingForBastards !== undefined ? newValues.isRollingForBastards : character.isRollingForBastards,
-    steelbearerState: newValues.steelbearerState !== undefined ? newValues.steelbearerState : character.steelbearerState,
-    deathRoll1: newValues.deathRoll1 !== undefined ? newValues.deathRoll1 : character.deathRoll1,
-    deathRoll2: newValues.deathRoll2 !== undefined ? newValues.deathRoll2 : character.deathRoll2,
-    deathRoll3: newValues.deathRoll3 !== undefined ? newValues.deathRoll3 : character.deathRoll3,
-    deathRoll4: newValues.deathRoll4 !== undefined ? newValues.deathRoll4 : character.deathRoll4,
-    deathRoll5: newValues.deathRoll5 !== undefined ? newValues.deathRoll5 : character.deathRoll5
-  });
+  // Check social class validity
+  if (newValues.socialClassName) {
+    // Cannot go from anything that is not commoner and back to commoner
+    if (newValues.socialClassName === 'Commoner' && oldValues.socialClassName !== 'Commoner') {
+      throw new Error('Cannot change character social class back to Commoner from a higher social class.');
+    }
+  }
 
+  // Check steelbearer change is valid
+  if (newValues.steelbearerState && newValues.steelbearerState !== 'None') {
+    // If becoming a Ruler steelbearer, must be of Ruler social class
+    if (newValues.steelbearerState === 'Ruler') {
+      const socialClassNameToCheck = newValues.socialClassName ? newValues.socialClassName : character.socialClassName;
+      if (socialClassNameToCheck !== 'Ruler') {
+        throw new Error('Only characters of Ruler social class can become Ruler steelbearers.');
+      }
+    }
+
+    // Get all steelbearers of the character's affiliation
+    const steelbearersInAffiliation = await Characters.findAll({
+      where: {
+        affiliationId: character.affiliationId,
+        steelbearerState: {
+          [Op.not]: 'None'
+        },
+        id: {
+          [Op.not]: character.id
+        }
+      }
+    });
+
+    // Get amount of steelbearers of same type
+    const sameTypeSteelbearers = steelbearersInAffiliation.filter(s => s.steelbearerState === newValues.steelbearerState);
+
+    if (newValues.steelbearerState === 'Ruler' && sameTypeSteelbearers.length >= 1) {
+      throw new Error('There is already a Ruler steelbearer in this affiliation.');
+    }
+    else if (newValues.steelbearerState === 'General-purpose' && sameTypeSteelbearers.length >= 3) {
+      throw new Error('There are already 3 General-purpose steelbearers in this affiliation.');
+    }
+    else if (newValues.steelbearerState === 'Duchy' && sameTypeSteelbearers.length >= 3) {
+      throw new Error('There are already 3 Duchy steelbearers in this affiliation.');
+    }
+  }
+
+  // Check rolling for bastards is valid
+  if (newValues.isRollingForBastards !== null && newValues.isRollingForBastards === true) {
+    // Cannot be a commoner rolling for bastards (also check if changing social 
+    // class away from commoner at the same time)
+    if (character.socialClassName === 'Commoner' &&
+      !(newValues.socialClassName && newValues.socialClassName !== 'Commoner')) {
+      throw new Error('Commoner characters cannot roll for bastards.');
+    }
+  }
+
+  // If changing affiliation, make sure steelbearer is removed
+  if (newValues.affiliationId) {
+    if (character.steelbearerState !== 'None' &&
+      !(newValues.steelbearerState && newValues.steelbearerState === 'None')) {
+      newValues.steelbearerState = 'None';
+    }
+  }
+
+
+  // All checks passed, prepare the description of changes
+  const logInfoChanges = [];
+  const formattedInfoChanges = [];
+
+  // Go through each argument and add to description if it changed
+  for (const [key, newValue] of Object.entries(newValues)) {
+    const oldValue = oldValues[key];
+
+    switch (key) {
+      case 'name': {
+        logInfoChanges.push({ key: 'name', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Name**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'sex': {
+        logInfoChanges.push({ key: 'sex', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Sex**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
+        break;
+      }
+      case 'affiliationId': {
+        const oldAffiliation = await Affiliations.findByPk(oldValue);
+        const newAffiliation = await Affiliations.findByPk(newValue);
+        logInfoChanges.push({ key: 'affiliation', oldValue: oldAffiliation ? inlineCode(oldAffiliation.name) + ' (' + inlineCode(oldAffiliation.id) + ')' : '-', newValue: newAffiliation ? inlineCode(newAffiliation.name) + ' (' + inlineCode(newAffiliation.id) + ')' : inlineCode('-') });
+        formattedInfoChanges.push({ key: '**Affiliation**', oldValue: oldAffiliation ? oldAffiliation.name : '-', newValue: newAffiliation ? newAffiliation.name : '-' });
+        break;
+      }
+      case 'socialClassName': {
+        logInfoChanges.push({ key: 'socialClass', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Social Class**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
+        break;
+      }
+      case 'yearOfMaturity': {
+        logInfoChanges.push({ key: 'yearOfMaturity', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Year of Maturity**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'role': {
+        logInfoChanges.push({ key: 'role', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Role**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
+        break;
+      }
+      case 'pveDeaths': {
+        logInfoChanges.push({ key: 'pveDeaths', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**PvE Deaths**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'comments': {
+        logInfoChanges.push({ key: 'comments', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Comments**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
+        break;
+      }
+      case 'parent1Id': {
+        const oldParent1 = await Characters.findByPk(oldValue);
+        const newParent1 = await Characters.findByPk(newValue);
+        logInfoChanges.push({ key: 'parent1', oldValue: oldParent1 ? inlineCode(oldParent1.name) + ' (' + inlineCode(oldParent1.id) + ')' : inlineCode('-'), newValue: newParent1 ? inlineCode(newParent1.name) + ' (' + inlineCode(newParent1.id) + ')' : inlineCode('-') });
+        formattedInfoChanges.push({ key: '**Parent 1**', oldValue: oldParent1 ? oldParent1.name : '-', newValue: newParent1 ? newParent1.name : '-' });
+        break;
+      }
+      case 'parent2Id': {
+        const oldParent2 = await Characters.findByPk(oldValue);
+        const newParent2 = await Characters.findByPk(newValue);
+        logInfoChanges.push({ key: 'parent2', oldValue: oldParent2 ? inlineCode(oldParent2.name) + ' (' + inlineCode(oldParent2.id) + ')' : inlineCode('-'), newValue: newParent2 ? inlineCode(newParent2.name) + ' (' + inlineCode(newParent2.id) + ')' : inlineCode('-') });
+        formattedInfoChanges.push({ key: '**Parent 2**', oldValue: oldParent2 ? oldParent2.name : '-', newValue: newParent2 ? newParent2.name : '-' });
+        break;
+      }
+      case 'isRollingForBastards': {
+        logInfoChanges.push({ key: 'isRollingForBastards', oldValue: inlineCode(oldValue ? 'Yes' : 'No'), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Rolling for Bastards**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'steelbearerState': {
+        logInfoChanges.push({ key: 'steelbearerState', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Steelbearer State**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'deathRoll1': {
+        logInfoChanges.push({ key: 'deathRoll1', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Death Roll @ Age 4**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'deathRoll2': {
+        logInfoChanges.push({ key: 'deathRoll2', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Death Roll @ Age 5**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'deathRoll3': {
+        logInfoChanges.push({ key: 'deathRoll3', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Death Roll @ Age 6**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'deathRoll4': {
+        logInfoChanges.push({ key: 'deathRoll4', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Death Roll @ Age 7**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'deathRoll5': {
+        logInfoChanges.push({ key: 'deathRoll5', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Death Roll @ Age 8+**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+    }
+  }
+
+  // All checks passed, proceed with update
+  await character.update(newValues);
+
+
+  // If character is being played by a player, update their Discord roles
+  const player = await Players.findOne({ where: { characterId: character.id } });
+  if (player) {
+    await syncMemberRolesWithCharacter(player, character);
+  }
+
+  // Post in log channel if applicable
   if (shouldPostInLogChannel) {
+    const logInfo = logInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n');
     await postInLogChannel(
       'Character Changed',
-      changeDescription,
+      `**Changed by: ${userMention(storyteller.id)}**\n\n` +
+      `Character: ${inlineCode(character.name)} (${inlineCode(character.id)})\n\n` +
+      logInfo,
       COLORS.ORANGE
     );
   }
 
+  // Make an embed for character change to return
+  const characterChangedEmbed = new EmbedBuilder()
+    .setTitle('Character Changed')
+    .setDescription(
+      `**Character**: ${character.name}\n\n` +
+      formattedInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n')
+    )
+    .setColor(COLORS.ORANGE);
+
+
+  return { character, characterChangedEmbed }
+}
+
+
+async function syncMemberRolesWithCharacter(player, character) {
+  const guild = await client.guilds.fetch(guilds.cot);
+  const member = await guild.members.fetch(player.id);
+
+  // If could not find the member on the server, return false
+  if (!member) {
+    console.log('Could not find member with ID ' + player.id + ' on the server.');
+    return false;
+  }
+
+  // Go through the possible roles and track which to add and remove
+  let rolesToAdd = [];
+  let rolesToRemove = [];
+
+  // Affiliation roles
+  try {
+    const currentAffiliation = await character.getAffiliation();
+    const allOtherAffiliations = await Affiliations.findAll({ where: { id: { [Op.not]: currentAffiliation.id } } });
+    // Remove all other affiliation roles
+    for (const otherAffiliation of allOtherAffiliations) {
+      if (otherAffiliation.roleId && member.roles.cache.has(otherAffiliation.roleId)) {
+        rolesToRemove.push(otherAffiliation.roleId);
+      }
+    }
+    // Add current affiliation role if they don't have it
+    if (currentAffiliation && currentAffiliation.roleId) {
+      if (!member.roles.cache.has(currentAffiliation.roleId)) {
+        rolesToAdd.push(currentAffiliation.roleId);
+      }
+    }
+  }
+  catch (error) {
+    console.log('Failed to assign affiliation role: ' + error);
+    return false;
+  }
+
+  // Social class roles
+  try {
+    const socialClass = await character.getSocialClass();
+    if (socialClass.name === 'Ruler') {
+      if (!member.roles.cache.has(roles.notable)) rolesToAdd.push(roles.notable);
+      if (!member.roles.cache.has(roles.noble)) rolesToAdd.push(roles.noble);
+      if (!member.roles.cache.has(roles.ruler)) rolesToAdd.push(roles.ruler);
+    }
+    else if (socialClass.name === 'Noble') {
+      if (!member.roles.cache.has(roles.notable)) rolesToAdd.push(roles.notable);
+      if (!member.roles.cache.has(roles.noble)) rolesToAdd.push(roles.noble);
+      // Remove ruler if they had it before
+      if (member.roles.cache.has(roles.ruler)) rolesToRemove.push(roles.ruler);
+    }
+    else if (socialClass.name === 'Notable') {
+      if (!member.roles.cache.has(roles.notable)) rolesToAdd.push(roles.notable);
+      // Remove noble and ruler if they had them before
+      if (member.roles.cache.has(roles.noble)) rolesToRemove.push(roles.noble);
+      if (member.roles.cache.has(roles.ruler)) rolesToRemove.push(roles.ruler);
+    }
+    else {
+      // Remove notable, noble, and ruler if they had them before
+      if (member.roles.cache.has(roles.notable)) rolesToRemove.push(roles.notable);
+      if (member.roles.cache.has(roles.noble)) rolesToRemove.push(roles.noble);
+      if (member.roles.cache.has(roles.ruler)) rolesToRemove.push(roles.ruler);
+    }
+  }
+  catch (error) {
+    console.log('Failed to assign social class roles: ' + error);
+    return false;
+  }
+
+  // Steelbearer role
+  try {
+    if (character.steelbearerState && character.steelbearerState !== 'None') {
+      if (!member.roles.cache.has(roles.steelbearer)) {
+        rolesToAdd.push(roles.steelbearer);
+      }
+    }
+    else {
+      // Remove steelbearer role if they had it before
+      if (member.roles.cache.has(roles.steelbearer)) {
+        rolesToRemove.push(roles.steelbearer);
+      }
+    }
+  }
+  catch (error) {
+    console.log('Failed to assign steelbearer role: ' + error);
+    return false;
+  }
+
+  // Proceed with adding and removing roles
+  try {
+    if (rolesToAdd.length > 0) {
+      await member.roles.add(rolesToAdd);
+    }
+    if (rolesToRemove.length > 0) {
+      await member.roles.remove(rolesToRemove);
+    }
+  }
+  catch (error) {
+    console.log('Failed to add or remove roles: ' + error);
+    return false;
+  }
+
+  return true;
 }
 
 async function postInLogChannel(title, description, color) {
@@ -560,6 +821,6 @@ module.exports = {
   addRelationshipToDatabase,
   addPlayableChildToDatabase,
   addDeceasedToDatabase,
-  changeCharacter,
+  changeCharacterInfo,
   COLORS
 }; 

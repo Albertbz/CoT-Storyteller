@@ -8,19 +8,19 @@ module.exports = (sequelize, DataTypes) => {
     },
     characterId: {
       type: DataTypes.UUID,
-      notNull: true,
+      allowNull: false,
     },
     dayOfDeath: {
       type: DataTypes.INTEGER,
-      notNull: true,
+      allowNull: false,
     },
     monthOfDeath: {
       type: DataTypes.STRING,
-      notNull: true,
+      allowNull: false,
     },
     yearOfDeath: {
       type: DataTypes.INTEGER,
-      notNull: true,
+      allowNull: false,
     },
     dateOfDeath: {
       type: DataTypes.VIRTUAL,
