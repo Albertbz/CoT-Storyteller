@@ -75,7 +75,7 @@ module.exports = {
 
       const member = members.find(member => member.user.username === ageRow.get('Discord Username'));
       if (!member) {
-        console.log('User not found: ' + ageRow.get('Discord Username'))
+        console.log('Member not found: ' + ageRow.get('Discord Username'))
         continue;
       }
 
@@ -221,10 +221,16 @@ module.exports = {
         const houseCommonerRows = houseRows.filter(houseRow => houseRow.get('Social Class') === 'Commoner');
 
         for (const commonerRow of houseCommonerRows) {
-          const user = members.find(member => member.user.username === commonerRow.get('Discord Username'));
-          if (!user) {
-            console.log('User not found: ' + commonerRow.get('Discord Username'))
+          const member = members.find(member => member.user.username === commonerRow.get('Discord Username'));
+          if (!member) {
+            console.log('Member not found: ' + commonerRow.get('Discord Username'))
             continue;
+          }
+
+          // Check whether member has 'New Member' role and log with name
+          const hasNewMemberRole = member.roles.cache.some(role => role.name === 'New Member');
+          if (hasNewMemberRole) {
+            console.log(`Has New Member role (${member.user.username}): ` + hasNewMemberRole);
           }
 
           let player = null;
@@ -232,7 +238,7 @@ module.exports = {
             const timezone = commonerRow.get('Timezone') === '' ? undefined : commonerRow.get('Timezone');
 
             player = await Players.create({
-              id: user.id,
+              id: member.id,
               ign: commonerRow.get('VS Username'),
               timezone: timezone
             });

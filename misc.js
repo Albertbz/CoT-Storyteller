@@ -13,6 +13,16 @@ const COLORS = {
 };
 
 async function addPlayerToDatabase(id, ign, timezone, storyteller) {
+  // storyteller is required
+  if (!storyteller) {
+    throw new Error('storyteller is required');
+  }
+
+  // Check whether there are spaces in the IGN
+  if (ign.includes(' ')) {
+    throw new Error('IGN cannot contain spaces.');
+  }
+
   try {
     const player = await Players.create({
       id: id,
@@ -40,7 +50,7 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
       throw new Error('That player already exists.');
     }
 
-    throw new Error('Something went wrong with creating the player.');
+    throw new Error('Something went wrong with creating the player. Please let Albert know.');
   }
 }
 
@@ -448,9 +458,10 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
 
 // Changes the provided values of a character and posts the change to the log
 // channel using postInLogChannel.
-async function changeCharacterInfo(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newAffiliationId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newSteelbearerState = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null } = {}) {
+async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newAffiliationId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newSteelbearerState = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null } = {}) {
   let newValues = {};
   let oldValues = {};
+
 
   // Save all old and new values for the values that are changing
   if (newName !== null && newName !== character.name) newValues.name = newName; oldValues.name = character.name;
@@ -691,6 +702,71 @@ async function changeCharacterInfo(storyteller, character, shouldPostInLogChanne
 }
 
 
+async function changePlayerInDatabase(storyteller, player, { newIgn = null, newTimezone = null } = {}) {
+  let newValues = {};
+  let oldValues = {};
+
+  // Save all old and new values for the values that are changing
+  if (newIgn !== null && newIgn !== player.ign) newValues.ign = newIgn; oldValues.ign = player.ign;
+  if (newTimezone !== null && newTimezone !== player.timezone) newValues.timezone = newTimezone; oldValues.timezone = player.timezone;
+
+  // Check if anything is actually changing
+  if (Object.keys(newValues).length === 0) {
+    throw new Error('No changes provided.');
+  }
+
+  if (newValues.ign) {
+    // Check whether there are spaces in the IGN
+    if (newValues.ign.includes(' ')) {
+      throw new Error('A VS username cannot contain spaces.');
+    }
+  }
+
+  // All checks passed, proceed with update
+  await player.update(newValues);
+
+  // Post in log channel
+  const logInfoChanges = [];
+  const formattedInfoChanges = [];
+  for (const [key, newValue] of Object.entries(newValues)) {
+    const oldValue = oldValues[key];
+
+    switch (key) {
+      case 'ign': {
+        logInfoChanges.push({ key: 'ign', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**VS Username**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
+        break;
+      }
+      case 'timezone': {
+        logInfoChanges.push({ key: 'timezone', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Timezone**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
+        break;
+      }
+    }
+  }
+
+  await postInLogChannel(
+    'Player Changed',
+    `**Changed by: ${userMention(storyteller.id)}**\n\n` +
+    `Player: ${userMention(player.id)} (${inlineCode(player.id)})\n\n` +
+    logInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n'),
+    COLORS.ORANGE
+  );
+
+  // Make an embed for player change to return
+  const playerChangedEmbed = new EmbedBuilder()
+    .setTitle('Player Changed')
+    .setDescription(
+      `**Player**: ${userMention(player.id)}\n\n` +
+      formattedInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n')
+    )
+    .setColor(COLORS.ORANGE);
+
+  return { player, playerChangedEmbed }
+}
+
+
+// Syncs a Discord member's roles based on their character's affiliation and social class
 async function syncMemberRolesWithCharacter(player, character) {
   const guild = await client.guilds.fetch(guilds.cot);
   const member = await guild.members.fetch(player.id);
@@ -821,6 +897,7 @@ module.exports = {
   addRelationshipToDatabase,
   addPlayableChildToDatabase,
   addDeceasedToDatabase,
-  changeCharacterInfo,
+  changeCharacterInDatabase,
+  changePlayerInDatabase,
   COLORS
 }; 

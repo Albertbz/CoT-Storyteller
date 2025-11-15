@@ -2,7 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Affiliations, SocialClasses, Worlds, PlayableChildren, Relationships } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { postInLogChannel, changeCharacterInfo } = require('../../misc.js');
+const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase } = require('../../misc.js');
 
 
 module.exports = {
@@ -105,6 +105,7 @@ module.exports = {
           option
             .setName('comments_new')
             .setDescription('The new comments.')
+            .setAutocomplete(true)
         )
         .addStringOption(option =>
           option
@@ -282,6 +283,35 @@ module.exports = {
 
         choices = affilations.map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
       }
+
+      if (focusedOption.name === 'comments_new') {
+        // Get the character to fetch current comments from
+        const characterId = interaction.options.getString('name');
+        const character = await Characters.findOne({
+          where: { id: characterId }
+        });
+
+        const currentComments = character ? character.comments : '';
+
+        // If no input yet, suggest current comments
+        // Otherwise, suggest the input
+        const focusedValue = interaction.options.getFocused();
+        if (focusedValue.length > 0) {
+          choices = [
+            { name: focusedValue, value: focusedValue }
+          ];
+        }
+        else {
+          if (currentComments) {
+            choices = [
+              { name: currentComments ?? '', value: currentComments ?? '' }
+            ];
+          }
+          else {
+            choices = [];
+          }
+        }
+      }
     }
 
     // Handle autocompletes for affiliation subcommand
@@ -370,7 +400,6 @@ module.exports = {
             choices = [];
           }
         }
-
       }
     }
 
@@ -406,6 +435,9 @@ module.exports = {
 
     await interaction.respond(choices);
   },
+
+
+
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -419,52 +451,21 @@ module.exports = {
       const newIgn = interaction.options.getString('ign_new');
       const newTimezone = interaction.options.getString('timezone_new');
 
-      const player = await Players.findOne({
-        where: { id: user.id },
-        include: { model: Characters, as: 'character' }
-      }
-      );
+      const toUpdate = {};
+      if (newIgn) toUpdate.newIgn = newIgn;
+      if (newTimezone) toUpdate.newTimezone = newTimezone;
+
+      const player = await Players.findByPk(user.id);
 
       if (!player) return interaction.editReply({ content: 'The specified player does not exist in the database.', flags: MessageFlags.Ephemeral });
 
-      const playerInfoChangedText = [];
-      let playerInfoChanged = false;
-
-      if (newIgn) {
-        const oldIgn = player.ign;
-        await player.update({ ign: newIgn });
-        playerInfoChanged = true;
-        playerInfoChangedText.push('IGN: ' + inlineCode(oldIgn) + ' -> ' + inlineCode(newIgn));
+      try {
+        const { player: updatedPlayer, playerChangedEmbed } = await changePlayerInDatabase(interaction.user, player, toUpdate);
+        return interaction.editReply({ embeds: [playerChangedEmbed], flags: MessageFlags.Ephemeral })
       }
-
-      if (newTimezone) {
-        const oldTimezone = player.timezone;
-        await player.update({ timezone: newTimezone });
-        playerInfoChanged = true;
-        playerInfoChangedText.push('Timezone: ' + inlineCode(oldTimezone) + ' -> ' + inlineCode(newTimezone))
+      catch (error) {
+        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
       }
-
-      // Handle different cases of changed info
-      if (playerInfoChanged) {
-        await postInLogChannel(
-          'Player Info Changed',
-          '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
-          'Player: ' + userMention(user.id) + '\n\n' +
-          playerInfoChangedText.join('\n'),
-          0xD98C00
-        )
-        playerInfoChangedText.unshift('**The following Player info was changed for ' + userMention(user.id) + ':**')
-      }
-
-      let changedText = '';
-      if (!playerInfoChanged) {
-        changedText = 'Please specify what to change.'
-      }
-      else {
-        changedText = playerInfoChangedText.join('\n');
-      }
-
-      return interaction.editReply({ content: changedText, flags: MessageFlags.Ephemeral })
     }
 
     /**
@@ -488,8 +489,10 @@ module.exports = {
         where: { id: characterId }
       })
 
+      if (!character) return interaction.editReply({ content: 'The specified character does not exist in the database.', flags: MessageFlags.Ephemeral });
+
       try {
-        const { character: updatedCharacter, characterChangedEmbed } = await changeCharacterInfo(interaction.user, character, true, {
+        const { character: updatedCharacter, characterChangedEmbed } = await changeCharacterInDatabase(interaction.user, character, true, {
           newName: newName,
           newSex: newSex,
           newAffiliationId: newAffiliationId,

@@ -1,5 +1,5 @@
 const { Players, DeathRollDeaths, Characters, Worlds } = require('../dbObjects.js');
-const { ageToFertilityModifier, changeCharacterInfo, postInLogChannel } = require('../misc.js');
+const { ageToFertilityModifier, changeCharacterInDatabase, postInLogChannel } = require('../misc.js');
 const { inlineCode, bold, italic, userMention, EmbedBuilder } = require('discord.js');
 const { COLORS } = require('../misc.js');
 
@@ -235,12 +235,14 @@ async function saveDeathResultToDatabase(character, interactionUser, nextYear, r
   // the character's PvE deaths or adding them to the temporary 
   // DeathRollDeaths table, as well as updating the character
   // deathRollX corresponding to their age next year - 3
+  let deathRollFieldNumber = nextYear - character.yearOfMaturity - 3;
+  if (deathRollFieldNumber > 5) deathRollFieldNumber = 5;
+  const deathRollField = `newDeathRoll${deathRollFieldNumber}`;
+  const toUpdate = {};
+  toUpdate[deathRollField] = roll;
+
   if (status === 'gains_pve_deaths') {
-    await changeCharacterInfo(
-      interactionUser, character, shouldPostInLogChannel, {
-      newPveDeaths: character.pveDeaths + deathsFromRoll,
-      [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
-    });
+    toUpdate['newPveDeaths'] = character.pveDeaths + deathsFromRoll;
 
     // Add to summary tracking
     if (deathsFromRoll === 1) {
@@ -251,12 +253,8 @@ async function saveDeathResultToDatabase(character, interactionUser, nextYear, r
       lost3PveLives.push({ character, player });
     }
 
-  } else if (status === 'dies') {
-    // Update the character's deathRollX
-    await changeCharacterInfo(interactionUser, character, shouldPostInLogChannel, {
-      [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
-    });
-
+  }
+  else if (status === 'dies') {
     await DeathRollDeaths.create({
       characterId: character.id,
       dayOfDeath: dayOfDeath,
@@ -274,18 +272,18 @@ async function saveDeathResultToDatabase(character, interactionUser, nextYear, r
         (player ? 'Played by: ' + userMention(player.id) : 'Played by: None'),
         COLORS.BLUE
       );
-
     }
-
     // Add to summary tracking
     diedCharacters.push({ character, player, dayOfDeath, monthOfDeath, yearOfDeath });
   }
-  else if (status === 'unharmed') {
-    // Just update the character's deathRollX
-    await changeCharacterInfo(interactionUser, character, shouldPostInLogChannel, {
-      [`newDeathRoll${nextYear - character.yearOfMaturity - 3}`]: roll
-    });
+
+  try {
+    await changeCharacterInDatabase(interactionUser, character, shouldPostInLogChannel, toUpdate);
   }
+  catch (error) {
+    console.error(`Error updating character ${character.name} (ID: ${character.id}):`, error);
+  }
+  return;
 }
 
 function makeDeathRollsSummaryEmbeds(linesList, embedTitle, embedColor) {
