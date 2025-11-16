@@ -127,16 +127,19 @@ module.exports = {
         if (!isWanderer) {
           const socialClassName = houseRow.get('Social Class');
           const comments = houseRow.get('Comments') === '' ? undefined : houseRow.get('Comments');
-          let steelbearer = 'None';
+          let steelbearerState = 'None';
           if (comments && comments.includes('Steelbearer')) {
             if (comments.includes('(Ruler)')) {
-              steelbearer = 'Ruler'
+              steelbearerState = 'Ruler'
             }
             else if (comments.includes('(Duchy)')) {
-              steelbearer = 'Duchy'
+              steelbearerState = 'Duchy'
             }
             else if (comments.includes('(General-purpose)')) {
-              steelbearer = 'General-purpose'
+              steelbearerState = 'General-purpose'
+            }
+            else if (comments.includes('(Vassal)')) {
+              steelbearerState = 'Vassal'
             }
           }
           const role = houseRow.get('Role') === '' ? undefined : houseRow.get('Role');
@@ -147,7 +150,7 @@ module.exports = {
             socialClassName: socialClassName,
             pveDeaths: ageRow.get('PvE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
-            steelbearerState: steelbearer,
+            steelbearerState: steelbearerState,
             role: role,
             comments: comments,
             deathRoll1: ageRow.get('Year 4'),
