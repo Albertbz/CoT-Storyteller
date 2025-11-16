@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, HTTPError } = require('discord.js');
-const { Players, Characters, Worlds, Affiliations, Deceased, Relationships, PlayableChildren, DeathRollDeaths } = require('../../dbObjects.js');
+const { Players, Characters, Worlds, Regions, Houses, Recruitments, Deceased, Relationships, PlayableChildren, DeathRollDeaths } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 const { citizensDoc, offspringDoc } = require('../../sheets.js');
 const { GoogleSpreadsheetRow } = require('google-spreadsheet');
@@ -96,7 +96,8 @@ module.exports = {
         include: [
           { model: Characters, as: 'parent1' },
           { model: Characters, as: 'parent2' },
-          { model: Affiliations, as: 'affiliation' }
+          { model: Regions, as: 'region' },
+          { model: Houses, as: 'house' }
         ]
       }
     })
@@ -129,8 +130,13 @@ module.exports = {
       ageCell.value = world.currentYear - playableChild.character.yearOfMaturity;
       sexCell.value = playableChild.character.sex;
 
-      const affiliation = playableChild.character.affiliation.name;
-      affilationCell.value = affiliation === 'Wanderer' ? undefined : affiliation;
+      const region = playableChild.character.region;
+      let affiliationToWrite = null;
+      if (region.name !== 'Wanderer') {
+        const house = await Houses.findOne({ where: { id: region.rulingHouseId } });
+        affiliationToWrite = house.name;
+      }
+      affilationCell.value = affiliationToWrite;
 
       legitimacyCell.value = playableChild.legitimacy;
 
@@ -167,15 +173,13 @@ module.exports = {
     // Load in the citizens spreadsheet
     await citizensDoc.loadInfo();
 
-    // Make a map of all affiliation sheets
-    const affiliationSheets = new Map();
+    // Make a map of all region sheets
+    const regionSheets = new Map();
 
-    const affiliations = await Affiliations.findAll({
-      where: { [Op.or]: { isRuling: true, name: 'Wanderer' } }
-    });
+    const regions = await Regions.findAll();
 
-    for (const affiliation of affiliations) {
-      affiliationSheets.set(affiliation, citizensDoc.sheetsByTitle[affiliation.name]);
+    for (const region of regions) {
+      regionSheets.set(region, citizensDoc.sheetsByTitle[region.name]);
     }
 
     const activePlayers = await Players.findAll({
@@ -190,10 +194,10 @@ module.exports = {
     socialClassToRank.set('Commoner', 1);
 
 
-    for (const [affiliation, affiliationSheet] of affiliationSheets) {
-      const affiliationPlayers = activePlayers.filter(activePlayer => activePlayer.character.affiliationId === affiliation.id);
+    for (const [region, regionSheet] of regionSheets) {
+      const regionPlayers = activePlayers.filter(activePlayer => activePlayer.character.regionId === region.id);
 
-      affiliationPlayers.sort((playerA, playerB) => {
+      regionPlayers.sort((playerA, playerB) => {
         const socialClassCompare = socialClassToRank.get(playerB.character.socialClassName) - socialClassToRank.get(playerA.character.socialClassName);
         if (socialClassCompare === 0) {
           return playerA.character.yearOfMaturity - playerB.character.yearOfMaturity;
@@ -204,28 +208,28 @@ module.exports = {
       })
 
       try {
-        await affiliationSheet.resize({ rowCount: affiliationPlayers.length + 1 });
+        await regionSheet.resize({ rowCount: regionPlayers.length + 1 });
       }
       catch (error) {
-        console.error(`Error resizing ${affiliation.name} sheet:`, error);
+        console.error(`Error resizing ${region.name} sheet:`, error);
       }
-      await affiliationSheet.loadCells()
+      await regionSheet.loadCells()
 
-      for (const [i, player] of affiliationPlayers.entries()) {
-        const socialClassCell = affiliationSheet.getCell(i + 1, 0);
-        const roleCell = affiliationSheet.getCell(i + 1, 1);
-        const nameCell = affiliationSheet.getCell(i + 1, 2);
-        const timezoneCell = affiliationSheet.getCell(i + 1, 3);
-        const commentsCell = affiliationSheet.getCell(i + 1, 4);
-        const pveDeathsCell = affiliationSheet.getCell(i + 1, 5);
-        const yearOfMaturityCell = affiliationSheet.getCell(i + 1, 6);
-        const ageCell = affiliationSheet.getCell(i + 1, 7);
-        const deathRoll1Cell = affiliationSheet.getCell(i + 1, 8);
-        const deathRoll2Cell = affiliationSheet.getCell(i + 1, 9);
-        const deathRoll3Cell = affiliationSheet.getCell(i + 1, 10);
-        const deathRoll4Cell = affiliationSheet.getCell(i + 1, 11);
-        const deathRoll5Cell = affiliationSheet.getCell(i + 1, 12);
-        const snowflakeCell = affiliationSheet.getCell(i + 1, 13);
+      for (const [i, player] of regionPlayers.entries()) {
+        const socialClassCell = regionSheet.getCell(i + 1, 0);
+        const roleCell = regionSheet.getCell(i + 1, 1);
+        const nameCell = regionSheet.getCell(i + 1, 2);
+        const timezoneCell = regionSheet.getCell(i + 1, 3);
+        const commentsCell = regionSheet.getCell(i + 1, 4);
+        const pveDeathsCell = regionSheet.getCell(i + 1, 5);
+        const yearOfMaturityCell = regionSheet.getCell(i + 1, 6);
+        const ageCell = regionSheet.getCell(i + 1, 7);
+        const deathRoll1Cell = regionSheet.getCell(i + 1, 8);
+        const deathRoll2Cell = regionSheet.getCell(i + 1, 9);
+        const deathRoll3Cell = regionSheet.getCell(i + 1, 10);
+        const deathRoll4Cell = regionSheet.getCell(i + 1, 11);
+        const deathRoll5Cell = regionSheet.getCell(i + 1, 12);
+        const snowflakeCell = regionSheet.getCell(i + 1, 13);
 
         socialClassCell.value = player.character.socialClassName;
         roleCell.value = player.character.role === null ? '' : player.character.role;
@@ -234,7 +238,7 @@ module.exports = {
         commentsCell.value = player.character.comments === null ? '' : player.character.comments;
         snowflakeCell.value = player.id
 
-        if (player.character.socialClassName !== 'Commoner' || affiliation.name === 'Wanderer') {
+        if (player.character.socialClassName !== 'Commoner' || region.name === 'Wanderer') {
           pveDeathsCell.value = player.character.pveDeaths;
           yearOfMaturityCell.value = player.character.yearOfMaturity;
           ageCell.value = world.currentYear - player.character.yearOfMaturity;
@@ -310,7 +314,7 @@ module.exports = {
         }
       }
 
-      await affiliationSheet.saveUpdatedCells();
+      await regionSheet.saveUpdatedCells();
     }
 
 
@@ -321,7 +325,10 @@ module.exports = {
       include: {
         model: Characters, as: 'character',
         attributes: ['name', 'yearOfMaturity'],
-        include: { model: Affiliations, as: 'affiliation', attributes: ['name'] }
+        include: [
+          { model: Houses, as: 'house', attributes: ['name'] },
+          { model: Regions, as: 'region', attributes: ['name'] }
+        ]
       },
     })
 
@@ -372,9 +379,8 @@ module.exports = {
       const causeOfDeathCell = deceasedSheet.getCell(i + 1, 4);
       const snowflakeCell = deceasedSheet.getCell(i + 1, 5);
 
-
       nameCell.value = deceased.character.name;
-      affiliationCell.value = deceased.character.affiliation.name;
+      affiliationCell.value = deceased.character.house ? deceased.character.house.name : deceased.character.region.name;
       dateOfDeathCell.value = deceased.dateOfDeath;
       ageOfDeathCell.value = deceased.yearOfDeath - deceased.character.yearOfMaturity;
       causeOfDeathCell.value = deceased.causeOfDeath;

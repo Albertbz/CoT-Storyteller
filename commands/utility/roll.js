@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, subtext, EmbedBuilder, italic, bold } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationships, PlayableChildren } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
@@ -241,7 +241,8 @@ module.exports = {
                 await saveInteraction.editReply({ embeds: [rollChancesEmbed, savingEmbed], components: [] });
 
                 // Save each child to database
-                const affiliationId = relationship.conceivingCharacter.affiliationId;
+                const regionId = relationship.conceivingCharacter.regionId;
+                const houseId = relationship.conceivingCharacter.houseId;
 
                 for (const childType of roll.result) {
                   // Make character for each child
@@ -250,7 +251,8 @@ module.exports = {
                     const result = await addCharacterToDatabase(interactionUser, {
                       name: childType,
                       sex: childType === 'Son' ? 'Male' : 'Female',
-                      affiliationId: affiliationId,
+                      regionId: regionId,
+                      houseId: houseId,
                       socialClassName: relationship.inheritedTitle === 'Noble' ? 'Noble' : 'Notable',
                       yearOfMaturity: world.currentYear + 3,
                       parent1Id: relationship.bearingCharacter.id,
@@ -446,7 +448,8 @@ module.exports = {
                 await saveInteraction.editReply({ embeds: [rollChancesEmbed, savingEmbed], components: [] });
 
                 // Save each child to database
-                const affiliationId = character.affiliationId;
+                const regionId = character.regionId;
+                const houseId = character.houseId;
 
                 for (const childType of roll.result) {
                   // Make character for each child
@@ -455,7 +458,8 @@ module.exports = {
                     const result = await addCharacterToDatabase(interactionUser, {
                       name: childType,
                       sex: childType === 'Son' ? 'Male' : 'Female',
-                      affiliationId: affiliationId,
+                      regionId: regionId,
+                      houseId: houseId,
                       socialClassName: 'Notable',
                       yearOfMaturity: world.currentYear + 3,
                       parent1Id: character.id

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses, Relationships } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Relationships } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase } = require('../../misc.js')
@@ -49,8 +49,14 @@ module.exports = {
         )
         .addStringOption(option =>
           option
-            .setName('affiliation')
-            .setDescription('The affiliation of the character.')
+            .setName('region')
+            .setDescription('The region of the character.')
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('house')
+            .setDescription('The house of the character. If not specified, will be set based on the region.')
             .setAutocomplete(true)
         )
         .addStringOption(option =>
@@ -87,8 +93,14 @@ module.exports = {
         )
         .addStringOption(option =>
           option
-            .setName('affiliation')
-            .setDescription('The affiliation of the character.')
+            .setName('region')
+            .setDescription('The region of the character.')
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('house')
+            .setDescription('The house of the character. If not specified, will be set based on the region.')
             .setAutocomplete(true)
         )
         .addStringOption(option =>
@@ -149,19 +161,32 @@ module.exports = {
   async autocomplete(interaction) {
     let choices;
 
-    // Autocomplete for affiliations, check which option is being autocompleted
+    // Autocomplete for regions, check which option is being autocompleted
     const focusedOption = interaction.options.getFocused(true);
 
-    if (focusedOption.name === 'affiliation') {
+    if (focusedOption.name === 'region') {
       const focusedValue = interaction.options.getFocused();
 
-      const affiliations = await Affiliations.findAll({
-        where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
+      const regions = await Regions.findAll({
+        where: { name: { [Op.startsWith]: focusedValue } },
         attributes: ['name', 'id'],
         limit: 25
       });
 
-      choices = affiliations.map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+      choices = regions.map(region => ({ name: region.name, value: region.id }));
+    }
+
+    // Autocomplete for houses
+    else if (focusedOption.name === 'house') {
+      const focusedValue = interaction.options.getFocused();
+
+      const houses = await Houses.findAll({
+        where: { name: { [Op.startsWith]: focusedValue } },
+        attributes: ['name', 'id'],
+        limit: 25
+      });
+
+      choices = houses.map(house => ({ name: house.name, value: house.id }));;
     }
 
     // Autocomplete for relationships
@@ -191,10 +216,11 @@ module.exports = {
       // For creating the character, if one is to be created for the player
       const name = interaction.options.getString('name');
       const sex = interaction.options.getString('sex');
-      const affiliationId = interaction.options.getString('affiliation');
+      const regionId = interaction.options.getString('region');
+      const houseId = interaction.options.getString('house');
       const socialClassName = interaction.options.getString('socialclass');
 
-      const creatingCharacter = name || sex || affiliationId || socialClassName;
+      const creatingCharacter = name || sex || regionId || houseId || socialClassName;
 
       // Create the player
       try {
@@ -204,7 +230,7 @@ module.exports = {
         if (!creatingCharacter) return interaction.editReply({ embeds: [playerCreatedEmbed], flags: MessageFlags.Ephemeral });
 
         // Create the character if any of the arguments were provided
-        const { character, characterCreatedEmbed } = await addCharacterToDatabase(interaction.user, { name, sex, affiliationId, socialClassName });
+        const { character, characterCreatedEmbed } = await addCharacterToDatabase(interaction.user, { name, sex, regionId, houseId, socialClassName });
         const assignedEmbed = await assignCharacterToPlayer(character.id, player.id, interaction.user);
 
         return interaction.editReply({ embeds: [playerCreatedEmbed, characterCreatedEmbed, assignedEmbed], flags: MessageFlags.Ephemeral });
@@ -217,7 +243,8 @@ module.exports = {
     else if (interaction.options.getSubcommand() === 'character') {
       const name = interaction.options.getString('name');
       const sex = interaction.options.getString('sex');
-      const affiliationId = interaction.options.getString('affiliation');
+      const regionId = interaction.options.getString('region');
+      const houseId = interaction.options.getString('house');
       const socialClassName = interaction.options.getString('socialclass');
 
       const user = interaction.options.getUser('player');
@@ -228,7 +255,7 @@ module.exports = {
 
         let character, characterCreatedEmbed;
         try {
-          const result = await addCharacterToDatabase(interaction.user, { name, sex, affiliationId, socialClassName });
+          const result = await addCharacterToDatabase(interaction.user, { name, sex, regionId, houseId, socialClassName });
           character = result.character;
           characterCreatedEmbed = result.characterCreatedEmbed;
         }

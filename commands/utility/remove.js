@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses, Worlds, PlayableChildren, Relationships } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel, COLORS } = require('../../misc.js');
@@ -36,12 +36,12 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
-        .setName('affiliation')
-        .setDescription('Remove an affiliation.')
+        .setName('region')
+        .setDescription('Remove a region.')
         .addStringOption(option =>
           option
             .setName('name')
-            .setDescription('The name of the affiliation to remove.')
+            .setDescription('The name of the region to remove.')
             .setRequired(true)
             .setAutocomplete(true)
         )
@@ -91,17 +91,17 @@ module.exports = {
       }
     }
 
-    // Handle autocompletes for affiliation subcommand
-    if (subcommand === 'affiliation') {
+    // Handle autocompletes for region subcommand
+    if (subcommand === 'region') {
       const focusedValue = interaction.options.getFocused();
 
-      const affilations = await Affiliations.findAll({
+      const regions = await Regions.findAll({
         where: { name: { [Op.startsWith]: focusedValue } },
         attributes: ['name', 'id'],
         limit: 25
       })
 
-      choices = affilations.map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+      choices = regions.map(region => ({ name: region.name, value: region.id }));
     }
 
     // Handle autocompletes for child subcommand
@@ -210,14 +210,14 @@ module.exports = {
     }
 
     /**
-     * Handle 'affiliation' subcommand
+     * Handle 'region' subcommand
      */
-    if (subcommand === 'affiliation') {
-      const affiliationId = interaction.options.getString('name');
+    if (subcommand === 'region') {
+      const regionId = interaction.options.getString('name');
 
-      toRemove = await Affiliations.findByPk(affiliationId);
-      entityName = `affiliation ${inlineCode(toRemove.name)}`;
-      embedTitle = 'Affiliation Removed';
+      toRemove = await Regions.findByPk(regionId);
+      entityName = `region ${inlineCode(toRemove.name)}`;
+      embedTitle = 'Region Removed';
     }
 
     /**

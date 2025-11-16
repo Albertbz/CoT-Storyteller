@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses, Worlds, PlayableChildren, Relationships } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase } = require('../../misc.js');
@@ -60,8 +60,14 @@ module.exports = {
         )
         .addStringOption(option =>
           option
-            .setName('affiliation_new')
-            .setDescription('The new affiliation.')
+            .setName('region_new')
+            .setDescription('The new region.')
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('house_new')
+            .setDescription('The new house.')
             .setAutocomplete(true)
         )
         .addStringOption(option =>
@@ -130,24 +136,25 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
-        .setName('affiliation')
-        .setDescription('Change something about an affiliation.')
+        .setName('region')
+        .setDescription('Change something about a region.')
         .addStringOption(option =>
           option
             .setName('name')
-            .setDescription('The name of the affiliation to change something about.')
+            .setDescription('The name of the region to change something about.')
             .setRequired(true)
             .setAutocomplete(true)
         )
         .addStringOption(option =>
           option
             .setName('name_new')
-            .setDescription('The new name of the affiliation.')
+            .setDescription('The new name of the region.')
         )
         .addStringOption(option =>
           option
-            .setName('emoji_new')
-            .setDescription('The new name of the emoji for the affiliation.')
+            .setName('rulinghouse_new')
+            .setDescription('The new ruling house of the region.')
+            .setAutocomplete(true)
         )
     )
     .addSubcommand(subcommand =>
@@ -182,8 +189,14 @@ module.exports = {
         )
         .addStringOption(option =>
           option
-            .setName('affiliation_new')
-            .setDescription('The new affiliation of the child.')
+            .setName('region_new')
+            .setDescription('The new region of the child.')
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('house_new')
+            .setDescription('The new house of the child.')
             .setAutocomplete(true)
         )
         .addStringOption(option =>
@@ -272,16 +285,28 @@ module.exports = {
         choices = characters.map(character => ({ name: character.name, value: character.id }));
       }
 
-      if (focusedOption.name === 'affiliation_new') {
+      if (focusedOption.name === 'region_new') {
         const focusedValue = interaction.options.getFocused();
 
-        const affilations = await Affiliations.findAll({
-          where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
+        const regions = await Regions.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
           attributes: ['name', 'id'],
           limit: 25
-        })
+        });
 
-        choices = affilations.map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+        choices = regions.map(region => ({ name: region.name, value: region.id }));
+      }
+
+      if (focusedOption.name === 'house_new') {
+        const focusedValue = interaction.options.getFocused();
+
+        const houses = await Houses.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
+          attributes: ['name', 'id'],
+          limit: 25
+        });
+
+        choices = houses.map(house => ({ name: house.name, value: house.id }));
       }
 
       if (focusedOption.name === 'comments_new') {
@@ -314,17 +339,17 @@ module.exports = {
       }
     }
 
-    // Handle autocompletes for affiliation subcommand
-    if (subcommand === 'affiliation') {
+    // Handle autocompletes for region subcommand
+    if (subcommand === 'region') {
       const focusedValue = interaction.options.getFocused();
 
-      const affilations = await Affiliations.findAll({
+      const regions = await Regions.findAll({
         where: { name: { [Op.startsWith]: focusedValue } },
         attributes: ['name', 'id'],
         limit: 25
       })
 
-      choices = affilations.map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+      choices = regions.map(region => ({ name: region.name, value: region.id }));
     }
 
     // Handle autocompletes for child subcommand
@@ -362,16 +387,27 @@ module.exports = {
         }
         );
       }
-      else if (focusedOption.name === 'affiliation_new') {
+      else if (focusedOption.name === 'region_new') {
         const focusedValue = interaction.options.getFocused();
 
-        const affilations = await Affiliations.findAll({
-          where: { name: { [Op.startsWith]: focusedValue }, [Op.or]: { name: 'Wanderer', isRuling: true } },
+        const regions = await Regions.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
           attributes: ['name', 'id'],
           limit: 25
         })
 
-        choices = affilations.map(affiliation => ({ name: affiliation.name, value: affiliation.id }));
+        choices = regions.map(region => ({ name: region.name, value: region.id }));
+      }
+      else if (focusedOption.name === 'house_new') {
+        const focusedValue = interaction.options.getFocused();
+
+        const houses = await Houses.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
+          attributes: ['name', 'id'],
+          limit: 25
+        });
+
+        choices = houses.map(house => ({ name: house.name, value: house.id }));
       }
       else if (focusedOption.name === 'comments_new') {
         // Get the child to fetch current comments from
@@ -475,7 +511,8 @@ module.exports = {
       const characterId = interaction.options.getString('name');
       const newName = interaction.options.getString('name_new');
       const newSex = interaction.options.getString('sex_new');
-      const newAffiliationId = interaction.options.getString('affiliation_new');
+      const newRegionId = interaction.options.getString('region_new');
+      const newHouseId = interaction.options.getString('house_new');
       const newSocialClassName = interaction.options.getString('socialclass_new');
       const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
       const newPveDeaths = interaction.options.getNumber('pvedeaths_new');
@@ -484,10 +521,7 @@ module.exports = {
       const newComments = interaction.options.getString('comments_new');
       const newIsRollingForBastards = interaction.options.getString('rollingforbastards_new') === 'Yes' ? true : (interaction.options.getString('rollingforbastards_new') === 'No' ? false : null);
 
-      const character = await Characters.findOne({
-        include: { model: Affiliations, as: 'affiliation' },
-        where: { id: characterId }
-      })
+      const character = await Characters.findByPk(characterId);
 
       if (!character) return interaction.editReply({ content: 'The specified character does not exist in the database.', flags: MessageFlags.Ephemeral });
 
@@ -495,7 +529,8 @@ module.exports = {
         const { character: updatedCharacter, characterChangedEmbed } = await changeCharacterInDatabase(interaction.user, character, true, {
           newName: newName,
           newSex: newSex,
-          newAffiliationId: newAffiliationId,
+          newRegionId: newRegionId,
+          newHouseId: newHouseId,
           newSocialClassName: newSocialClassName,
           newYearOfMaturity: newYearOfMaturity,
           newPveDeaths: newPveDeaths,
@@ -534,24 +569,28 @@ module.exports = {
     }
 
     /**
-     * Handle changing affiliation info
+     * Handle changing region info
      */
-    if (subcommand === 'affiliation') {
-      const affilationId = interaction.options.getString('name');
-      const newAffiliationName = interaction.options.getString('name_new');
-      const newEmojiName = interaction.options.getString('emoji_new');
+    if (subcommand === 'region') {
+      const regionId = interaction.options.getString('name');
+      const newRegionName = interaction.options.getString('name_new');
+      const newRulingHouseId = interaction.options.getString('rulinghouse_new');
 
-      if (!(newAffiliationName || newEmojiName)) interaction.editReply({ content: 'Please specify what to change.' });
+      if (!(newRegionName || newEmojiName)) interaction.editReply({ content: 'Please specify what to change.' });
 
-      const affiliation = await Affiliations.findOne({ where: { id: affilationId } });
+      const region = await Regions.findByPk(regionId);
+
+      if (!region) {
+        return interaction.editReply({ content: 'The specified region does not exist in the database.', flags: MessageFlags.Ephemeral });
+      }
 
       const changes = []
 
-      if (newAffiliationName) {
-        const oldAffiliationName = affiliation.name;
-        await affiliation.update({ name: newAffiliationName });
+      if (newRegionName) {
+        const oldRegionName = region.name;
+        await region.update({ name: newRegionName });
 
-        changes.push('Name: ' + inlineCode(oldAffiliationName) + ' -> ' + inlineCode(newAffiliationName));
+        changes.push('Name: ' + inlineCode(oldRegionName) + ' -> ' + inlineCode(newRegionName));
       }
 
       if (newEmojiName) {

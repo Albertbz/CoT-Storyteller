@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags } = require('discord.js');
-const { Players, Characters, Affiliations, Relationships, Deceased, PlayableChildren, Worlds, DeathRollDeaths } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, Recruitments, Relationships, Deceased, PlayableChildren, Worlds, DeathRollDeaths } = require('../../dbObjects.js');
 const { notableOffspringDoc, citizenryRegistryDoc, offspringDoc } = require('../../sheets.js');
 const { Op } = require('sequelize');
 
@@ -55,9 +55,13 @@ module.exports = {
     const houseSheetsRows = new Map();
     console.log('Finished loading spreadsheets.')
 
-    const affiliations = await Affiliations.findAll({ where: { isRuling: true } });
-    for (const affiliation of affiliations) {
-      houseSheetsRows.set(affiliation.name, await citizenryRegistryDoc.sheetsByTitle[affiliation.name].getRows());
+    // Get all regions that are not the wanderer
+    const regions = await Regions.findAll({
+      where: { name: { [Op.not]: 'Wanderer' } },
+      include: [{ model: Houses, as: 'rulingHouse' }]
+    });
+    for (const region of regions) {
+      houseSheetsRows.set(region.rulingHouse.name, await citizenryRegistryDoc.sheetsByTitle[region.rulingHouse.name].getRows());
     }
 
     const members = await interaction.guild.members.fetch();
@@ -122,7 +126,14 @@ module.exports = {
       }
 
       try {
-        const affiliation = await Affiliations.findOne({ where: { name: ageRow.get('Affiliation') } });
+        const house = await Houses.findOne({ where: { name: ageRow.get('Affiliation') } });
+        let region = null;
+        if (house) {
+          region = await Regions.findOne({ where: { rulingHouseId: house.id } });
+        }
+        else {
+          region = await Regions.findOne({ where: { name: 'Wanderer' } });
+        }
 
         if (!isWanderer) {
           const socialClassName = houseRow.get('Social Class');
@@ -146,7 +157,8 @@ module.exports = {
 
           character = await Characters.create({
             name: ageRow.get('Character Name'),
-            affiliationId: affiliation.id,
+            regionId: region.id,
+            houseId: house.id,
             socialClassName: socialClassName,
             pveDeaths: ageRow.get('PvE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
@@ -165,7 +177,8 @@ module.exports = {
 
           character = await Characters.create({
             name: ageRow.get('Character Name'),
-            affiliationId: affiliation.id,
+            regionId: region.id,
+            houseId: house ? house.id : null,
             pveDeaths: ageRow.get('PvE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
             socialClassName: socialClassName,
@@ -264,11 +277,13 @@ module.exports = {
             const role = commonerRow.get('Role') === '' ? undefined : commonerRow.get('Role');
             const comments = commonerRow.get('Comments') === '' ? undefined : commonerRow.get('Comments');
 
-            const affiliation = await Affiliations.findOne({ where: { name: houseName } });
+            const house = await Houses.findOne({ where: { name: houseName } });
+            const region = await Regions.findOne({ where: { rulingHouseId: house.id } });
 
             character = await Characters.create({
               name: commonerRow.get('Character Name'),
-              affiliationId: affiliation.id,
+              regionId: region.id,
+              houseId: house.id,
               role: role,
               comments: comments
             })
@@ -340,15 +355,13 @@ module.exports = {
     console.log('Syncing deceased from houses.')
     for (const deceasedRow of deceasedSheetRows) {
       try {
-        const [affiliation, _] = await Affiliations.findOrCreate({
-          where: { name: deceasedRow.get('Affiliation') }
-        });
+        const [house, _] = await Houses.findOrCreate({ where: { name: deceasedRow.get('Affiliation') } });
 
         const yearOfMaturity = Number(deceasedRow.get('Date of Death').split('\'')[1]) - deceasedRow.get('Age of Death');
 
         const character = await Characters.create({
           name: deceasedRow.get('Character Name'),
-          affiliationId: affiliation.id,
+          houseId: house.id,
           socialClassName: 'Notable',
           yearOfMaturity: yearOfMaturity,
           pveDeaths: 3
@@ -394,13 +407,13 @@ module.exports = {
     console.log('Syncing all dead wanderers.')
     for (const deceasedRow of deceasedWanderersSheetRows) {
       try {
-        const wandererAffiliation = await Affiliations.findOne({ where: { name: 'Wanderer' } });
+        const wandererRegion = await Regions.findOne({ where: { name: 'Wanderer' } });
 
         const yearOfMaturity = Number(deceasedRow.get('Date of Death').split('\'')[1]) - deceasedRow.get('Age of Death');
 
         const character = await Characters.create({
           name: deceasedRow.get('Character Name'),
-          affiliationId: wandererAffiliation.id,
+          regionId: wandererRegion.id,
           socialClassName: 'Commoner',
           yearOfMaturity: yearOfMaturity,
           pveDeaths: 3
@@ -467,9 +480,13 @@ module.exports = {
 
     for (const playableChildRow of playableChildrenRows) {
       try {
-        let affiliation = await Affiliations.findOne({ where: { name: playableChildRow.get('Affiliation') } })
-        if (!affiliation) {
-          affiliation = await Affiliations.findOne({ where: { name: 'Wanderer' } });
+        let house = await Houses.findOne({ where: { name: playableChildRow.get('Affiliation') } });
+        let region = null;
+        if (house) {
+          region = await Regions.findOne({ where: { rulingHouseId: house.id } });
+        }
+        else {
+          region = await Regions.findOne({ where: { name: 'Wanderer' } });
         }
 
         const socialClassName = playableChildRow.get('Inherited title') === 'Noble' ? 'Noble' : 'Notable';
@@ -478,7 +495,8 @@ module.exports = {
           name: playableChildRow.get('Character Name'),
           sex: playableChildRow.get('Sex'),
           yearOfMaturity: playableChildRow.get('Year of Maturity'),
-          affiliationId: affiliation.id,
+          regionId: region.id,
+          houseId: house ? house.id : null,
           socialClassName: socialClassName,
         })
 
@@ -489,7 +507,7 @@ module.exports = {
 
         if (created) {
           console.log('Created parent character, added to deceased as expired child: ' + parentNames[0]);
-          await parent1Character.update({ socialClassName: 'Notable', affiliationId: affiliation.id, yearOfMaturity: world.currentYear });
+          await parent1Character.update({ socialClassName: 'Notable', regionId: region.id, houseId: house.id, yearOfMaturity: world.currentYear });
           await Deceased.create({
             characterId: parent1Character.id,
             causeOfDeath: 'Expired Child',
@@ -510,7 +528,7 @@ module.exports = {
           const [parent2Character, created] = await Characters.findOrCreate({ where: { name: parentNames[1] } });
           if (created) {
             console.log('Created parent character, added to deceased as expired child: ' + parentNames[1]);
-            await parent2Character.update({ socialClassName: 'Notable', affiliationId: affiliation.id, yearOfMaturity: world.currentYear });
+            await parent2Character.update({ socialClassName: 'Notable', regionId: region.id, houseId: house.id, yearOfMaturity: world.currentYear });
             await Deceased.create({
               characterId: parent2Character.id,
               causeOfDeath: 'Expired Child',

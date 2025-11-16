@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, subtext, EmbedBuilder, WorkerContextFetchingStrategy, italic, bold, spoiler } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
@@ -346,17 +346,21 @@ module.exports = {
 
                     for (const childType of offspringResult.rolls) {
                       // Make the character
-                      let affiliationId = (await Affiliations.findOne({ where: { name: 'Wanderer' } })).id;
+                      const wandererRegion = await Regions.findOne({ where: { name: 'Wanderer' } });
+                      let regionId = wandererRegion.id;
+                      let houseId = null;
 
                       if (offspringResult.relationship) {
-                        // By default takes the affiliation of the conceiving parent
-                        affiliationId = offspringResult.relationship.conceivingCharacter.affiliationId;
+                        // By default takes the region and house of the conceiving parent
+                        regionId = offspringResult.relationship.conceivingCharacter.regionId;
+                        houseId = offspringResult.relationship.conceivingCharacter.houseId;
                       }
 
                       const { character: childCharacter, _ } = await addCharacterToDatabase(interactionUser, {
                         name: childType,
                         sex: childType === 'Son' ? 'Male' : 'Female',
-                        affiliationId: affiliationId,
+                        regionId: regionId,
+                        houseId: houseId,
                         socialClassName: offspringResult.relationship ? (offspringResult.relationship.inheritedTitle === 'Noble' ? 'Noble' : 'Notable') : 'Notable',
                         yearOfMaturity: world.currentYear + 3,
                         parent1Id: offspringResult.relationship ? offspringResult.relationship.bearingCharacter.id : bearingCharacter.id,
@@ -497,12 +501,13 @@ module.exports = {
                   if (resultInteraction.customId === 'continue') {
                     if (successfulRoll) {
                       for (const childRoll of rollRes) {
-                        let affiliationId = (await Affiliations.findOne({ where: { name: 'Wanderer' } })).id;
+                        const wandererRegion = await Regions.findOne({ where: { name: 'Wanderer' } });
+                        let regionId = wandererRegion.id;
 
                         const { character: childCharacter } = await addCharacterToDatabase(interactionUser, {
                           name: childRoll,
                           sex: childRoll === 'Son' ? 'Male' : 'Female',
-                          affiliationId: affiliationId,
+                          regionId: regionId,
                           socialClassName: 'Notable',
                           yearOfMaturity: world.currentYear + 3,
                           parent1Id: character.id
@@ -588,11 +593,11 @@ module.exports = {
       const nextYear = world.currentYear + 1;
 
       // Get all characters that are eligible for death rolls
-      // Eligible if: age > 3, not commoner (if not wanderer affiliation), 
+      // Eligible if: age > 3, not commoner (if not wanderer region), 
       // not in Deceased table, and not a playable child
       const characters = await Characters.findAll({
         include: [
-          { model: Affiliations, as: 'affiliation' },
+          { model: Regions, as: 'region' },
           { model: SocialClasses, as: 'socialClass' }
         ]
       });
@@ -603,7 +608,7 @@ module.exports = {
       const eligibleCharacters = characters.filter(character => {
         const age = nextYear - character.yearOfMaturity;
         const isCommoner = character.socialClass.name === 'Commoner';
-        const isWanderer = character.affiliation.name === 'Wanderer';
+        const isWanderer = character.region.name === 'Wanderer';
         return age > 3 && (isWanderer || !isCommoner) && !deceasedCharacters.some(deceased => deceased.characterId === character.id) && !playableChildren.some(child => child.characterId === character.id);
       });
 

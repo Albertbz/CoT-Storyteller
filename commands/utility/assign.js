@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses, Worlds } = require('../../dbObjects.js');
+const { Players, Characters, SocialClasses, Worlds } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel, assignCharacterToPlayer } = require('../../misc.js');

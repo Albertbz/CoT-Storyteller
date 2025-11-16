@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, time, TimestampStyles, strikethrough, hyperlink, bold, italic, inlineCode, userMention, EmbedBuilder } = require("discord.js");
 const { channels, roles } = require('../../configs/ids.json');
-const { Affiliations } = require("../../dbObjects.js");
+const { Regions, Recruitments, Houses } = require("../../dbObjects.js");
 const { Op } = require('sequelize');
 const { postInLogChannel } = require('../../misc.js')
 
@@ -16,8 +16,8 @@ module.exports = {
         .setDescription('Update the recruitment post.')
         .addStringOption(option =>
           option
-            .setName('house')
-            .setDescription('The House to update the recruitment of.')
+            .setName('region')
+            .setDescription('The Region to update the recruitment of.')
             .setRequired(true)
             .setAutocomplete(true)
         )
@@ -96,12 +96,13 @@ module.exports = {
   async autocomplete(interaction) {
     const focusedValue = interaction.options.getFocused();
 
-    const affilations = await Affiliations.findAll({
-      where: { name: { [Op.startsWith]: focusedValue }, isRuling: true },
-      attributes: ['name']
+    const regions = await Regions.findAll({
+      where: { name: { [Op.startsWith]: focusedValue } },
+      attributes: ['name'],
+      limit: 25
     })
 
-    choices = affilations.splice(0, 25).map(affiliation => ({ name: affiliation.name, value: affiliation.name }));
+    choices = regions.map(region => ({ name: region.name, value: region.id }));
 
     await interaction.respond(choices);
   },
@@ -109,7 +110,7 @@ module.exports = {
     if (interaction.options.getSubcommand() === 'recruitment') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      const houseName = interaction.options.getString('house');
+      const regionId = interaction.options.getString('region');
       const state = interaction.options.getString('state');
       const role1 = interaction.options.getString('role1');
       const role2 = interaction.options.getString('role2');
@@ -125,16 +126,16 @@ module.exports = {
         const recruitmentPost = posts.find((post) => post.name === 'House Recruitment');
         const recruitmentPostExists = recruitmentPost != undefined;
 
-        const updatedAffiliation = await Affiliations.findOne({
-          where: { name: houseName }
-        });
+        const region = await Regions.findByPk(regionId);
+        const rulingHouse = await region.getRulingHouse();
+        const recruitment = await region.getRecruitment();
 
         let updatedFields = []
 
         // Update the specific house recruitment info in the database
         if (state) {
-          const oldState = updatedAffiliation.state;
-          await updatedAffiliation.update({
+          const oldState = recruitment.state;
+          await recruitment.update({
             state: state
           })
           updatedFields.push({
@@ -144,8 +145,8 @@ module.exports = {
           })
         }
         if (role1) {
-          const oldRole1 = updatedAffiliation.role1;
-          await updatedAffiliation.update({
+          const oldRole1 = recruitment.role1;
+          await recruitment.update({
             role1: role1
           })
           updatedFields.push({
@@ -155,8 +156,8 @@ module.exports = {
           })
         }
         if (role2) {
-          const oldRole2 = updatedAffiliation.role2;
-          await updatedAffiliation.update({
+          const oldRole2 = recruitment.role2;
+          await recruitment.update({
             role2: role2
           })
           updatedFields.push({
@@ -166,8 +167,8 @@ module.exports = {
           })
         }
         if (role3) {
-          const oldRole3 = updatedAffiliation.role3;
-          await updatedAffiliation.update({
+          const oldRole3 = recruitment.role3;
+          await recruitment.update({
             role3: role3
           })
           updatedFields.push({
@@ -182,14 +183,21 @@ module.exports = {
         const descriptionText = italic('For new players joining, please prioritize the houses in need in order to ensure fun for everyone.');
         const overviewLink = '## ' + hyperlink('Detailed Roster Overview', '<https://docs.google.com/spreadsheets/d/1vPk2oXTCj5I6gMtMKNL6LpmL-qFX5LqM2J5oQHK-ZSo/edit?usp=sharing>');
 
-        // Get all affiliations with their recruitment info
-        const houses = await Affiliations.findAll({
-          where: { isRuling: true }
-        })
+        // Get all regions with their recruitment info, excluding Wanderer
+        const regions = await Regions.findAll({
+          where: {
+            name: { [Op.ne]: 'Wanderer' }
+          },
+          include: [
+            { model: Recruitments, as: 'recruitment' },
+            { model: Houses, as: 'rulingHouse' }
+          ]
+        });
 
         const guildEmojis = await interaction.guild.emojis.fetch();
         let housesText = ''
-        houses.forEach(house => {
+        regions.forEach(region => {
+          const house = region.rulingHouse;
           const houseEmoji = guildEmojis.find(emoji => emoji.name === house.emojiName);
           const houseText = houseEmoji.toString() + bold('House ' + house.name) + houseEmoji.toString();
           let rolesText = 'Need: ' + house.role1 + ', ' + house.role2 + ', ' + house.role3;
@@ -260,11 +268,11 @@ module.exports = {
         await postInLogChannel(
           'Recruitment Post Updated',
           '**Updated by: ' + userMention(interaction.user.id) + '**\n\n' +
-          '**House ' + updatedAffiliation.name + '**:\n' +
+          '**House ' + rulingHouse.name + '**:\n' +
           updatedFieldsText,
           0xD98C00
         );
-        return interaction.editReply({ content: 'Updated the recruitment post for House ' + updatedAffiliation.name + ': \n' + updatedFieldsText, flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ content: 'Updated the recruitment post for House ' + rulingHouse.name + ': \n' + updatedFieldsText, flags: MessageFlags.Ephemeral });
       }
       catch (error) {
         console.log(error);

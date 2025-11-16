@@ -16,7 +16,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       defaultValue: 'Undefined',
     },
-    affiliationId: {
+    regionId: {
+      type: DataTypes.UUID,
+    },
+    houseId: {
       type: DataTypes.UUID,
     },
     socialClassName: {
@@ -71,7 +74,8 @@ module.exports = (sequelize, DataTypes) => {
     logInfo: {
       type: DataTypes.VIRTUAL,
       async get() {
-        const affiliation = await this.getAffiliation();
+        const region = await this.getRegion();
+        const house = await this.getHouse();
         const parent1 = await this.getParent1();
         const parent2 = await this.getParent2();
         return (
@@ -79,7 +83,8 @@ module.exports = (sequelize, DataTypes) => {
           `\n` +
           `name: \`${this.name}\`\n` +
           `sex: \`${this.sex}\`\n` +
-          `affiliation: ${affiliation ? `\`${affiliation.name}\` (\`${this.affiliationId}\`)` : '`-`'}\n` +
+          `region: ${region ? `\`${region.name}\` (\`${this.regionId}\`)` : '`-`'}\n` +
+          `house: ${house ? `\`${house.name}\` (\`${this.houseId}\`)` : '`-`'}\n` +
           `socialClass: \`${this.socialClassName}\`\n` +
           `yearOfMaturity: \`${this.yearOfMaturity}\`\n` +
           `role: \`${this.role ? this.role : '-'}\`\n` +
@@ -102,18 +107,20 @@ module.exports = (sequelize, DataTypes) => {
     formattedInfo: {
       type: DataTypes.VIRTUAL,
       async get() {
-        const affiliation = await this.getAffiliation();
+        const region = await this.getRegion();
+        const house = await this.getHouse();
 
         const generalInfo = (
           `**Name:** ${this.name}\n` +
           // `**Sex:** ${this.sex}\n` +
-          `**Affiliation:** ${affiliation ? affiliation.name : `-`}\n` +
+          `**Region:** ${region ? region.name : `-`}\n` +
+          `**House:** ${house ? house.name : `-`}\n` +
           `**Social Class:** ${this.socialClassName}\n` +
           `**Role:** ${this.role ? this.role : '-'}\n` +
           `**Comments:** ${this.comments ? this.comments : '-'}`);
 
         // Show all info for non-commoners and wanderers
-        if (this.socialClassName !== 'Commoner' || affiliation.name === 'Wanderer') {
+        if (this.socialClassName !== 'Commoner' || region.name === 'Wanderer') {
           const infoList = [generalInfo];
 
           const agingInfo = (

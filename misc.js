@@ -1,5 +1,5 @@
 const { EmbedBuilder, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, Affiliations, SocialClasses, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
 const { roles, channels, guilds } = require('./configs/ids.json');
 const { Op } = require('sequelize');
 
@@ -54,7 +54,7 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
   }
 }
 
-async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = undefined, affiliationId = null, socialClassName = 'Commoner', yearOfMaturity = null, parent1Id = null, parent2Id = null } = {}) {
+async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = undefined, regionId = null, houseId = null, socialClassName = 'Commoner', yearOfMaturity = null, parent1Id = null, parent2Id = null } = {}) {
   // storyteller is required
   if (!storyteller) {
     throw new Error('storyteller is required');
@@ -68,9 +68,15 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
   sex = sex === null ? undefined : sex;
   yearOfMaturity = yearOfMaturity === null ? world.currentYear : yearOfMaturity;
 
-  if (affiliationId === null || affiliationId === undefined) {
-    const wandererAffiliation = await Affiliations.findOne({ where: { name: 'Wanderer' } });
-    affiliationId = wandererAffiliation.id;
+  const wandererRegion = await Regions.findOne({ where: { name: 'Wanderer' } });
+  if (regionId === null) {
+    regionId = wandererRegion.id;
+  }
+  if (houseId === null) {
+    if (regionId !== wandererRegion.id) {
+      const rulingHouse = await Houses.findOne({ where: { id: (await Regions.findByPk(regionId)).rulingHouseId } });
+      houseId = rulingHouse.id;
+    }
   }
 
   const existsWithName = await Characters.findOne({ where: { name: name } });
@@ -87,7 +93,8 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
     const character = await Characters.create({
       name: name,
       sex: sex,
-      affiliationId: affiliationId,
+      regionId: regionId,
+      houseId: houseId,
       socialClassName: socialClassName,
       yearOfMaturity: yearOfMaturity,
       parent1Id: parent1Id,
@@ -335,15 +342,15 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       await playableChild.destroy();
     }
 
-    // Assign roles based on affiliation and social class
+    // Assign roles based on region and social class
     try {
-      const affiliation = await character.getAffiliation();
-      await member.roles.add(affiliation.roleId);
+      const region = await character.getRegion();
+      await member.roles.add(region.roleId);
     }
     catch (error) {
-      console.log('Failed to assign affiliation role: ' + error);
+      console.log('Failed to assign region role: ' + error);
       await player.setCharacter(null);
-      throw new Error('Failed to assign affiliation role. Is the character set to a non-ruling house?');
+      throw new Error('Failed to assign region role. Assignment aborted.');
     }
 
     const socialClass = await character.getSocialClass();
@@ -458,7 +465,7 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
 
 // Changes the provided values of a character and posts the change to the log
 // channel using postInLogChannel.
-async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newAffiliationId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newSteelbearerState = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null } = {}) {
+async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newRegionId = null, newHouseId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newSteelbearerState = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null } = {}) {
   let newValues = {};
   let oldValues = {};
 
@@ -466,7 +473,8 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   // Save all old and new values for the values that are changing
   if (newName !== null && newName !== character.name) newValues.name = newName; oldValues.name = character.name;
   if (newSex !== null && newSex !== character.sex) newValues.sex = newSex; oldValues.sex = character.sex;
-  if (newAffiliationId !== null && newAffiliationId !== character.affiliationId) newValues.affiliationId = newAffiliationId; oldValues.affiliationId = character.affiliationId;
+  if (newRegionId !== null && newRegionId !== character.regionId) newValues.regionId = newRegionId; oldValues.regionId = character.regionId;
+  if (newHouseId !== null && newHouseId !== character.houseId) newValues.houseId = newHouseId; oldValues.houseId = character.houseId;
   if (newSocialClassName !== null && newSocialClassName !== character.socialClassName) newValues.socialClassName = newSocialClassName; oldValues.socialClassName = character.socialClassName;
   if (newYearOfMaturity !== null && newYearOfMaturity !== character.yearOfMaturity) newValues.yearOfMaturity = newYearOfMaturity; oldValues.yearOfMaturity = character.yearOfMaturity;
   if (newRole !== null && newRole !== character.role) newValues.role = newRole; oldValues.role = character.role;
@@ -517,10 +525,10 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
       }
     }
 
-    // Get all steelbearers of the character's affiliation
-    const steelbearersInAffiliation = await Characters.findAll({
+    // Get all steelbearers of the character's region
+    const steelbearersInRegion = await Characters.findAll({
       where: {
-        affiliationId: character.affiliationId,
+        regionId: character.regionId,
         steelbearerState: {
           [Op.not]: 'None'
         },
@@ -531,16 +539,16 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
     });
 
     // Get amount of steelbearers of same type
-    const sameTypeSteelbearers = steelbearersInAffiliation.filter(s => s.steelbearerState === newValues.steelbearerState);
+    const sameTypeSteelbearers = steelbearersInRegion.filter(s => s.steelbearerState === newValues.steelbearerState);
 
     if (newValues.steelbearerState === 'Ruler' && sameTypeSteelbearers.length >= 1) {
-      throw new Error('There is already a Ruler steelbearer in this affiliation.');
+      throw new Error('There is already a Ruler steelbearer in this region.');
     }
     else if (newValues.steelbearerState === 'General-purpose' && sameTypeSteelbearers.length >= 3) {
-      throw new Error('There are already 3 General-purpose steelbearers in this affiliation.');
+      throw new Error('There are already 3 General-purpose steelbearers in this region.');
     }
     else if (newValues.steelbearerState === 'Duchy' && sameTypeSteelbearers.length >= 3) {
-      throw new Error('There are already 3 Duchy steelbearers in this affiliation.');
+      throw new Error('There are already 3 Duchy steelbearers in this region.');
     }
   }
 
@@ -554,8 +562,8 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
     }
   }
 
-  // If changing affiliation, make sure steelbearer is removed
-  if (newValues.affiliationId) {
+  // If changing region, make sure steelbearer is removed
+  if (newValues.regionId) {
     if (character.steelbearerState !== 'None' &&
       !(newValues.steelbearerState && newValues.steelbearerState === 'None')) {
       newValues.steelbearerState = 'None';
@@ -582,11 +590,18 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
         formattedInfoChanges.push({ key: '**Sex**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
         break;
       }
-      case 'affiliationId': {
-        const oldAffiliation = await Affiliations.findByPk(oldValue);
-        const newAffiliation = await Affiliations.findByPk(newValue);
-        logInfoChanges.push({ key: 'affiliation', oldValue: oldAffiliation ? inlineCode(oldAffiliation.name) + ' (' + inlineCode(oldAffiliation.id) + ')' : '-', newValue: newAffiliation ? inlineCode(newAffiliation.name) + ' (' + inlineCode(newAffiliation.id) + ')' : inlineCode('-') });
-        formattedInfoChanges.push({ key: '**Affiliation**', oldValue: oldAffiliation ? oldAffiliation.name : '-', newValue: newAffiliation ? newAffiliation.name : '-' });
+      case 'regionId': {
+        const oldRegion = await Regions.findByPk(oldValue);
+        const newRegion = await Regions.findByPk(newValue);
+        logInfoChanges.push({ key: 'region', oldValue: oldRegion ? inlineCode(oldRegion.name) + ' (' + inlineCode(oldRegion.id) + ')' : '-', newValue: newRegion ? inlineCode(newRegion.name) + ' (' + inlineCode(newRegion.id) + ')' : inlineCode('-') });
+        formattedInfoChanges.push({ key: '**Region**', oldValue: oldRegion ? oldRegion.name : '-', newValue: newRegion ? newRegion.name : '-' });
+        break;
+      }
+      case 'houseId': {
+        const oldHouse = await Houses.findByPk(oldValue);
+        const newHouse = await Houses.findByPk(newValue);
+        logInfoChanges.push({ key: 'house', oldValue: oldHouse ? inlineCode(oldHouse.name) + ' (' + inlineCode(oldHouse.id) + ')' : inlineCode('-'), newValue: newHouse ? inlineCode(newHouse.name) + ' (' + inlineCode(newHouse.id) + ')' : inlineCode('-') });
+        formattedInfoChanges.push({ key: '**House**', oldValue: oldHouse ? oldHouse.name : '-', newValue: newHouse ? newHouse.name : '-' });
         break;
       }
       case 'socialClassName': {
@@ -629,8 +644,8 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
         break;
       }
       case 'isRollingForBastards': {
-        logInfoChanges.push({ key: 'isRollingForBastards', oldValue: inlineCode(oldValue ? 'Yes' : 'No'), newValue: inlineCode(newValue) });
-        formattedInfoChanges.push({ key: '**Rolling for Bastards**', oldValue: oldValue, newValue: newValue });
+        logInfoChanges.push({ key: 'isRollingForBastards', oldValue: inlineCode(oldValue ? 'Yes' : 'No'), newValue: inlineCode(newValue ? 'Yes' : 'No') });
+        formattedInfoChanges.push({ key: '**Rolling for Bastards**', oldValue: oldValue ? 'Yes' : 'No', newValue: newValue ? 'Yes' : 'No' });
         break;
       }
       case 'steelbearerState': {
@@ -766,7 +781,7 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
 }
 
 
-// Syncs a Discord member's roles based on their character's affiliation and social class
+// Syncs a Discord member's roles based on their character's region and social class
 async function syncMemberRolesWithCharacter(player, character) {
   const guild = await client.guilds.fetch(guilds.cot);
   const member = await guild.members.fetch(player.id);
@@ -781,25 +796,25 @@ async function syncMemberRolesWithCharacter(player, character) {
   let rolesToAdd = [];
   let rolesToRemove = [];
 
-  // Affiliation roles
+  // Region roles
   try {
-    const currentAffiliation = await character.getAffiliation();
-    const allOtherAffiliations = await Affiliations.findAll({ where: { id: { [Op.not]: currentAffiliation.id } } });
-    // Remove all other affiliation roles
-    for (const otherAffiliation of allOtherAffiliations) {
-      if (otherAffiliation.roleId && member.roles.cache.has(otherAffiliation.roleId)) {
-        rolesToRemove.push(otherAffiliation.roleId);
+    const currentRegion = await character.getRegion();
+    const allOtherRegions = await Regions.findAll({ where: { id: { [Op.not]: currentRegion.id } } });
+    // Remove all other region roles
+    for (const otherRegion of allOtherRegions) {
+      if (otherRegion.roleId && member.roles.cache.has(otherRegion.roleId)) {
+        rolesToRemove.push(otherRegion.roleId);
       }
     }
-    // Add current affiliation role if they don't have it
-    if (currentAffiliation && currentAffiliation.roleId) {
-      if (!member.roles.cache.has(currentAffiliation.roleId)) {
-        rolesToAdd.push(currentAffiliation.roleId);
+    // Add current region role if they don't have it
+    if (currentRegion && currentRegion.roleId) {
+      if (!member.roles.cache.has(currentRegion.roleId)) {
+        rolesToAdd.push(currentRegion.roleId);
       }
     }
   }
   catch (error) {
-    console.log('Failed to assign affiliation role: ' + error);
+    console.log('Failed to assign region role: ' + error);
     return false;
   }
 
