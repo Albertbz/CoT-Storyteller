@@ -88,21 +88,16 @@ module.exports = {
     try {
 
       let playerId = null;
-      let member = null;
-      let player = null;
       if (!user) {
-        player = await Players.findOne({ where: { characterId: characterId } })
+        const player = await Players.findOne({ where: { characterId: characterId } })
         if (!player) return interaction.editReply({ content: 'Could not automatically find the player that played the character. Please specify them manually.', flags: MessageFlags.Ephemeral });
         playerId = player.id;
-        member = await interaction.guild.members.fetch(playerId);
       }
       else {
         playerId = user.id
       }
 
-      const character = await Characters.findOne({ where: { id: characterId } });
-
-      const { deceased, deceasedCreatedEmbed } = await addDeceasedToDatabase(interaction.user, true, {
+      const { deceased, embed: deceasedCreatedEmbed } = await addDeceasedToDatabase(interaction.user, true, {
         characterId: characterId,
         yearOfDeath: year,
         monthOfDeath: month,
@@ -114,6 +109,7 @@ module.exports = {
       return interaction.editReply({ embeds: [deceasedCreatedEmbed], flags: MessageFlags.Ephemeral })
     }
     catch (error) {
+      console.log(error);
       return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
     }
   }

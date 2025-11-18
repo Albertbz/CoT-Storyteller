@@ -127,12 +127,12 @@ module.exports = (sequelize, DataTypes) => {
             `### Aging Info\n` +
             `**Year of Maturity:** ${this.yearOfMaturity}\n` +
             `**PvE Deaths:** ${this.pveDeaths}\n` +
-            `**Death rolls:**\n` +
-            `- Age 4: ${this.deathRoll1 ? `${this.deathRoll1} (${this.deathRoll1 < 6 ? `:x:` : `:white_check_mark:`})` : `-`} \n` +
-            `- Age 5: ${this.deathRoll2 ? `${this.deathRoll2} (${this.deathRoll2 < 26 ? `:x:` : `:white_check_mark:`})` : `-`} \n` +
-            `- Age 6: ${this.deathRoll3 ? `${this.deathRoll3} (${this.deathRoll3 < 51 ? `:x:` : `:white_check_mark:`})` : `-`} \n` +
-            `- Age 7: ${this.deathRoll4 ? `${this.deathRoll4} (${this.deathRoll4 < 76 ? `:x:` : `:white_check_mark:`})` : `-`} \n` +
-            `- Age 8+: ${this.deathRoll5 ? `${this.deathRoll5} (${this.deathRoll5 < 91 ? `:x:` : `:white_check_mark:`})` : `-`}`
+            `**Death rolls:**` +
+            (this.deathRoll1 ? (`\n- Age 4: ${this.deathRoll1 ? `${this.deathRoll1} (${this.deathRoll1 < 6 ? `:x:` : `:white_check_mark:`})` : `-`}`) : ` None`) +
+            (this.deathRoll2 ? (`\n- Age 5: ${this.deathRoll2 ? `${this.deathRoll2} (${this.deathRoll2 < 26 ? `:x:` : `:white_check_mark:`})` : `-`}`) : ``) +
+            (this.deathRoll3 ? (`\n- Age 6: ${this.deathRoll3 ? `${this.deathRoll3} (${this.deathRoll3 < 51 ? `:x:` : `:white_check_mark:`})` : `-`}`) : ``) +
+            (this.deathRoll4 ? (`\n- Age 7: ${this.deathRoll4 ? `${this.deathRoll4} (${this.deathRoll4 < 76 ? `:x:` : `:white_check_mark:`})` : `-`}`) : ``) +
+            (this.deathRoll5 ? (`\n- Age 8+: ${this.deathRoll5 ? `${this.deathRoll5} (${this.deathRoll5 < 91 ? `:x:` : `:white_check_mark:`})` : `-`}`) : ``)
           );
           infoList.push(agingInfo);
 

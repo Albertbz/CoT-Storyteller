@@ -2,7 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, time, Timesta
 const { channels, roles } = require('../../configs/ids.json');
 const { Regions, Recruitments, Houses } = require("../../dbObjects.js");
 const { Op } = require('sequelize');
-const { postInLogChannel } = require('../../misc.js')
+const { postInLogChannel, COLORS } = require('../../misc.js')
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -270,7 +270,7 @@ module.exports = {
           '**Updated by: ' + userMention(interaction.user.id) + '**\n\n' +
           '**House ' + rulingHouse.name + '**:\n' +
           updatedFieldsText,
-          0xD98C00
+          COLORS.ORANGE
         );
         return interaction.editReply({ content: 'Updated the recruitment post for House ' + rulingHouse.name + ': \n' + updatedFieldsText, flags: MessageFlags.Ephemeral });
       }

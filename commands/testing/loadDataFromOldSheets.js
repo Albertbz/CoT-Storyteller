@@ -355,13 +355,27 @@ module.exports = {
     console.log('Syncing deceased from houses.')
     for (const deceasedRow of deceasedSheetRows) {
       try {
-        const [house, _] = await Houses.findOrCreate({ where: { name: deceasedRow.get('Affiliation') } });
+        let regionId = null;
+        let houseId = null;
+        // Check whether house exists or is wanderer
+        const houseName = deceasedRow.get('Affiliation');
+        const wandererRegion = await Regions.findOne({ where: { name: 'Wanderer' } });
+        if (houseName === 'Wanderer') {
+          regionId = wandererRegion.id;
+        }
+        else {
+          const [house, _] = await Houses.findOrCreate({ where: { name: deceasedRow.get('Affiliation') } });
+          houseId = house.id;
+          const region = await Regions.findOne({ where: { rulingHouseId: house.id } });
+          regionId = region ? region.id : wandererRegion.id;
+        }
 
         const yearOfMaturity = Number(deceasedRow.get('Date of Death').split('\'')[1]) - deceasedRow.get('Age of Death');
 
         const character = await Characters.create({
           name: deceasedRow.get('Character Name'),
-          houseId: house.id,
+          houseId: houseId,
+          regionId: regionId,
           socialClassName: 'Notable',
           yearOfMaturity: yearOfMaturity,
           pveDeaths: 3
@@ -507,7 +521,7 @@ module.exports = {
 
         if (created) {
           console.log('Created parent character, added to deceased as expired child: ' + parentNames[0]);
-          await parent1Character.update({ socialClassName: 'Notable', regionId: region.id, houseId: house.id, yearOfMaturity: world.currentYear });
+          await parent1Character.update({ socialClassName: 'Notable', regionId: region.id, houseId: house ? house.id : null, yearOfMaturity: world.currentYear });
           await Deceased.create({
             characterId: parent1Character.id,
             causeOfDeath: 'Expired Child',

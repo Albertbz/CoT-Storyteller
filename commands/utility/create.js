@@ -211,7 +211,12 @@ module.exports = {
       // For creating the player
       const user = interaction.options.getUser('user');
       const ign = interaction.options.getString('ign');
-      const timezone = interaction.options.getString('timezone') ?? undefined;
+      const timezone = interaction.options.getString('timezone');
+
+      let givenPlayerValues = {};
+      if (user) givenPlayerValues.id = user.id;
+      if (ign) givenPlayerValues.ign = ign;
+      if (timezone) givenPlayerValues.timezone = timezone;
 
       // For creating the character, if one is to be created for the player
       const name = interaction.options.getString('name');
@@ -220,17 +225,31 @@ module.exports = {
       const houseId = interaction.options.getString('house');
       const socialClassName = interaction.options.getString('socialclass');
 
-      const creatingCharacter = name || sex || regionId || houseId || socialClassName;
+      let givenCharacterValues = {};
+      if (name) givenCharacterValues.name = name;
+      if (sex) givenCharacterValues.sex = sex;
+      if (regionId) givenCharacterValues.regionId = regionId;
+      if (houseId) givenCharacterValues.houseId = houseId;
+      if (socialClassName) givenCharacterValues.socialClassName = socialClassName;
 
       // Create the player
       try {
-        const { player, playerCreatedEmbed } = await addPlayerToDatabase(user.id, ign, timezone, interaction.user);
+        const { player, embed: playerCreatedEmbed } = await addPlayerToDatabase(interaction.user, givenPlayerValues);
+
+        // If something went wrong with creating the player, finish here
+        if (!player) return interaction.editReply({ embeds: [playerCreatedEmbed], flags: MessageFlags.Ephemeral });
 
         // If not creating a character, finish here
-        if (!creatingCharacter) return interaction.editReply({ embeds: [playerCreatedEmbed], flags: MessageFlags.Ephemeral });
+        const isCreatingCharacter = Object.keys(givenCharacterValues).length > 0;
+        if (!isCreatingCharacter) return interaction.editReply({ embeds: [playerCreatedEmbed], flags: MessageFlags.Ephemeral });
 
         // Create the character if any of the arguments were provided
-        const { character, characterCreatedEmbed } = await addCharacterToDatabase(interaction.user, { name, sex, regionId, houseId, socialClassName });
+        const { character, embed: characterCreatedEmbed } = await addCharacterToDatabase(interaction.user, givenCharacterValues);
+
+        // If something went wrong with creating the character, finish here
+        if (!character) return interaction.editReply({ embeds: [playerCreatedEmbed, characterCreatedEmbed], flags: MessageFlags.Ephemeral });
+
+        // And lastly assign the character to the player
         const assignedEmbed = await assignCharacterToPlayer(character.id, player.id, interaction.user);
 
         return interaction.editReply({ embeds: [playerCreatedEmbed, characterCreatedEmbed, assignedEmbed], flags: MessageFlags.Ephemeral });
@@ -247,6 +266,13 @@ module.exports = {
       const houseId = interaction.options.getString('house');
       const socialClassName = interaction.options.getString('socialclass');
 
+      let givenValues = {}
+      if (name) givenValues.name = name;
+      if (sex) givenValues.sex = sex;
+      if (regionId) givenValues.regionId = regionId;
+      if (houseId) givenValues.houseId = houseId;
+      if (socialClassName) givenValues.socialClassName = socialClassName;
+
       const user = interaction.options.getUser('player');
 
       const linkToUser = user !== null;
@@ -255,15 +281,18 @@ module.exports = {
 
         let character, characterCreatedEmbed;
         try {
-          const result = await addCharacterToDatabase(interaction.user, { name, sex, regionId, houseId, socialClassName });
+          const result = await addCharacterToDatabase(interaction.user, givenValues);
           character = result.character;
-          characterCreatedEmbed = result.characterCreatedEmbed;
+          characterCreatedEmbed = result.embed;
+          // If something went wrong with creating the character, finish here
+          if (!character) return interaction.editReply({ embeds: [characterCreatedEmbed], flags: MessageFlags.Ephemeral });
         }
         catch (error) {
+          console.log(error);
           return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
         }
 
-
+        // If not linking to a user, finish here
         if (!linkToUser) return interaction.editReply({ embeds: [characterCreatedEmbed], flags: MessageFlags.Ephemeral });
 
         try {
@@ -271,26 +300,33 @@ module.exports = {
           return interaction.editReply({ embeds: [characterCreatedEmbed, assignedEmbed], flags: MessageFlags.Ephemeral })
         }
         catch (error) {
-          return interaction.editReply({ content: error.message, embeds: [characterCreatedEmbed], flags: MessageFlags.Ephemeral })
+          console.log(error);
+          return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral })
         }
       }
       catch (error) {
         console.log(error);
-        return interaction.editReply({ content: 'Something went wrong. Please let Albert know and tell him what you were doing.', flags: MessageFlags.Ephemeral })
+        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral })
       }
     }
     else if (interaction.options.getSubcommand() === 'relationship') {
       const bearingCharacterId = interaction.options.getString('bearingcharacter');
       const conceivingCharacterId = interaction.options.getString('conceivingcharacter');
-      const committed = interaction.options.getString('committed') === 'Yes';
-      const inheritedTitle = interaction.options.getString('inheritedtitle') ?? 'None';
+      const isCommitted = interaction.options.getString('committed');
+      const inheritedTitle = interaction.options.getString('inheritedtitle');
+
+      let givenValues = {};
+      if (bearingCharacterId) givenValues.bearingCharacterId = bearingCharacterId;
+      if (conceivingCharacterId) givenValues.conceivingCharacterId = conceivingCharacterId;
+      if (isCommitted) givenValues.isCommitted = isCommitted === 'Yes' ? true : false;
+      if (inheritedTitle) givenValues.inheritedTitle = inheritedTitle;
 
       try {
-        const { relationship, relationshipCreatedEmbed } = await addRelationshipToDatabase(interaction.user, { bearingCharacterId, conceivingCharacterId, committed, inheritedTitle });
+        const { relationship, embed: relationshipCreatedEmbed } = await addRelationshipToDatabase(interaction.user, givenValues);
         return interaction.editReply({ embeds: [relationshipCreatedEmbed], flags: MessageFlags.Ephemeral });
       }
       catch (error) {
-        // console.log(error);
+        console.log(error);
         return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
       }
     }

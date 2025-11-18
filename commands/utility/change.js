@@ -1,8 +1,7 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships } = require('../../dbObjects.js');
-const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase } = require('../../misc.js');
+const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS } = require('../../misc.js');
 
 
 module.exports = {
@@ -147,14 +146,36 @@ module.exports = {
         )
         .addStringOption(option =>
           option
-            .setName('name_new')
-            .setDescription('The new name of the region.')
-        )
-        .addStringOption(option =>
-          option
             .setName('rulinghouse_new')
             .setDescription('The new ruling house of the region.')
             .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('roleid_new')
+            .setDescription('The new role ID of the region. This should technically never change.')
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('house')
+        .setDescription('Change something about a house.')
+        .addStringOption(option =>
+          option
+            .setName('name')
+            .setDescription('The name of the house to change something about.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('name_new')
+            .setDescription('The new name of the house.')
+        )
+        .addStringOption(option =>
+          option
+            .setName('emojiname_new')
+            .setDescription('The new emoji name of the house.')
         )
     )
     .addSubcommand(subcommand =>
@@ -341,15 +362,41 @@ module.exports = {
 
     // Handle autocompletes for region subcommand
     if (subcommand === 'region') {
-      const focusedValue = interaction.options.getFocused();
+      const focusedOption = interaction.options.getFocused(true);
 
-      const regions = await Regions.findAll({
+      if (focusedOption.name === 'name') {
+        const focusedValue = interaction.options.getFocused();
+
+        const regions = await Regions.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
+          attributes: ['name', 'id'],
+          limit: 25
+        })
+
+        choices = regions.map(region => ({ name: region.name, value: region.id }));
+      }
+      else if (focusedOption.name === 'rulinghouse_new') {
+        const focusedValue = interaction.options.getFocused();
+
+        const houses = await Houses.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
+          attributes: ['name', 'id'],
+          limit: 25
+        })
+
+        choices = houses.map(house => ({ name: house.name, value: house.id }));
+      }
+    }
+
+    // Handle autocompletes for house subcommand
+    if (subcommand === 'house') {
+      const focusedValue = interaction.options.getFocused();
+      const houses = await Houses.findAll({
         where: { name: { [Op.startsWith]: focusedValue } },
         attributes: ['name', 'id'],
         limit: 25
-      })
-
-      choices = regions.map(region => ({ name: region.name, value: region.id }));
+      });
+      choices = houses.map(house => ({ name: house.name, value: house.id }));
     }
 
     // Handle autocompletes for child subcommand
@@ -493,14 +540,17 @@ module.exports = {
 
       const player = await Players.findByPk(user.id);
 
-      if (!player) return interaction.editReply({ content: 'The specified player does not exist in the database.', flags: MessageFlags.Ephemeral });
-
       try {
-        const { player: updatedPlayer, playerChangedEmbed } = await changePlayerInDatabase(interaction.user, player, toUpdate);
-        return interaction.editReply({ embeds: [playerChangedEmbed], flags: MessageFlags.Ephemeral })
+        const { player: updatedPlayer, embed: playerChangedEmbed } = await changePlayerInDatabase(interaction.user, player, toUpdate);
+        return interaction.editReply({ embeds: [playerChangedEmbed], flags: MessageFlags.Ephemeral });
       }
       catch (error) {
-        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
+        console.log(error);
+        const playerNotChangedEmbed = new EmbedBuilder()
+          .setTitle('Player Not Changed')
+          .setDescription(`An error occured while trying to change the player: ${error.message}`)
+          .setColor(COLORS.RED);
+        return interaction.editReply({ embeds: [playerNotChangedEmbed], flags: MessageFlags.Ephemeral });
       }
     }
 
@@ -523,10 +573,8 @@ module.exports = {
 
       const character = await Characters.findByPk(characterId);
 
-      if (!character) return interaction.editReply({ content: 'The specified character does not exist in the database.', flags: MessageFlags.Ephemeral });
-
       try {
-        const { character: updatedCharacter, characterChangedEmbed } = await changeCharacterInDatabase(interaction.user, character, true, {
+        const { character: updatedCharacter, embed: characterChangedEmbed } = await changeCharacterInDatabase(interaction.user, character, true, {
           newName: newName,
           newSex: newSex,
           newRegionId: newRegionId,
@@ -540,10 +588,15 @@ module.exports = {
           newIsRollingForBastards: newIsRollingForBastards
         })
 
-        return interaction.editReply({ embeds: [characterChangedEmbed], flags: MessageFlags.Ephemeral })
+        return interaction.editReply({ embeds: [characterChangedEmbed], flags: MessageFlags.Ephemeral });
       }
       catch (error) {
-        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
+        console.log(error);
+        const characterNotChangedEmbed = new EmbedBuilder()
+          .setTitle('Character Not Changed')
+          .setDescription(`An error occured while trying to change the character: ${error.message}`)
+          .setColor(COLORS.RED);
+        return interaction.editReply({ embeds: [characterNotChangedEmbed], flags: MessageFlags.Ephemeral });
       }
     }
 
@@ -562,10 +615,16 @@ module.exports = {
         'Current Year Changed',
         '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
         'Year: ' + inlineCode(oldYear) + ' -> ' + inlineCode(newYear),
-        0xD98C00
+        COLORS.ORANGE
       )
 
-      return interaction.editReply({ content: 'The current year has been changed to ' + newYear, flags: MessageFlags.Ephemeral });
+      // Make embed to return
+      const yearChangedEmbed = new EmbedBuilder()
+        .setTitle('Current Year Changed')
+        .setDescription(`**Year**: ${oldYear} -> ${newYear}`)
+        .setColor(COLORS.ORANGE)
+
+      return interaction.editReply({ embeds: [yearChangedEmbed], flags: MessageFlags.Ephemeral });
     }
 
     /**
@@ -573,10 +632,8 @@ module.exports = {
      */
     if (subcommand === 'region') {
       const regionId = interaction.options.getString('name');
-      const newRegionName = interaction.options.getString('name_new');
       const newRulingHouseId = interaction.options.getString('rulinghouse_new');
-
-      if (!(newRegionName || newEmojiName)) interaction.editReply({ content: 'Please specify what to change.' });
+      const newRoleId = interaction.options.getString('roleid_new');
 
       const region = await Regions.findByPk(regionId);
 
@@ -584,32 +641,49 @@ module.exports = {
         return interaction.editReply({ content: 'The specified region does not exist in the database.', flags: MessageFlags.Ephemeral });
       }
 
-      const changes = []
-
-      if (newRegionName) {
-        const oldRegionName = region.name;
-        await region.update({ name: newRegionName });
-
-        changes.push('Name: ' + inlineCode(oldRegionName) + ' -> ' + inlineCode(newRegionName));
+      try {
+        const { region: updatedRegion, embed: regionChangedEmbed } = await changeRegionInDatabase(interaction.user, region, {
+          newRoleId: newRoleId,
+          newRulingHouseId: newRulingHouseId
+        });
+        return interaction.editReply({ embeds: [regionChangedEmbed], flags: MessageFlags.Ephemeral });
       }
-
-      if (newEmojiName) {
-        const oldEmojiName = affiliation.emojiName;
-        await affiliation.update({ emojiName: newEmojiName });
-
-        changes.push('Emoji name: ' + inlineCode(oldEmojiName) + ' -> ' + inlineCode(newEmojiName));
+      catch (error) {
+        console.log(error);
+        const regionNotChangedEmbed = new EmbedBuilder()
+          .setTitle('Region Not Changed')
+          .setDescription(`An error occurred while trying to change the region: ${error.message}`)
+          .setColor(COLORS.RED);
+        return interaction.editReply({ embeds: [regionNotChangedEmbed], flags: MessageFlags.Ephemeral });
       }
+    }
 
-      await postInLogChannel(
-        'Affiliation Changed',
-        '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
-        'Affiliation: ' + inlineCode(affiliation.name) + '\n\n' +
-        changes.join('\n'),
-        0xD98C00
-      )
 
-      changes.unshift('**The following was changed for ' + inlineCode(affiliation.name) + ':**');
-      return interaction.editReply({ content: changes.join('\n'), flags: MessageFlags.Ephemeral });
+    /**
+     * Handle changing house info
+     */
+    if (subcommand === 'house') {
+      const houseId = interaction.options.getString('name');
+      const newName = interaction.options.getString('name_new');
+      const newEmojiName = interaction.options.getString('emojiname_new');
+
+      const house = await Houses.findByPk(houseId);
+
+      try {
+        const { house: updatedHouse, embed: houseChangedEmbed } = await changeHouseInDatabase(interaction.user, house, {
+          newName: newName,
+          newEmojiName: newEmojiName
+        });
+        return interaction.editReply({ embeds: [houseChangedEmbed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        const houseNotChangedEmbed = new EmbedBuilder()
+          .setTitle('House Not Changed')
+          .setDescription(`An error occurred while trying to change the house: ${error.message}`)
+          .setColor(COLORS.RED);
+        return interaction.editReply({ embeds: [houseNotChangedEmbed], flags: MessageFlags.Ephemeral });
+      }
     }
 
     /**
@@ -620,112 +694,57 @@ module.exports = {
       const newName = interaction.options.getString('name_new');
       const newYearOfMaturity = interaction.options.getInteger('yearofmaturity_new');
       const newSex = interaction.options.getString('sex_new');
-      const newAffiliationId = interaction.options.getString('affiliation_new');
+      const newRegionId = interaction.options.getString('region_new');
+      const newHouseId = interaction.options.getString('house_new');
       const newLegitimacy = interaction.options.getString('legitimacy_new');
       const newInheritedTitle = interaction.options.getString('inheritedtitle_new');
       const newComments = interaction.options.getString('comments_new');
       const newContact1 = interaction.options.getUser('contact1_new');
       const newContact2 = interaction.options.getUser('contact2_new');
 
-      const playableChild = await PlayableChildren.findOne({
-        include: {
-          model: Characters, as: 'character',
-          include: [
-            { model: Characters, as: 'parent1' },
-            { model: Characters, as: 'parent2' }
-          ]
-        },
-        where: { id: playableChildId }
-      });
+      const playableChild = await PlayableChildren.findByPk(playableChildId);
 
-      if (!playableChild) {
-        return interaction.editReply({ content: 'The specified playable child does not exist in the database.', flags: MessageFlags.Ephemeral });
+      const embeds = [];
+      try {
+        const character = await playableChild.getCharacter();
+        const { character: updatedCharacter, embed: characterChangedEmbed } = await changeCharacterInDatabase(interaction.user, await playableChild.getCharacter(), true, {
+          newName: newName,
+          newSex: newSex,
+          newYearOfMaturity: newYearOfMaturity,
+          newRegionId: newRegionId,
+          newHouseId: newHouseId,
+          newSocialClassName: newInheritedTitle !== null ? newInheritedTitle === 'Noble' ? 'Noble' : 'Notable' : null,
+        });
+        embeds.push(characterChangedEmbed);
+      }
+      catch (error) {
+        console.log(error);
+        const characterNotChangedEmbed = new EmbedBuilder()
+          .setTitle('Character Not Changed')
+          .setDescription(`An error occurred while trying to change the character: ${error.message}`)
+          .setColor(COLORS.RED);
+        embeds.push(characterNotChangedEmbed);
       }
 
-      const changes = [];
-
-      if (newName) {
-        const oldName = playableChild.character.name;
-        await playableChild.character.update({ name: newName });
-
-        changes.push('Name: ' + inlineCode(oldName) + ' -> ' + inlineCode(newName));
+      try {
+        const { playableChild: updatedPlayableChild, embed: playableChildChangedEmbed } = await changePlayableChildInDatabase(interaction.user, playableChild, {
+          newLegitimacy: newLegitimacy,
+          newComments: newComments,
+          newContact1Snowflake: newContact1 ? newContact1.id : null,
+          newContact2Snowflake: newContact2 ? newContact2.id : null
+        });
+        embeds.push(playableChildChangedEmbed);
+      }
+      catch (error) {
+        console.log(error);
+        const playableChildNotChangedEmbed = new EmbedBuilder()
+          .setTitle('Playable Child Not Changed')
+          .setDescription(`An error occurred while trying to change the playable child: ${error.message}`)
+          .setColor(COLORS.RED);
+        embeds.push(playableChildNotChangedEmbed);
       }
 
-      if (newYearOfMaturity) {
-        const oldYearOfMaturity = playableChild.character.yearOfMaturity;
-        await playableChild.character.update({ yearOfMaturity: newYearOfMaturity });
-
-        changes.push('Year of Maturity: ' + inlineCode(oldYearOfMaturity) + ' -> ' + inlineCode(newYearOfMaturity));
-      }
-
-      if (newSex) {
-        const oldSex = playableChild.character.sex;
-        await playableChild.character.update({ sex: newSex });
-
-        changes.push('Sex: ' + inlineCode(oldSex) + ' -> ' + inlineCode(newSex));
-      }
-
-      if (newAffiliationId) {
-        const oldAffiliation = await Affiliations.findOne({ where: { id: playableChild.character.affiliationId } });
-        const newAffiliation = await Affiliations.findOne({ where: { id: newAffiliationId } });
-
-        await playableChild.character.update({ affiliationId: newAffiliationId });
-
-        changes.push('Affiliation: ' + inlineCode(oldAffiliation.name) + ' -> ' + inlineCode(newAffiliation.name));
-      }
-
-      if (newLegitimacy) {
-        const oldLegitimacy = playableChild.legitimacy;
-        await playableChild.update({ legitimacy: newLegitimacy });
-
-        changes.push('Legitimacy: ' + inlineCode(oldLegitimacy) + ' -> ' + inlineCode(newLegitimacy));
-      }
-
-      if (newInheritedTitle) {
-        const oldInheritedTitle = playableChild.inheritedTitle ? playableChild.inheritedTitle : 'None';
-        const inheritedTitleValue = newInheritedTitle === 'None' ? null : newInheritedTitle;
-        await playableChild.update({ inheritedTitle: inheritedTitleValue });
-
-        changes.push('Inherited Title: ' + inlineCode(oldInheritedTitle) + ' -> ' + inlineCode(newInheritedTitle));
-      }
-
-      if (newComments) {
-        const oldComments = playableChild.comments ? playableChild.comments : 'None';
-        await playableChild.update({ comments: newComments });
-
-        changes.push('Comments: ' + inlineCode(oldComments) + ' -> ' + inlineCode(newComments));
-      }
-
-      if (newContact1) {
-        const oldContact1Snowflake = playableChild.contact1Snowflake;
-        const newContact1Snowflake = newContact1 ? newContact1.id : null;
-        await playableChild.update({ contact1Snowflake: newContact1Snowflake });
-
-        changes.push('Contact 1: ' + (oldContact1Snowflake ? userMention(oldContact1Snowflake) : 'None') + ' -> ' + userMention(newContact1Snowflake));
-      }
-
-      if (newContact2) {
-        const oldContact2Snowflake = playableChild.contact2Snowflake;
-        const newContact2Snowflake = newContact2 ? newContact2.id : null;
-        await playableChild.update({ contact2Snowflake: newContact2Snowflake });
-
-        changes.push('Contact 2: ' + (oldContact2Snowflake ? userMention(oldContact2Snowflake) : 'None') + ' -> ' + userMention(newContact2Snowflake));
-      }
-
-      if (changes.length === 0) {
-        return interaction.editReply({ content: 'Please specify what to change.', flags: MessageFlags.Ephemeral });
-      }
-
-      await postInLogChannel(
-        'Playable Child Changed',
-        '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
-        'Playable Child: ' + inlineCode(playableChild.character.name) + '\n\n' +
-        changes.join('\n'),
-        0xD98C00
-      )
-
-      changes.unshift('**The following was changed for the playable child ' + inlineCode(playableChild.character.name) + ':**');
-      return interaction.editReply({ content: changes.join('\n'), flags: MessageFlags.Ephemeral });
+      return interaction.editReply({ embeds: embeds, flags: MessageFlags.Ephemeral });
     }
 
     /**
@@ -736,13 +755,31 @@ module.exports = {
       const newCommitted = interaction.options.getString('committed_new');
       const newInheritedTitle = interaction.options.getString('inheritedtitle_new');
 
-      const relationship = await Relationships.findOne({
-        include: [
-          { model: Characters, as: 'bearingCharacter' },
-          { model: Characters, as: 'conceivingCharacter' }
-        ],
-        where: { id: relationshipId }
-      });
+      const relationship = await Relationships.findByPk(relationshipId);
+
+      try {
+        const { relationship: updatedRelationship, embed: relationshipChangedEmbed } = await changeRelationshipInDatabase(interaction.user, relationship, {
+          newIsCommitted: newCommitted === null ? null : (newCommitted === 'Yes' ? true : false),
+          newInheritedTitle: newInheritedTitle
+        });
+        return interaction.editReply({ embeds: [relationshipChangedEmbed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        const relationshipNotChangedEmbed = new EmbedBuilder()
+          .setTitle('Relationship Not Changed')
+          .setDescription(`An error occurred while trying to change the relationship: ${error.message}`)
+          .setColor(COLORS.RED);
+        return interaction.editReply({ embeds: [relationshipNotChangedEmbed], flags: MessageFlags.Ephemeral });
+      }
+
+      // const relationship = await Relationships.findOne({
+      //   include: [
+      //     { model: Characters, as: 'bearingCharacter' },
+      //     { model: Characters, as: 'conceivingCharacter' }
+      //   ],
+      //   where: { id: relationshipId }
+      // });
 
       const changes = []
 

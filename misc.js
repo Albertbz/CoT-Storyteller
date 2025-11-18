@@ -12,15 +12,22 @@ const COLORS = {
   ORANGE: 0xFFA500
 };
 
-async function addPlayerToDatabase(id, ign, timezone, storyteller) {
+async function addPlayerToDatabase(storyteller, { id, ign, timezone = null } = {}) {
   // storyteller is required
   if (!storyteller) {
     throw new Error('storyteller is required');
   }
 
+  const playerNotCreatedEmbed = new EmbedBuilder()
+    .setTitle('Player Not Created')
+    .setColor(COLORS.RED);
+
+
   // Check whether there are spaces in the IGN
   if (ign.includes(' ')) {
-    throw new Error('IGN cannot contain spaces.');
+    playerNotCreatedEmbed
+      .setDescription('IGN cannot contain spaces.');
+    return { player: null, embed: playerNotCreatedEmbed };
   }
 
   try {
@@ -43,18 +50,29 @@ async function addPlayerToDatabase(id, ign, timezone, storyteller) {
       .setDescription((await player.formattedInfo))
       .setColor(COLORS.GREEN);
 
-    return { player, playerCreatedEmbed };
+    return { player, embed: playerCreatedEmbed };
   }
   catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
-      throw new Error('That player already exists.');
+      playerNotCreatedEmbed
+        .setDescription('A player with the same ID or IGN already exists.');
+      return { player: null, embed: playerNotCreatedEmbed };
+    }
+    else {
+      console.log(error);
+      playerNotCreatedEmbed
+        .setDescription(`An error occured while trying to create the player: ${error.message}`);
+      return { player: null, embed: playerNotCreatedEmbed };
     }
 
-    throw new Error('Something went wrong with creating the player. Please let Albert know.');
   }
 }
 
 async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = undefined, regionId = null, houseId = null, socialClassName = 'Commoner', yearOfMaturity = null, parent1Id = null, parent2Id = null } = {}) {
+  const characterNotCreatedEmbed = new EmbedBuilder()
+    .setTitle('Character Not Created')
+    .setColor(COLORS.RED);
+
   // storyteller is required
   if (!storyteller) {
     throw new Error('storyteller is required');
@@ -62,12 +80,10 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
 
   const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
 
-  // Preserve previous behavior when callers pass explicit nulls
-  name = name === null ? 'Unnamed' : name;
-  socialClassName = socialClassName === null ? 'Commoner' : socialClassName;
-  sex = sex === null ? undefined : sex;
+  // If yearOfMaturity is null (not provided), set it to current year
   yearOfMaturity = yearOfMaturity === null ? world.currentYear : yearOfMaturity;
 
+  // If regionId or houseId is null, set to Wanderer or ruling house of region respectively
   const wandererRegion = await Regions.findOne({ where: { name: 'Wanderer' } });
   if (regionId === null) {
     regionId = wandererRegion.id;
@@ -85,7 +101,9 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
     if (name === 'Son' || name === 'Daughter') {
       // Allow creation
     } else {
-      throw new Error('A character with the same name already exists.');
+      characterNotCreatedEmbed
+        .setDescription('A character with the same name already exists.');
+      return { character: null, embed: characterNotCreatedEmbed };
     }
   }
 
@@ -115,28 +133,39 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
       .setColor(COLORS.GREEN);
 
     // Return both the character and the creation embed
-    return { character, characterCreatedEmbed };
+    return { character, embed: characterCreatedEmbed };
   }
   catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
-      throw new Error('That character already exists.');
+      characterNotCreatedEmbed
+        .setDescription('That character already exists.');
+      return { character: null, embed: characterNotCreatedEmbed };
     }
     else {
       console.log(error);
-      throw new Error('Something went wrong with creating the character.');
+      characterNotCreatedEmbed
+        .setDescription(`An error occured while trying to create the character: ${error.message}`);
+      return { character: null, embed: characterNotCreatedEmbed };
     }
   }
 }
 
-async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conceivingCharacterId, committed = false, inheritedTitle = 'None' } = {}) {
+async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conceivingCharacterId, isCommitted = false, inheritedTitle = 'None' } = {}) {
   // storyteller is required
   if (!storyteller) {
     throw new Error('storyteller is required');
   }
 
+  const relationshipNotCreatedEmbed = new EmbedBuilder()
+    .setTitle('Relationship Not Created')
+    .setColor(COLORS.RED);
+
+
   // Check whether committed is false but inheritedTitle is 'Noble'
-  if (!committed && inheritedTitle === 'Noble') {
-    throw new Error('A committed relationship cannot have an inherited title of Noble.');
+  if (!isCommitted && inheritedTitle === 'Noble') {
+    relationshipNotCreatedEmbed
+      .setDescription('A committed relationship cannot have an inherited title of Noble.');
+    return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
 
   // Get the characters
@@ -144,16 +173,22 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
   const conceivingCharacter = await Characters.findOne({ where: { id: conceivingCharacterId } });
 
   if (!bearingCharacter) {
-    throw new Error('Bearing character not found.');
+    relationshipNotCreatedEmbed
+      .setDescription('Bearing character not found.');
+    return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
 
   if (!conceivingCharacter) {
-    throw new Error('Conceiving character not found.');
+    relationshipNotCreatedEmbed
+      .setDescription('Conceiving character not found.');
+    return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
 
   // Check whether the characters are the same
   if (bearingCharacter.id === conceivingCharacter.id) {
-    throw new Error('A character cannot be in a relationship with themselves.');
+    relationshipNotCreatedEmbed
+      .setDescription('A character cannot be in a relationship with themselves.');
+    return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
 
   // Check whether either of the characters are deceased
@@ -161,18 +196,26 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
   const conceivingCharacterIsDeceased = await Deceased.findOne({ where: { characterId: conceivingCharacter.id } });
 
   if (bearingCharacterIsDeceased) {
-    throw new Error('The bearing character, ' + inlineCode(bearingCharacter.name) + ', is deceased and cannot be in a relationship.');
+    relationshipNotCreatedEmbed
+      .setDescription('The bearing character, ' + inlineCode(bearingCharacter.name) + ', is deceased and cannot be in a relationship.');
+    return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
   if (conceivingCharacterIsDeceased) {
-    throw new Error('The conceiving character, ' + inlineCode(conceivingCharacter.name) + ', is deceased and cannot be in a relationship.');
+    relationshipNotCreatedEmbed
+      .setDescription('The conceiving character, ' + inlineCode(conceivingCharacter.name) + ', is deceased and cannot be in a relationship.');
+    return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
 
-  // Check whether either of the characters are not commoners
+  // Check whether either of the characters are commoners
   if (bearingCharacter.socialClassName === 'Commoner') {
-    throw new Error('The bearing character, ' + inlineCode(bearingCharacter.name) + ', is a Commoner and cannot be in a relationship.');
+    relationshipNotCreatedEmbed
+      .setDescription('The bearing character, ' + inlineCode(bearingCharacter.name) + ', is a Commoner and cannot be in a relationship.');
+    return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
   if (conceivingCharacter.socialClassName === 'Commoner') {
-    throw new Error('The conceiving character, ' + inlineCode(conceivingCharacter.name) + ', is a Commoner and cannot be in a relationship.');
+    relationshipNotCreatedEmbed
+      .setDescription('The conceiving character, ' + inlineCode(conceivingCharacter.name) + ', is a Commoner and cannot be in a relationship.');
+    return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
 
   // Check whether either of the characters are already in a relationship as opposite roles
@@ -181,7 +224,9 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
   });
 
   if (bearingCharacterExistsAsConceiving) {
-    throw new Error('The bearing partner, ' + inlineCode(bearingCharacter.name) + ', is already a conceiving partner in another relationship.');
+    relationshipNotCreatedEmbed
+      .setDescription('The bearing partner, ' + inlineCode(bearingCharacter.name) + ', is already a conceiving partner in another relationship.');
+    return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
 
   const conceivingCharacterExistsAsBearing = await Relationships.findOne({
@@ -189,7 +234,9 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
   });
 
   if (conceivingCharacterExistsAsBearing) {
-    throw new Error('The conceiving partner, ' + inlineCode(conceivingCharacter.name) + ', is already a bearing partner in another relationship.');
+    relationshipNotCreatedEmbed
+      .setDescription('The conceiving partner, ' + inlineCode(conceivingCharacter.name) + ', is already a bearing partner in another relationship.');
+    return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
 
   // Check whether the two characters are already in a relationship together
@@ -209,16 +256,17 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
   })
 
   if (existingRelationship) {
-    throw new Error('These two characters are already in a relationship together.');
+    relationshipNotCreatedEmbed
+      .setDescription('These two characters are already in a relationship together.');
+    return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
 
   // If all checks have been passed, create the relationship
   try {
-
     const relationship = await Relationships.create({
       bearingCharacterId: bearingCharacter.id,
       conceivingCharacterId: conceivingCharacter.id,
-      isCommitted: committed,
+      isCommitted: isCommitted,
       inheritedTitle: inheritedTitle
     });
 
@@ -235,11 +283,13 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
       .setDescription((await relationship.formattedInfo))
       .setColor(COLORS.GREEN);
 
-    return { relationship, relationshipCreatedEmbed };
+    return { relationship, embed: relationshipCreatedEmbed };
   }
   catch (error) {
     console.log(error);
-    throw new Error('Something went wrong with creating the relationship.');
+    relationshipNotCreatedEmbed
+      .setDescription(`An error occured while trying to create the relationship: ${error.message}`);
+    return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
 }
 
@@ -280,19 +330,33 @@ async function addPlayableChildToDatabase(storyteller, { characterId, legitimacy
 }
 
 async function assignCharacterToPlayer(characterId, playerId, storyteller) {
+  // storyteller is required
+  if (!storyteller) {
+    throw new Error('storyteller is required');
+  }
+
+  const notAssignedEmbed = new EmbedBuilder()
+    .setTitle('Character Not Assigned')
+    .setColor(COLORS.RED);
+
   try {
     const guild = await client.guilds.fetch(guilds.cot);
     const member = await guild.members.fetch(playerId);
 
-    const character = await Characters.findOne({ where: { id: characterId } });
+    const character = await Characters.findByPk(characterId);
+    if (!character) {
+      notAssignedEmbed
+        .setDescription('Character not found in database.');
+      return notAssignedEmbed;
+    }
 
     // Check whether player exists in database
-    const player = await Players.findOne({
-      where: { id: playerId }
-    })
+    const player = await Players.findByPk(playerId);
 
     if (!player) {
-      throw new Error(userMention(member.id) + ' does not exist in the database, so they cannot be assigned a character.');
+      notAssignedEmbed
+        .setDescription(userMention(member.id) + ' does not exist in the database, so they cannot be assigned a character.');
+      return notAssignedEmbed;
     }
 
     // Check whether character is deceased
@@ -301,12 +365,16 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     });
 
     if (foundDeceasedRecord) {
-      throw new Error(inlineCode(character.name) + ' is deceased and cannot be assigned to a player.');
+      notAssignedEmbed
+        .setDescription(inlineCode(character.name) + ' is deceased and cannot be assigned to a player.');
+      return notAssignedEmbed;
     }
 
     // Check whether a character is already assigned to the player
     if (player.characterId) {
-      throw new Error(userMention(member.id) + ' is already playing a character.');
+      notAssignedEmbed
+        .setDescription(userMention(member.id) + ' is already playing a character.');
+      return notAssignedEmbed;
     }
 
     // Check whether already being played by another player
@@ -315,7 +383,9 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     });
 
     if (existingPlayer) {
-      throw new Error(inlineCode(character.name) + ' is already assigned to another player.');
+      notAssignedEmbed
+        .setDescription(inlineCode(character.name) + ' is already assigned to another player.');
+      return notAssignedEmbed;
     }
 
     // If playable child, make sure that is mature
@@ -323,49 +393,21 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     if (playableChild) {
       const currentYear = (await Worlds.findOne({ where: { name: 'Elstrand' } })).currentYear;
       if (character.yearOfMaturity > currentYear) {
-        throw new Error(inlineCode(character.name) + ' is a playable child and is not yet mature.');
+        notAssignedEmbed
+          .setDescription(inlineCode(character.name) + ' is a playable child and is not yet mature.');
+        return notAssignedEmbed;
       }
     }
 
     /**
      * Checks successful, proceed with assignment
      */
-
-    // Remove all roles that they could have had
-    await member.roles.remove([roles.commoner, roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
-
-    // Update the association
-    await player.update({ characterId: characterId });
+    await player.setCharacter(characterId);
+    await syncMemberRolesWithCharacter(player, character)
 
     // If the character was a playable child, remove that entry
     if (playableChild) {
       await playableChild.destroy();
-    }
-
-    // Assign roles based on region and social class
-    try {
-      const region = await character.getRegion();
-      await member.roles.add(region.roleId);
-    }
-    catch (error) {
-      console.log('Failed to assign region role: ' + error);
-      await player.setCharacter(null);
-      throw new Error('Failed to assign region role. Assignment aborted.');
-    }
-
-    const socialClass = await character.getSocialClass();
-    if (socialClass.name === 'Ruler') {
-      await member.roles.add([roles.notable, roles.noble, roles.ruler]);
-    }
-    else if (socialClass.name === 'Noble') {
-      await member.roles.add([roles.notable, roles.noble]);
-    }
-    else if (socialClass.name === 'Notable') {
-      await member.roles.add(roles.notable);
-    }
-
-    if (character.steelbearerState !== 'None') {
-      await member.roles.add(roles.steelbearer);
     }
 
     await postInLogChannel(
@@ -388,7 +430,10 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     return assignedEmbed;
   }
   catch (error) {
-    throw new Error(error.message);
+    console.log(error);
+    notAssignedEmbed
+      .setDescription(`An error occurred while trying to assign the character: ${error.message}`);
+    return notAssignedEmbed;
   }
 }
 
@@ -398,74 +443,102 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
     throw new Error('storyteller is required');
   }
 
+  const deceasedNotCreatedEmbed = new EmbedBuilder()
+    .setTitle('Deceased Not Created')
+    .setColor(COLORS.RED);
+
+  // Do some checks
+  const character = await Characters.findByPk(characterId);
+  if (!character) {
+    deceasedNotCreatedEmbed
+      .setDescription('Character does not exist in the database.');
+    return { deceased: null, embed: deceasedNotCreatedEmbed };
+  }
+
+  // Check whether character is not commoner while not a wanderer
+  if (character.socialClassName === 'Commoner' && !(await Regions.findByPk(character.regionId)).name === 'Wanderer') {
+    deceasedNotCreatedEmbed
+      .setDescription('Character is a Commoner and cannot be marked as deceased.');
+    return { deceased: null, embed: deceasedNotCreatedEmbed };
+  }
+
+  let deceased = null;
   try {
-    let deceased = null;
-    try {
-      deceased = await Deceased.create({
-        characterId: characterId,
-        yearOfDeath: yearOfDeath,
-        monthOfDeath: monthOfDeath,
-        dayOfDeath: dayOfDeath,
-        causeOfDeath: causeOfDeath,
-        playedById: playedById
-      });
-    }
-    catch (error) {
-      if (error.name === 'SequelizeUniqueConstraintError') {
-        throw new Error('This character is already marked as deceased.');
-      }
-      console.log(error);
-      throw new Error('Something went wrong with adding the deceased character.');
-    }
-
-    // If exists in deathRollsDeaths, remove from there
-    const existingDeathRollRecord = await DeathRollDeaths.findOne({ where: { characterId: characterId } });
-    if (existingDeathRollRecord) {
-      await existingDeathRollRecord.destroy();
-    }
-
-    // Set player's character to null if applicable
-    let player = null;
-    if (playedById) {
-      player = await Players.findOne({ where: { id: playedById } });
-      if (player) {
-        await player.setCharacter(null);
-      }
-    }
-    // Remove roles of member if specified
-    if (removeRoles && playedById) {
-      if (player) {
-        const guild = await client.guilds.fetch(guilds.cot);
-        const member = await guild.members.fetch(player.id);
-        if (member) {
-          await member.roles.remove([roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
-        }
-      }
-    }
-
-    await postInLogChannel(
-      'Character made Deceased',
-      '**Made deceased by: ' + userMention(storyteller.id) + '**\n\n' +
-      (await deceased.logInfo),
-      COLORS.BLUE
-    );
-
-    // Make an embed for deceased creation to return
-    const deceasedCreatedEmbed = new EmbedBuilder()
-      .setTitle('Character made Deceased')
-      .setDescription((await deceased.formattedInfo))
-      .setColor(COLORS.BLUE);
-
-    return { deceased, deceasedCreatedEmbed };
+    deceased = await Deceased.create({
+      characterId: characterId,
+      yearOfDeath: yearOfDeath,
+      monthOfDeath: monthOfDeath,
+      dayOfDeath: dayOfDeath,
+      causeOfDeath: causeOfDeath,
+      playedById: playedById
+    });
   }
   catch (error) {
-    throw new Error(error.message);
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      deceasedNotCreatedEmbed
+        .setDescription('This character is already marked as deceased.');
+      return { deceased: null, embed: deceasedNotCreatedEmbed };
+    }
+    console.log(error);
+    deceasedNotCreatedEmbed
+      .setDescription('An error occurred while trying to mark the character as deceased: ' + error.message);
+    return { deceased: null, embed: deceasedNotCreatedEmbed };
   }
+
+  // If exists in deathRollsDeaths, remove from there
+  const existingDeathRollRecord = await DeathRollDeaths.findOne({ where: { characterId: characterId } });
+  if (existingDeathRollRecord) {
+    await existingDeathRollRecord.destroy();
+  }
+
+  // Set player's character to null if applicable
+  let player = null;
+  if (playedById) {
+    player = await Players.findOne({ where: { id: playedById } });
+    if (player) {
+      await player.setCharacter(null);
+    }
+  }
+  // Remove roles of member if specified
+  if (removeRoles && playedById) {
+    if (player) {
+      const guild = await client.guilds.fetch(guilds.cot);
+      const member = await guild.members.fetch(player.id);
+      if (member) {
+        await member.roles.remove([roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
+      }
+    }
+  }
+
+  await postInLogChannel(
+    'Character made Deceased',
+    '**Made deceased by: ' + userMention(storyteller.id) + '**\n\n' +
+    (await deceased.logInfo),
+    COLORS.BLUE
+  );
+
+  // Make an embed for deceased creation to return
+  const deceasedCreatedEmbed = new EmbedBuilder()
+    .setTitle('Character made Deceased')
+    .setDescription((await deceased.formattedInfo))
+    .setColor(COLORS.BLUE);
+
+  return { deceased, embed: deceasedCreatedEmbed };
 }
 
 // Changes the provided values of a character and posts the change to the log
 // channel using postInLogChannel.
 async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newRegionId = null, newHouseId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newSteelbearerState = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null } = {}) {
+  const characterNotChangedEmbed = new EmbedBuilder()
+    .setTitle('Character Not Changed')
+    .setColor(COLORS.RED);
+
+  if (!character) {
+    characterNotChangedEmbed
+      .setDescription('Character does not exist in the database.');
+    return { character: null, embed: characterNotChangedEmbed };
+  }
+
   let newValues = {};
   let oldValues = {};
 
@@ -492,7 +565,9 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
 
   // Check if anything is actually changing
   if (Object.keys(newValues).length === 0) {
-    throw new Error('No changes provided.');
+    characterNotChangedEmbed
+      .setDescription('No changes were provided.');
+    return { character: null, embed: characterNotChangedEmbed };
   }
 
 
@@ -503,7 +578,9 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   if (newValues.name) {
     const existsWithName = await Characters.findOne({ where: { name: newValues.name } });
     if (existsWithName && existsWithName.id !== character.id) {
-      throw new Error('A character with the same name already exists.');
+      characterNotChangedEmbed
+        .setDescription('A character with the same name already exists.');
+      return { character: null, embed: characterNotChangedEmbed };
     }
   }
 
@@ -511,7 +588,9 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   if (newValues.socialClassName) {
     // Cannot go from anything that is not commoner and back to commoner
     if (newValues.socialClassName === 'Commoner' && oldValues.socialClassName !== 'Commoner') {
-      throw new Error('Cannot change character social class back to Commoner from a higher social class.');
+      characterNotChangedEmbed
+        .setDescription('Cannot change character social class back to Commoner from a higher social class.');
+      return { character: null, embed: characterNotChangedEmbed };
     }
   }
 
@@ -521,7 +600,9 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
     if (newValues.steelbearerState === 'Ruler') {
       const socialClassNameToCheck = newValues.socialClassName ? newValues.socialClassName : character.socialClassName;
       if (socialClassNameToCheck !== 'Ruler') {
-        throw new Error('Only characters of Ruler social class can become Ruler steelbearers.');
+        characterNotChangedEmbed
+          .setDescription('Only characters of Ruler social class can become Ruler steelbearers.');
+        return { character: null, embed: characterNotChangedEmbed };
       }
     }
 
@@ -542,13 +623,19 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
     const sameTypeSteelbearers = steelbearersInRegion.filter(s => s.steelbearerState === newValues.steelbearerState);
 
     if (newValues.steelbearerState === 'Ruler' && sameTypeSteelbearers.length >= 1) {
-      throw new Error('There is already a Ruler steelbearer in this region.');
+      characterNotChangedEmbed
+        .setDescription('There is already a Ruler steelbearer in this region.');
+      return { character: null, embed: characterNotChangedEmbed };
     }
     else if (newValues.steelbearerState === 'General-purpose' && sameTypeSteelbearers.length >= 3) {
-      throw new Error('There are already 3 General-purpose steelbearers in this region.');
+      characterNotChangedEmbed
+        .setDescription('There are already 3 General-purpose steelbearers in this region.');
+      return { character: null, embed: characterNotChangedEmbed };
     }
     else if (newValues.steelbearerState === 'Duchy' && sameTypeSteelbearers.length >= 3) {
-      throw new Error('There are already 3 Duchy steelbearers in this region.');
+      characterNotChangedEmbed
+        .setDescription('There are already 3 Duchy steelbearers in this region.');
+      return { character: null, embed: characterNotChangedEmbed };
     }
   }
 
@@ -558,7 +645,9 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
     // class away from commoner at the same time)
     if (character.socialClassName === 'Commoner' &&
       !(newValues.socialClassName && newValues.socialClassName !== 'Commoner')) {
-      throw new Error('Commoner characters cannot roll for bastards.');
+      characterNotChangedEmbed
+        .setDescription('Commoner characters cannot roll for bastards.');
+      return { character: null, embed: characterNotChangedEmbed };
     }
   }
 
@@ -718,6 +807,16 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
 
 
 async function changePlayerInDatabase(storyteller, player, { newIgn = null, newTimezone = null } = {}) {
+  const playerNotChangedEmbed = new EmbedBuilder()
+    .setTitle('Player Not Changed')
+    .setColor(COLORS.RED);
+
+  if (!player) {
+    playerNotChangedEmbed
+      .setDescription('Player does not exist in the database.');
+    return { player: null, embed: playerNotChangedEmbed };
+  }
+
   let newValues = {};
   let oldValues = {};
 
@@ -727,13 +826,17 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
 
   // Check if anything is actually changing
   if (Object.keys(newValues).length === 0) {
-    throw new Error('No changes provided.');
+    playerNotChangedEmbed
+      .setDescription('No changes provided.');
+    return { player: null, embed: playerNotChangedEmbed };
   }
 
   if (newValues.ign) {
     // Check whether there are spaces in the IGN
     if (newValues.ign.includes(' ')) {
-      throw new Error('A VS username cannot contain spaces.');
+      playerNotChangedEmbed
+        .setDescription('A VS username cannot contain spaces.');
+      return { player: null, embed: playerNotChangedEmbed };
     }
   }
 
@@ -777,7 +880,312 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
     )
     .setColor(COLORS.ORANGE);
 
-  return { player, playerChangedEmbed }
+  return { player, embed: playerChangedEmbed }
+}
+
+
+async function changeRegionInDatabase(storyteller, region, { newRoleId = null, newRulingHouseId = null } = {}) {
+  const regionNotChangedEmbed = new EmbedBuilder()
+    .setTitle('Region Not Changed')
+    .setColor(COLORS.RED);
+
+  if (!region) {
+    regionNotChangedEmbed
+      .setDescription('Region does not exist in the database.');
+    return { region: null, embed: regionNotChangedEmbed };
+  }
+
+  let newValues = {};
+  let oldValues = {};
+
+  // Save all old and new values for the values that are changing
+  if (newRoleId !== null && newRoleId !== region.roleId) newValues.roleId = newRoleId; oldValues.roleId = region.roleId;
+  if (newRulingHouseId !== null && newRulingHouseId !== region.rulingHouseId) newValues.rulingHouseId = newRulingHouseId; oldValues.rulingHouseId = region.rulingHouseId;
+
+  // Check if anything is actually changing
+  if (Object.keys(newValues).length === 0) {
+    regionNotChangedEmbed
+      .setDescription('No changes provided.');
+    return { region: null, embed: regionNotChangedEmbed };
+  }
+
+  // All checks passed, proceed with update
+  await region.update(newValues);
+
+  // Post in log channel
+  const logInfoChanges = [];
+  const formattedInfoChanges = [];
+  for (const [key, newValue] of Object.entries(newValues)) {
+    const oldValue = oldValues[key];
+
+    switch (key) {
+      case 'roleId': {
+        logInfoChanges.push({ key: 'roleId', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Role ID**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'rulingHouseId': {
+        const oldHouse = await Houses.findByPk(oldValue);
+        const newHouse = await Houses.findByPk(newValue);
+        logInfoChanges.push({ key: 'rulingHouse', oldValue: oldHouse ? `${inlineCode(oldHouse.name)} (${inlineCode(oldHouse.id)})` : '`-`', newValue: newHouse ? `${inlineCode(newHouse.name)} (${inlineCode(newHouse.id)})` : '`-`' });
+        formattedInfoChanges.push({ key: '**Ruling House**', oldValue: oldHouse ? oldHouse.name : '-', newValue: newHouse ? newHouse.name : '-' });
+        break;
+      }
+    }
+  }
+
+  await postInLogChannel(
+    'Region Changed',
+    `**Changed by: ${userMention(storyteller.id)}**\n\n` +
+    `Region: ${inlineCode(region.name)} (${inlineCode(region.id)})\n\n` +
+    logInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n'),
+    COLORS.ORANGE
+  );
+
+  // Make an embed for region change to return
+  const regionChangedEmbed = new EmbedBuilder()
+    .setTitle('Region Changed')
+    .setDescription(
+      `**Region**: ${region.name}\n\n` +
+      formattedInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n')
+    )
+    .setColor(COLORS.ORANGE);
+
+  return { region, embed: regionChangedEmbed }
+}
+
+async function changeHouseInDatabase(storyteller, house, { newName = null, newEmojiName = null } = {}) {
+  const houseNotChangedEmbed = new EmbedBuilder()
+    .setTitle('House Not Changed')
+    .setColor(COLORS.RED);
+
+  if (!house) {
+    houseNotChangedEmbed
+      .setDescription('House does not exist in the database.');
+    return { house: null, embed: houseNotChangedEmbed };
+  }
+
+  let newValues = {};
+  let oldValues = {};
+
+  // Save all old and new values for the values that are changing
+  if (newName !== null && newName !== house.name) newValues.name = newName; oldValues.name = house.name;
+  if (newEmojiName !== null && newEmojiName !== house.emojiName) newValues.emojiName = newEmojiName; oldValues.emojiName = house.emojiName;
+
+  // Check if anything is actually changing
+  if (Object.keys(newValues).length === 0) {
+    houseNotChangedEmbed
+      .setDescription('No changes provided.');
+    return { house: null, embed: houseNotChangedEmbed };
+  }
+
+  // All checks passed, proceed with update
+  await house.update(newValues);
+
+  // Post in log channel
+  const logInfoChanges = [];
+  const formattedInfoChanges = [];
+  for (const [key, newValue] of Object.entries(newValues)) {
+    const oldValue = oldValues[key];
+
+    switch (key) {
+      case 'name': {
+        logInfoChanges.push({ key: 'name', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Name**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'emojiName': {
+        logInfoChanges.push({ key: 'emojiName', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Emoji Name**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+    }
+  }
+
+  await postInLogChannel(
+    'House Changed',
+    `**Changed by: ${userMention(storyteller.id)}**\n\n` +
+    `House: ${inlineCode(house.name)} (${inlineCode(house.id)})\n\n` +
+    logInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n'),
+    COLORS.ORANGE
+  );
+
+  // Make an embed for house change to return
+  const houseChangedEmbed = new EmbedBuilder()
+    .setTitle('House Changed')
+    .setDescription(
+      `**House**: ${house.name}\n\n` +
+      formattedInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n')
+    )
+    .setColor(COLORS.ORANGE);
+
+  return { house, embed: houseChangedEmbed }
+}
+
+async function changePlayableChildInDatabase(storyteller, playableChild, { newComments = null, newLegitimacy = null, newContact1Snowflake = null, newContact2Snowflake = null } = {}) {
+  const playableChildNotChangedEmbed = new EmbedBuilder()
+    .setTitle('Playable Child Not Changed')
+    .setColor(COLORS.RED);
+
+  if (!playableChild) {
+    playableChildNotChangedEmbed
+      .setDescription('Playable Child does not exist in the database.');
+    return { playableChild: null, playableChildNotChangedEmbed };
+  }
+
+  let newValues = {};
+  let oldValues = {};
+
+  // Save all old and new values for the values that are changing
+  if (newComments !== null && newComments !== playableChild.comments) newValues.comments = newComments; oldValues.comments = playableChild.comments;
+  if (newLegitimacy !== null && newLegitimacy !== playableChild.legitimacy) newValues.legitimacy = newLegitimacy; oldValues.legitimacy = playableChild.legitimacy;
+  if (newContact1Snowflake !== null && newContact1Snowflake !== playableChild.contact1Snowflake) newValues.contact1Snowflake = newContact1Snowflake; oldValues.contact1Snowflake = playableChild.contact1Snowflake;
+  if (newContact2Snowflake !== null && newContact2Snowflake !== playableChild.contact2Snowflake) newValues.contact2Snowflake = newContact2Snowflake; oldValues.contact2Snowflake = playableChild.contact2Snowflake;
+
+  // Check if anything is actually changing
+  if (Object.keys(newValues).length === 0) {
+    playableChildNotChangedEmbed
+      .setDescription('No changes were provided.');
+    return { playableChild: null, embed: playableChildNotChangedEmbed };
+  }
+
+  // All checks passed, proceed with update
+  await playableChild.update(newValues);
+
+  // Post in log channel
+  const logInfoChanges = [];
+  const formattedInfoChanges = [];
+  for (const [key, newValue] of Object.entries(newValues)) {
+    const oldValue = oldValues[key];
+
+    switch (key) {
+      case 'comments': {
+        logInfoChanges.push({ key: 'comments', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Comments**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'legitimacy': {
+        logInfoChanges.push({ key: 'legitimacy', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Legitimacy**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'contact1Snowflake': {
+        logInfoChanges.push({ key: 'contact1', oldValue: oldValue ? `${userMention(oldValue)} (${oldValue})` : '`-`', newValue: newValue ? `${userMention(newValue)} (${newValue})` : '`-`' });
+        formattedInfoChanges.push({ key: '**Contact 1**', oldValue: oldValue ? userMention(oldValue) : '-', newValue: newValue ? userMention(newValue) : '-' });
+        break;
+      }
+      case 'contact2Snowflake': {
+        logInfoChanges.push({ key: 'contact2', oldValue: oldValue ? `${userMention(oldValue)} (${oldValue})` : '`-`', newValue: newValue ? `${userMention(newValue)} (${newValue})` : '`-`' });
+        formattedInfoChanges.push({ key: '**Contact 2**', oldValue: oldValue ? userMention(oldValue) : '-', newValue: newValue ? userMention(newValue) : '-' });
+        break;
+      }
+    }
+  }
+
+  const childCharacter = await playableChild.getCharacter();
+
+  await postInLogChannel(
+    'Playable Child Changed',
+    `**Changed by: ${userMention(storyteller.id)}**\n\n` +
+    `id: ${inlineCode(playableChild.id)}\n` +
+    `Character: ${inlineCode(childCharacter.name)} (${inlineCode(childCharacter.id)})\n\n` +
+    logInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n'),
+    COLORS.ORANGE
+  );
+
+  // Make an embed for playable child change to return
+  const playableChildChangedEmbed = new EmbedBuilder()
+    .setTitle('Playable Child Changed')
+    .setDescription(
+      `**Playable Child**: ${childCharacter.name}\n\n` +
+      formattedInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n')
+    )
+    .setColor(COLORS.ORANGE);
+
+  return { playableChild, embed: playableChildChangedEmbed }
+}
+
+async function changeRelationshipInDatabase(storyteller, relationship, { newIsCommitted = null, newInheritedTitle = null } = {}) {
+  const relationshipNotChangedEmbed = new EmbedBuilder()
+    .setTitle('Relationship Not Changed')
+    .setColor(COLORS.RED);
+
+  if (!relationship) {
+    relationshipNotChangedEmbed
+      .setDescription('Relationship does not exist in the database.');
+    return { relationship: null, embed: relationshipNotChangedEmbed };
+  }
+
+  let newValues = {};
+  let oldValues = {};
+
+  // Save all old and new values for the values that are changing
+  if (newIsCommitted !== null && newIsCommitted !== relationship.isCommitted) newValues.isCommitted = newIsCommitted; oldValues.isCommitted = relationship.isCommitted;
+  if (newInheritedTitle !== null && newInheritedTitle !== relationship.inheritedTitle) newValues.inheritedTitle = newInheritedTitle; oldValues.inheritedTitle = relationship.inheritedTitle;
+
+  // Check if anything is actually changing
+  if (Object.keys(newValues).length === 0) {
+    relationshipNotChangedEmbed
+      .setDescription('No changes provided.');
+    return {
+      relationship: null, embed: relationshipNotChangedEmbed
+    };
+  }
+
+  // If setting inherited title to Noble, make sure relationship is committed
+  if (newValues.inheritedTitle && newValues.inheritedTitle === 'Noble') {
+    const isCommittedToCheck = newValues.isCommitted !== null ? newValues.isCommitted : relationship.isCommitted;
+    if (!isCommittedToCheck) {
+      relationshipNotChangedEmbed
+        .setDescription('Only committed relationships can have an inherited title of Noble.');
+      return { relationship: null, embed: relationshipNotChangedEmbed };
+    }
+  }
+
+  // All checks passed, proceed with update
+  await relationship.update(newValues);
+
+  // Post in log channel
+  const logInfoChanges = [];
+  const formattedInfoChanges = [];
+  for (const [key, newValue] of Object.entries(newValues)) {
+    const oldValue = oldValues[key];
+
+    switch (key) {
+      case 'isCommitted': {
+        logInfoChanges.push({ key: 'isCommitted', oldValue: inlineCode(oldValue ? 'Yes' : 'No'), newValue: inlineCode(newValue ? 'Yes' : 'No') });
+        formattedInfoChanges.push({ key: '**Committed**', oldValue: oldValue ? 'Yes' : 'No', newValue: newValue ? 'Yes' : 'No' });
+        break;
+      }
+      case 'inheritedTitle': {
+        logInfoChanges.push({ key: 'inheritedTitle', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Inherited Title**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+    }
+  }
+
+  const bearingCharacter = await relationship.getBearingCharacter();
+  const conceivingCharacter = await relationship.getConceivingCharacter();
+
+  await postInLogChannel(
+    'Relationship Changed',
+    `**Changed by: ${userMention(storyteller.id)}**\n\n` +
+    `Relationship: ${bearingCharacter.name} & ${conceivingCharacter.name} (${inlineCode(relationship.id)})\n\n` +
+    logInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n'),
+    COLORS.ORANGE
+  );
+
+  // Make an embed for relationship change to return
+  const relationshipChangedEmbed = new EmbedBuilder()
+    .setTitle('Relationship Changed')
+    .setDescription(
+      `**Relationship**: ${bearingCharacter.name} & ${conceivingCharacter.name}\n\n` +
+      formattedInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n')
+    )
+    .setColor(COLORS.ORANGE);
+
+  return { relationship, embed: relationshipChangedEmbed }
 }
 
 
@@ -789,6 +1197,12 @@ async function syncMemberRolesWithCharacter(player, character) {
   // If could not find the member on the server, return false
   if (!member) {
     console.log('Could not find member with ID ' + player.id + ' on the server.');
+    return false;
+  }
+
+  // If member has banned role, do not change roles
+  if (member.roles.cache.has(roles.banned)) {
+    console.log('Member with ID ' + player.id + ' is banned, not changing roles.');
     return false;
   }
 
@@ -914,5 +1328,9 @@ module.exports = {
   addDeceasedToDatabase,
   changeCharacterInDatabase,
   changePlayerInDatabase,
+  changeRegionInDatabase,
+  changeHouseInDatabase,
+  changePlayableChildInDatabase,
+  changeRelationshipInDatabase,
   COLORS
 }; 
