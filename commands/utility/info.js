@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, EmbedBuilder, MessageFlags, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, SocialClasses, Worlds } = require('../../dbObjects.js');
+const { Players, Characters, SocialClasses, Regions, Worlds } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 const { COLORS } = require('../../misc.js');
 
@@ -29,15 +29,43 @@ module.exports = {
             .setDescription('The name of the character.')
             .setRequired(true)
             .setAutocomplete(true))
-    ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('region')
+        .setDescription('Get info about a region.')
+        .addStringOption(option =>
+          option
+            .setName('name')
+            .setDescription('The name of the region.')
+            .setRequired(true)
+            .setAutocomplete(true))
+    )
+  ,
   async autocomplete(interaction) {
-    const focusedValue = interaction.options.getFocused();
-    const characters = await Characters.findAll({
-      where: { name: { [Op.startsWith]: focusedValue } },
-      attributes: ['name', 'id'],
-      limit: 25
-    });
-    await interaction.respond(characters.map(character => ({ name: character.name, value: character.id })))
+    const subcommand = interaction.options.getSubcommand();
+
+    // Autocomplete for character names
+    if (subcommand === 'character') {
+      const focusedValue = interaction.options.getFocused();
+      const characters = await Characters.findAll({
+        where: { name: { [Op.startsWith]: focusedValue } },
+        attributes: ['name', 'id'],
+        limit: 25
+      });
+      await interaction.respond(characters.map(character => ({ name: character.name, value: character.id })))
+    }
+
+    // Autocomplete for region names
+    if (subcommand === 'region') {
+      const focusedValue = interaction.options.getFocused();
+      const regions = await Regions.findAll({
+        where: { name: { [Op.startsWith]: focusedValue } },
+        attributes: ['name', 'id'],
+        limit: 25
+      });
+      await interaction.respond(regions.map(region => ({ name: region.name, value: region.id })))
+    }
   },
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -86,6 +114,22 @@ module.exports = {
       infoEmbeds.push(characterInfoEmbed);
     }
 
+    /**
+     * Get info about a region
+     */
+    else if (subcommand === 'region') {
+      const regionId = interaction.options.getString('name');
+
+      // Get the region from the database
+      const region = await Regions.findByPk(regionId);
+      if (!region) {
+        return interaction.editReply({ content: 'That region does not exist.', flags: MessageFlags.Ephemeral });
+      }
+
+      const regionInfoEmbed = await getRegionInfoEmbed(region);
+      infoEmbeds.push(regionInfoEmbed);
+    }
+
     // Send the embeds
     return interaction.editReply({ embeds: infoEmbeds, flags: MessageFlags.Ephemeral });
   }
@@ -105,5 +149,12 @@ async function getCharacterInfoEmbed(character) {
   return new EmbedBuilder()
     .setTitle(`Character Info: ${character.name}`)
     .setDescription(await character.formattedInfo)
+    .setColor(COLORS.BLUE);
+}
+
+async function getRegionInfoEmbed(region) {
+  return new EmbedBuilder()
+    .setTitle(`Region Info: ${region.name}`)
+    .setDescription(await region.formattedInfo)
     .setColor(COLORS.BLUE);
 }

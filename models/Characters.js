@@ -51,11 +51,6 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.BOOLEAN,
       defaultValue: false
     },
-    steelbearerState: {
-      type: DataTypes.STRING,
-      defaultValue: 'None',
-      allowNull: false
-    },
     deathRoll1: {
       type: DataTypes.INTEGER
     },
@@ -93,7 +88,6 @@ module.exports = (sequelize, DataTypes) => {
           `parent1: ${parent1 ? `${parent1.name} (\`${this.parent1Id}\`)` : '`-`'}\n` +
           `parent2: ${parent2 ? `${parent2.name} (\`${this.parent2Id}\`)` : '`-`'}\n` +
           `isRollingforBastards: \`${this.isRollingForBastards ? `Yes` : `No`}\`\n` +
-          `steelbearerState: \`${this.steelbearerState}\`\n` +
           `deathRoll1: \`${this.deathRoll1 ? this.deathRoll1 : '-'}\`\n` +
           `deathRoll2: \`${this.deathRoll2 ? this.deathRoll2 : '-'}\`\n` +
           `deathRoll3: \`${this.deathRoll3 ? this.deathRoll3 : '-'}\`\n` +
@@ -189,17 +183,6 @@ module.exports = (sequelize, DataTypes) => {
             )
             infoList.push(offspringInfo);
           }
-
-
-          // Only add other info if steelbearer state is set
-          if (this.steelbearerState !== 'None') {
-            const otherInfo = (
-              `### Other Info\n` +
-              `**Steelbearer Type:** ${this.steelbearerState ? this.steelbearerState : `-`}`
-            )
-            infoList.push(otherInfo);
-          }
-
 
           return infoList.join('\n');
         } // Show limited info for commoners

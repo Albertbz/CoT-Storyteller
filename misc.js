@@ -1,5 +1,5 @@
 const { EmbedBuilder, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
 const { roles, channels, guilds } = require('./configs/ids.json');
 const { Op } = require('sequelize');
 
@@ -412,7 +412,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
 
     await postInLogChannel(
       'Character assigned to Player',
-      '**Assigned by: ' + userMention(storyteller.id) + '**\n\n' +
+      '**Assigned by**: ' + userMention(storyteller.id) + '\n\n' +
       'Character: ' + inlineCode(character.name) + ` (${inlineCode(character.id)})` + '\n' +
       'Player: ' + userMention(playerId) + ` (${inlineCode(playerId)})`,
       COLORS.BLUE
@@ -422,8 +422,8 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     const assignedEmbed = new EmbedBuilder()
       .setTitle('Character assigned to Player')
       .setDescription(
-        'Character: ' + inlineCode(character.name) + '\n' +
-        'Player: ' + userMention(playerId)
+        `**Character:** ${character.name}\n` +
+        `**Player:** ${userMention(playerId)}`
       )
       .setColor(COLORS.BLUE);
 
@@ -434,6 +434,200 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     notAssignedEmbed
       .setDescription(`An error occurred while trying to assign the character: ${error.message}`);
     return notAssignedEmbed;
+  }
+}
+
+async function assignSteelbearerToRegion(storyteller, character, type, duchyId = null) {
+  // storyteller is required
+  if (!storyteller) {
+    throw new Error('storyteller is required');
+  }
+
+  const notAssignedEmbed = new EmbedBuilder()
+    .setTitle('Steelbearer Not Assigned')
+    .setColor(COLORS.RED);
+
+  try {
+    // Check whether character exists
+    if (!character) {
+      notAssignedEmbed
+        .setDescription('Character not found in database.');
+      return { steelbearer: null, embed: notAssignedEmbed };
+    }
+
+    // Get the region from the character's current region
+    const region = await Regions.findByPk(character.regionId);
+    // Check whether part of a region that is not wanderer
+    if (!region || region.name === 'Wanderer') {
+      notAssignedEmbed
+        .setDescription('Character is not part of a valid region that can have steelbearers assigned.');
+      return { steelbearer: null, embed: notAssignedEmbed };
+    }
+
+    // Check whether character is not a commoner
+    if (character.socialClassName === 'Commoner') {
+      notAssignedEmbed
+        .setDescription(inlineCode(character.name) + ' is a Commoner and cannot be assigned as a steelbearer.');
+      return { steelbearer: null, embed: notAssignedEmbed };
+    }
+
+    // Check whether character is already a steelbearer
+    const existingSteelbearer = await Steelbearers.findOne({ where: { characterId: character.id } });
+    if (existingSteelbearer) {
+      notAssignedEmbed
+        .setDescription(inlineCode(character.name) + ' is already a steelbearer.');
+      return { steelbearer: null, embed: notAssignedEmbed };
+    }
+
+    // Do checks assuming different types
+    if (type === 'General-purpose') {
+      // If general-purpose, check whether region is a vassal. If they are,
+      // cannot assign general-purpose steelbearer
+      const isVassal = await Vassals.findOne({ where: { vassalId: region.id } });
+      if (isVassal) {
+        notAssignedEmbed
+          .setDescription('Cannot assign a general-purpose steelbearer to a vassal region.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+
+      // If not a vassal, make sure at most 3 general-purpose steelbearers exist in the region
+      const generalPurposeSteelbearers = await Steelbearers.findAll({
+        where: {
+          regionId: region.id,
+          type: 'General-purpose'
+        }
+      });
+
+      if (generalPurposeSteelbearers.length >= 3) {
+        notAssignedEmbed
+          .setDescription('Region already has the maximum of 3 general-purpose steelbearers.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+    }
+    else if (type === 'Ruler') {
+      // Make sure that the character has the 'Ruler' social class
+      if (character.socialClassName !== 'Ruler') {
+        notAssignedEmbed
+          .setDescription(inlineCode(character.name) + ' is not the Ruler and cannot be assigned as a Ruler steelbearer.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+
+      // Make sure there is not already a ruler steelbearer in the region
+      const rulerSteelbearer = await Steelbearers.findOne({
+        where: {
+          regionId: region.id,
+          type: 'Ruler'
+        }
+      });
+
+      if (rulerSteelbearer) {
+        notAssignedEmbed
+          .setDescription('Region already has a Ruler steelbearer assigned.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+    }
+    else if (type === 'Vassal') {
+      // Make sure that the region has vassals
+      const vassals = await Vassals.findAll({ where: { liegeId: region.id } });
+      if (vassals.length === 0) {
+        notAssignedEmbed
+          .setDescription(inlineCode(region.name) + ' has no vassal regions and cannot have vassal steelbearers assigned.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+
+      // Make sure that there are at most 2 times as many vassal steelbearers as there are vassal regions
+      const vassalSteelbearers = await Steelbearers.findAll({
+        where: {
+          regionId: region.id,
+          type: 'Vassal'
+        }
+      });
+
+      if (vassalSteelbearers.length >= 2 * vassals.length) {
+        notAssignedEmbed
+          .setDescription('Region already has the maximum number of vassal steelbearers assigned.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+    }
+    else if (type === 'Duchy') {
+      // Make sure duchyId is provided
+      if (!duchyId) {
+        notAssignedEmbed
+          .setDescription('Duchy must be provided when assigning a Duchy steelbearer.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+
+      // Make sure duchy exists and belongs to the region
+      const duchy = await region.getDuchies({ where: { id: duchyId } });
+      if (duchy.length === 0) {
+        notAssignedEmbed
+          .setDescription('Duchy not found in the specified region.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+
+      // Make sure duchy does not already have a steelbearer (steelbearerId is not null)
+      const duchySteelbearer = await Duchies.findOne({ where: { steelbearerId: { [Op.not]: null }, id: duchyId } });
+      if (duchySteelbearer) {
+        notAssignedEmbed
+          .setDescription('Duchy already has a steelbearer assigned.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+    }
+
+
+    // If all checks passed, create the steelbearer
+    const steelbearer = await Steelbearers.create({
+      characterId: character.id,
+      regionId: region.id,
+      type: type
+    });
+
+    // If it was a duchy steelbearer, set the duchy's steelbearerId, and make
+    // text to add to posting in log channel
+    let logDuchyText = '';
+    let formattedDuchyText = '';
+    if (type === 'Duchy') {
+      const duchy = await region.getDuchies({ where: { id: duchyId } });
+      if (duchy.length > 0) {
+        await duchy[0].update({ steelbearerId: steelbearer.id });
+        logDuchyText = `\nduchy: ${inlineCode(duchy[0].name)} (${inlineCode(duchy[0].id)})`;
+        formattedDuchyText = `\n**Duchy:** ${duchy[0].name}`;
+      }
+    }
+
+    // Sync roles of member if applicable
+    const player = await Players.findOne({ where: { characterId: character.id } });
+    if (player) {
+      await syncMemberRolesWithCharacter(player, character);
+    }
+
+    // Post creation of steelbearer in log channel
+    await postInLogChannel(
+      'Steelbearer assigned to Region',
+      '**Assigned by: ' + userMention(storyteller.id) + '**\n\n' +
+      (await steelbearer.logInfo) +
+      logDuchyText,
+      COLORS.BLUE
+    )
+
+    // Make an embed for assignment to return
+    const assignedEmbed = new EmbedBuilder()
+      .setTitle('Steelbearer assigned to Region')
+      .setDescription(
+        `**Steelbearer:** ${character.name}\n` +
+        `**Region:** ${region.name}\n` +
+        `**Type:** ${type}` +
+        formattedDuchyText
+      )
+      .setColor(COLORS.GREEN);
+
+    return { steelbearer, embed: assignedEmbed };
+  }
+  catch (error) {
+    console.log(error);
+    notAssignedEmbed
+      .setDescription(`An error occurred while trying to assign the steelbearer: ${error.message}`);
+    return { steelbearer: null, embed: notAssignedEmbed };
   }
 }
 
@@ -528,7 +722,7 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
 
 // Changes the provided values of a character and posts the change to the log
 // channel using postInLogChannel.
-async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newRegionId = null, newHouseId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newSteelbearerState = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null } = {}) {
+async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newRegionId = null, newHouseId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null } = {}) {
   const characterNotChangedEmbed = new EmbedBuilder()
     .setTitle('Character Not Changed')
     .setColor(COLORS.RED);
@@ -556,7 +750,6 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   if (newParent1Id !== null && newParent1Id !== character.parent1Id) newValues.parent1Id = newParent1Id; oldValues.parent1Id = character.parent1Id;
   if (newParent2Id !== null && newParent2Id !== character.parent2Id) newValues.parent2Id = newParent2Id; oldValues.parent2Id = character.parent2Id;
   if (newIsRollingForBastards !== null && newIsRollingForBastards !== character.isRollingForBastards) newValues.isRollingForBastards = newIsRollingForBastards; oldValues.isRollingForBastards = character.isRollingForBastards;
-  if (newSteelbearerState !== null && newSteelbearerState !== character.steelbearerState) newValues.steelbearerState = newSteelbearerState; oldValues.steelbearerState = character.steelbearerState;
   if (newDeathRoll1 !== null && newDeathRoll1 !== character.deathRoll1) newValues.deathRoll1 = newDeathRoll1; oldValues.deathRoll1 = character.deathRoll1;
   if (newDeathRoll2 !== null && newDeathRoll2 !== character.deathRoll2) newValues.deathRoll2 = newDeathRoll2; oldValues.deathRoll2 = character.deathRoll2;
   if (newDeathRoll3 !== null && newDeathRoll3 !== character.deathRoll3) newValues.deathRoll3 = newDeathRoll3; oldValues.deathRoll3 = character.deathRoll3;
@@ -594,51 +787,6 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
     }
   }
 
-  // Check steelbearer change is valid
-  if (newValues.steelbearerState && newValues.steelbearerState !== 'None') {
-    // If becoming a Ruler steelbearer, must be of Ruler social class
-    if (newValues.steelbearerState === 'Ruler') {
-      const socialClassNameToCheck = newValues.socialClassName ? newValues.socialClassName : character.socialClassName;
-      if (socialClassNameToCheck !== 'Ruler') {
-        characterNotChangedEmbed
-          .setDescription('Only characters of Ruler social class can become Ruler steelbearers.');
-        return { character: null, embed: characterNotChangedEmbed };
-      }
-    }
-
-    // Get all steelbearers of the character's region
-    const steelbearersInRegion = await Characters.findAll({
-      where: {
-        regionId: character.regionId,
-        steelbearerState: {
-          [Op.not]: 'None'
-        },
-        id: {
-          [Op.not]: character.id
-        }
-      }
-    });
-
-    // Get amount of steelbearers of same type
-    const sameTypeSteelbearers = steelbearersInRegion.filter(s => s.steelbearerState === newValues.steelbearerState);
-
-    if (newValues.steelbearerState === 'Ruler' && sameTypeSteelbearers.length >= 1) {
-      characterNotChangedEmbed
-        .setDescription('There is already a Ruler steelbearer in this region.');
-      return { character: null, embed: characterNotChangedEmbed };
-    }
-    else if (newValues.steelbearerState === 'General-purpose' && sameTypeSteelbearers.length >= 3) {
-      characterNotChangedEmbed
-        .setDescription('There are already 3 General-purpose steelbearers in this region.');
-      return { character: null, embed: characterNotChangedEmbed };
-    }
-    else if (newValues.steelbearerState === 'Duchy' && sameTypeSteelbearers.length >= 3) {
-      characterNotChangedEmbed
-        .setDescription('There are already 3 Duchy steelbearers in this region.');
-      return { character: null, embed: characterNotChangedEmbed };
-    }
-  }
-
   // Check rolling for bastards is valid
   if (newValues.isRollingForBastards !== null && newValues.isRollingForBastards === true) {
     // Cannot be a commoner rolling for bastards (also check if changing social 
@@ -653,9 +801,12 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
 
   // If changing region, make sure steelbearer is removed
   if (newValues.regionId) {
-    if (character.steelbearerState !== 'None' &&
-      !(newValues.steelbearerState && newValues.steelbearerState === 'None')) {
-      newValues.steelbearerState = 'None';
+    // Check whether character is steelbearer by looking at steelbearers
+    const steelbearerRecord = await Steelbearers.findOne({ where: { characterId: character.id } });
+    if (steelbearerRecord) {
+      characterNotChangedEmbed
+        .setDescription('Character is a Steelbearer and cannot change regions. Remove the Steelbearer status first.');
+      return { character: null, embed: characterNotChangedEmbed };
     }
   }
 
@@ -737,11 +888,6 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
         formattedInfoChanges.push({ key: '**Rolling for Bastards**', oldValue: oldValue ? 'Yes' : 'No', newValue: newValue ? 'Yes' : 'No' });
         break;
       }
-      case 'steelbearerState': {
-        logInfoChanges.push({ key: 'steelbearerState', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
-        formattedInfoChanges.push({ key: '**Steelbearer State**', oldValue: oldValue, newValue: newValue });
-        break;
-      }
       case 'deathRoll1': {
         logInfoChanges.push({ key: 'deathRoll1', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
         formattedInfoChanges.push({ key: '**Death Roll @ Age 4**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
@@ -802,7 +948,7 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
     .setColor(COLORS.ORANGE);
 
 
-  return { character, characterChangedEmbed }
+  return { character, embed: characterChangedEmbed }
 }
 
 
@@ -1266,7 +1412,9 @@ async function syncMemberRolesWithCharacter(player, character) {
 
   // Steelbearer role
   try {
-    if (character.steelbearerState && character.steelbearerState !== 'None') {
+    // Check whether character is steelbearer by looking at steelbearers
+    const steelbearerRecord = await Steelbearers.findOne({ where: { characterId: character.id } });
+    if (steelbearerRecord) {
       if (!member.roles.cache.has(roles.steelbearer)) {
         rolesToAdd.push(roles.steelbearer);
       }
@@ -1332,5 +1480,6 @@ module.exports = {
   changeHouseInDatabase,
   changePlayableChildInDatabase,
   changeRelationshipInDatabase,
+  assignSteelbearerToRegion,
   COLORS
 }; 

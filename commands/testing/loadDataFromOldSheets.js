@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags } = require('discord.js');
-const { Players, Characters, Regions, Houses, Recruitments, Relationships, Deceased, PlayableChildren, Worlds, DeathRollDeaths } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Duchies, Houses, Recruitments, Vassals, Steelbearers, Relationships, Deceased, PlayableChildren, Worlds, DeathRollDeaths } = require('../../dbObjects.js');
 const { notableOffspringDoc, citizenryRegistryDoc, offspringDoc } = require('../../sheets.js');
 const { Op } = require('sequelize');
 
@@ -138,21 +138,6 @@ module.exports = {
         if (!isWanderer) {
           const socialClassName = houseRow.get('Social Class');
           const comments = houseRow.get('Comments') === '' ? undefined : houseRow.get('Comments');
-          let steelbearerState = 'None';
-          if (comments && comments.includes('Steelbearer')) {
-            if (comments.includes('(Ruler)')) {
-              steelbearerState = 'Ruler'
-            }
-            else if (comments.includes('(Duchy)')) {
-              steelbearerState = 'Duchy'
-            }
-            else if (comments.includes('(General-purpose)')) {
-              steelbearerState = 'General-purpose'
-            }
-            else if (comments.includes('(Vassal)')) {
-              steelbearerState = 'Vassal'
-            }
-          }
           const role = houseRow.get('Role') === '' ? undefined : houseRow.get('Role');
 
           character = await Characters.create({
@@ -162,7 +147,6 @@ module.exports = {
             socialClassName: socialClassName,
             pveDeaths: ageRow.get('PvE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
-            steelbearerState: steelbearerState,
             role: role,
             comments: comments,
             deathRoll1: ageRow.get('Year 4'),
@@ -171,6 +155,72 @@ module.exports = {
             deathRoll4: ageRow.get('Year 7'),
             deathRoll5: ageRow.get('Year 8'),
           })
+
+          if (comments && comments.includes('Steelbearer')) {
+            if (comments.includes('(Ruler)')) {
+              await Steelbearers.create({
+                type: 'Ruler',
+                characterId: character.id,
+                regionId: region.id
+              });
+            }
+            else if (comments.includes('(General-purpose)')) {
+              // Check whether region is a vassal, in which case they
+              // cannot have any general-purpose steelbearers
+              const vassalRecord = await Vassals.findOne({ where: { vassalId: region.id } });
+              if (vassalRecord) {
+                console.log('Region is a vassal and cannot have general-purpose steelbearers: ' + region.name + ' (' + character.name + ')');
+                continue;
+              }
+
+              await Steelbearers.create({
+                type: 'General-purpose',
+                characterId: character.id,
+                regionId: region.id
+              });
+            }
+            else if (comments.includes('(Vassal)')) {
+              // Make sure region is a liege over another region, and that
+              // the amount of vassals is at most 2 x the amount of regions
+              // they are liege over
+              const vassalRegions = await Vassals.findAll({ where: { liegeId: region.id } });
+              const currentVassalSteelbearersInRegion = await Steelbearers.findAll({
+                where: {
+                  regionId: region.id,
+                  type: 'Vassal'
+                }
+              });
+
+              if (currentVassalSteelbearersInRegion.length + 1 >= vassalRegions.length * 2) {
+                console.log('Region already has max amount of Vassal steelbearers: ' + region.name + ' (' + character.name + ')');
+                continue;
+              }
+
+              await Steelbearers.create({
+                type: 'Vassal',
+                characterId: character.id,
+                regionId: region.id
+              });
+            }
+            else {
+              // Look for a duchy with the name in the comments inside of the
+              // parentheses
+              const duchyName = comments.split('Steelbearer (')[1].split(')')[0];
+              const duchy = await Duchies.findOne({ where: { name: duchyName, regionId: region.id } });
+
+              // If duchy found, create steelbearer and assign to duchy
+              if (duchy) {
+                const steelbearer = await Steelbearers.create({
+                  type: 'Duchy',
+                  characterId: character.id,
+                  regionId: region.id
+                });
+
+                await duchy.update({ steelbearerId: steelbearer.id });
+              }
+            }
+          }
+
         }
         else {
           const socialClassName = member.roles.cache.some(role => role.name === 'Notable') ? 'Notable' : 'Commoner';

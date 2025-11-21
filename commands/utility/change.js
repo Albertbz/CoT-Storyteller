@@ -97,17 +97,6 @@ module.exports = {
         )
         .addStringOption(option =>
           option
-            .setName('steelbearer_new')
-            .setDescription('The type of steelbearer to change the character to.')
-            .addChoices(
-              { name: 'Ruler', value: 'Ruler' },
-              { name: 'Duchy', value: 'Duchy' },
-              { name: 'General-purpose', value: 'General-purpose' },
-              { name: 'None', value: 'None' },
-            )
-        )
-        .addStringOption(option =>
-          option
             .setName('comments_new')
             .setDescription('The new comments.')
             .setAutocomplete(true)
@@ -567,9 +556,8 @@ module.exports = {
       const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
       const newPveDeaths = interaction.options.getNumber('pvedeaths_new');
       const newRole = interaction.options.getString('role_new');
-      const newSteelbearerState = interaction.options.getString('steelbearer_new');
       const newComments = interaction.options.getString('comments_new');
-      const newIsRollingForBastards = interaction.options.getString('rollingforbastards_new') === 'Yes' ? true : (interaction.options.getString('rollingforbastards_new') === 'No' ? false : null);
+      const newIsRollingForBastards = interaction.options.getString('rollingforbastards_new') === null ? null : (interaction.options.getString('rollingforbastards_new') === 'Yes' ? true : false);
 
       const character = await Characters.findByPk(characterId);
 
@@ -583,7 +571,6 @@ module.exports = {
           newYearOfMaturity: newYearOfMaturity,
           newPveDeaths: newPveDeaths,
           newRole: newRole,
-          newSteelbearerState: newSteelbearerState,
           newComments: newComments,
           newIsRollingForBastards: newIsRollingForBastards
         })

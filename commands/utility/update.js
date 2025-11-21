@@ -98,7 +98,7 @@ module.exports = {
 
     const regions = await Regions.findAll({
       where: { name: { [Op.startsWith]: focusedValue } },
-      attributes: ['name'],
+      attributes: ['name', 'id'],
       limit: 25
     })
 
@@ -187,23 +187,20 @@ module.exports = {
         const regions = await Regions.findAll({
           where: {
             name: { [Op.ne]: 'Wanderer' }
-          },
-          include: [
-            { model: Recruitments, as: 'recruitment' },
-            { model: Houses, as: 'rulingHouse' }
-          ]
+          }
         });
 
         const guildEmojis = await interaction.guild.emojis.fetch();
         let housesText = ''
-        regions.forEach(region => {
-          const house = region.rulingHouse;
+        for (const region of regions) {
+          const house = await region.getRulingHouse();
           const houseEmoji = guildEmojis.find(emoji => emoji.name === house.emojiName);
           const houseText = houseEmoji.toString() + bold('House ' + house.name) + houseEmoji.toString();
-          let rolesText = 'Need: ' + house.role1 + ', ' + house.role2 + ', ' + house.role3;
+          const recruitment = await region.getRecruitment();
+          let rolesText = 'Need: ' + recruitment.role1 + ', ' + recruitment.role2 + ', ' + recruitment.role3;
 
           let stateText = '';
-          switch (house.state) {
+          switch (recruitment.state) {
             case 'Full':
               stateText = 'Closed Recruitment (:red_circle: - Full)';
               rolesText = strikethrough(rolesText);
@@ -217,13 +214,13 @@ module.exports = {
             case 'Urgent':
               stateText = 'Open Recruitment (:blue_circle: - Players Urgently Needed)';
               break;
-
           }
+
           housesText +=
             houseText + '\n' +
             stateText + '\n' +
             rolesText + '\n\n'
-        });
+        };
 
         const fullMessage =
           lastUpdatedText + '\n' +
@@ -238,16 +235,9 @@ module.exports = {
         if (recruitmentPostExists) {
           const messages = await recruitmentPost.messages.fetch();
           const recruitmentPostMessage = messages.first();
-          // recruitmentPostMessage.edit({ embeds: [embed] });
           recruitmentPostMessage.edit({ content: fullMessage });
         }
         else {
-          // const newRecruitmentPost = await houseInfoChannel.threads.create({
-          //   name: 'House Recruitment',
-          //   message: {
-          //     embeds: [embed]
-          //   }
-          // })
           const newRecruitmentPost = await houseInfoChannel.threads.create({
             name: 'House Recruitment',
             message: {

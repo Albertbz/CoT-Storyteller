@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Steelbearers } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel, COLORS } = require('../../misc.js');
@@ -69,7 +69,20 @@ module.exports = {
             .setRequired(true)
             .setAutocomplete(true)
         )
-    ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('steelbearer')
+        .setDescription('Remove a steelbearer assignment.')
+        .addStringOption(option =>
+          option
+            .setName('steelbearer')
+            .setDescription('The steelbearer assignment to remove.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
+  ,
   async autocomplete(interaction) {
     let choices;
     const subcommand = interaction.options.getSubcommand();
@@ -170,6 +183,29 @@ module.exports = {
       });
     }
 
+    // Handle autocompletes for steelbearer subcommand
+    if (subcommand === 'steelbearer') {
+      const focusedValue = interaction.options.getFocused();
+
+      const steelbearers = await Steelbearers.findAll({
+        include: [
+          {
+            model: Characters, as: 'character',
+            where: { name: { [Op.startsWith]: focusedValue } },
+          },
+          {
+            model: Regions, as: 'region'
+          }
+        ],
+        attributes: ['id'],
+        limit: 25
+      });
+
+      choices = steelbearers.map(sb => ({
+        name: `${sb.character.name} (${sb.region.name})`,
+        value: sb.id
+      }));
+    }
 
     await interaction.respond(choices);
   },
@@ -244,6 +280,20 @@ module.exports = {
       entityName = `relationship between ${inlineCode(bearingCharacter.name)} and ${inlineCode(conceivingCharacter.name)}`;
       embedTitle = 'Relationship Removed';
     }
+
+    /**
+     * Handle 'steelbearer' subcommand
+     */
+    if (subcommand === 'steelbearer') {
+      const steelbearerId = interaction.options.getString('steelbearer');
+
+      toRemove = await Steelbearers.findByPk(steelbearerId);
+      const character = await toRemove.getCharacter();
+      const region = await toRemove.getRegion();
+      entityName = `steelbearer assignment of ${inlineCode(character.name)} in ${inlineCode(region.name)}`;
+      embedTitle = 'Steelbearer Assignment Removed';
+    }
+
 
     if (!toRemove) {
       return interaction.editReply('Could not find the specified entity to remove.');
