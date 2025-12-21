@@ -223,7 +223,7 @@ function rollDeathAndGetResult(character, nextYear) {
   return { resultDescription, color, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath };
 }
 
-async function saveDeathResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives, shouldPostInLogChannel) {
+async function saveDeathRollResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives, shouldPostInLogChannel) {
   // Get player that plays the character
   const player = await Players.findOne({ where: { characterId: character.id } });
 
@@ -367,7 +367,7 @@ module.exports = {
   buildOffspringPairLine,
   calculateDeathRoll,
   rollDeathAndGetResult,
-  saveDeathResultToDatabase,
+  saveDeathRollResultToDatabase,
   makeDeathRollsSummaryEmbeds,
   buildOffspringChanceEmbed,
   getFertilityModifier

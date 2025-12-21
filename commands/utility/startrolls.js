@@ -2,7 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 const { postInLogChannel, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
-const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathResultToDatabase, makeDeathRollsSummaryEmbeds, buildOffspringChanceEmbed } = require('../../helpers/rollHelper.js');
+const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathRollResultToDatabase, makeDeathRollsSummaryEmbeds, buildOffspringChanceEmbed } = require('../../helpers/rollHelper.js');
 
 // Centralized messages
 const CANCEL_MESSAGE = 'Something went wrong. Please let Albert know.';
@@ -666,7 +666,7 @@ module.exports = {
       // Make a start embed
       const startEmbed = new EmbedBuilder()
         .setTitle('Ready to start')
-        .setDescription('Please press Start when you are ready to start the death rolls.')
+        .setDescription('Please press Start when you are ready to start the death rolls.\n\nIf you do not interact with the buttons for 5 minutes, the rolls will stop.')
         .setColor(COLORS.BLUE);
 
       // Make continue button
@@ -695,11 +695,17 @@ module.exports = {
       // Make a button to start the rolls
       const startButton = new ButtonBuilder()
         .setCustomId('start_death_rolls')
-        .setLabel('Start Death Rolls')
+        .setLabel('Start')
         .setStyle(ButtonStyle.Primary);
 
+      // Make a cancel button
+      const cancelButton = new ButtonBuilder()
+        .setCustomId('cancel_death_rolls')
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Danger);
+
       const startRow = new ActionRowBuilder()
-        .addComponents(startButton);
+        .addComponents(startButton, cancelButton);
 
       const startMessage = await interaction.editReply({
         embeds: [embeds[0], deathRollChancesEmbed, startEmbed],
@@ -728,6 +734,13 @@ module.exports = {
           console.log('Failed to defer startInteraction (death rolls):', error);
         }
 
+        if (startInteraction.customId === 'cancel_death_rolls') {
+          // Handle cancellation
+          console.log('Death rolls cancelled by user.');
+          await startMessage.edit({ content: 'Death rolls have been cancelled.', components: [], embeds: [] });
+          return;
+        }
+
         if (startInteraction.customId === 'start_death_rolls') {
           if (skipInteractions && shouldLog) {
             // Make embed saying that death rolls are being processed without
@@ -748,7 +761,7 @@ module.exports = {
             // Skip interactions if specified
             if (skipInteractions) {
               const { resultDescription, color, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath } = rollDeathAndGetResult(character, nextYear);
-              await saveDeathResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives, shouldLog);
+              await saveDeathRollResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives, shouldLog);
               continue;
             }
 
@@ -815,7 +828,15 @@ module.exports = {
                   }
 
                   if (saveAndContinueInteraction.customId === 'save_and_continue_death_rolls') {
-                    await saveDeathResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives, shouldLog);
+                    // Update the message to say saving...
+                    const savingEmbed = new EmbedBuilder()
+                      .setTitle('Result of Death Roll')
+                      .setDescription(resultDescription + '\n\n' + italic('Saving result to database...'))
+                      .setColor(color);
+                    await resultMessage.edit({ embeds: [currentCharactersEmbed, deathRollChancesEmbed, savingEmbed] });
+
+                    // Save the result to the database
+                    await saveDeathRollResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives, shouldLog);
                   }
                 }
                 catch (error) {

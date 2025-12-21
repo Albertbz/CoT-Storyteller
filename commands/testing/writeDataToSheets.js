@@ -38,7 +38,7 @@ module.exports = {
       return 0;
     })
 
-    const relationshipsSheet = offspringDoc.sheetsByTitle['Relationships'];
+    const relationshipsSheet = offspringDoc.sheetsByTitle['Intercharacter Rolls'];
     await relationshipsSheet.resize({ rowCount: sortedRelationships.length + 1 });
     await relationshipsSheet.loadCells();
     for (const [i, relationship] of sortedRelationships.entries()) {
@@ -74,7 +74,7 @@ module.exports = {
       return 0;
     })
 
-    const bastardRollsSheet = offspringDoc.sheetsByTitle['Bastard rolls'];
+    const bastardRollsSheet = offspringDoc.sheetsByTitle['NPC Rolls'];
     await bastardRollsSheet.resize({ rowCount: sortedCharactersWithBastardRolls.length + 1 });
     await bastardRollsSheet.loadCells();
 

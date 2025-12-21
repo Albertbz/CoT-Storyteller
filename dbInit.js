@@ -28,7 +28,7 @@ require('./models/Steelbearers.js')(sequelize, Sequelize.DataTypes);
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 
 sequelize.sync({ force }).then(async () => {
-  await Worlds.create({ name: 'Elstrand', currentYear: 22 });
+  await Worlds.create({ name: 'Elstrand', currentYear: 25 });
 
   const ayrinHouse = await Houses.create({ name: 'Ayrin', emojiName: 'ayrin' });
   const farringHouse = await Houses.create({ name: 'Farring', emojiName: 'farring' });
@@ -38,13 +38,13 @@ sequelize.sync({ force }).then(async () => {
   const stoutHouse = await Houses.create({ name: 'Stout', emojiName: 'stout' });
   const wildhartHouse = await Houses.create({ name: 'Wildhart', emojiName: 'wildhart' });
 
-  const eshaerynRecruitment = await Recruitments.create({ state: 'Open', role1: 'Farmers', role2: 'Miners', role3: 'Lumberjacks' });
+  const eshaerynRecruitment = await Recruitments.create({ state: 'Almost Full', role1: 'Farmers', role2: 'Potters', role3: 'Builders' });
   const firstLandingRecruitment = await Recruitments.create({ state: 'Almost Full', role1: 'Soldiers', role2: 'Farmers', role3: 'Builders' });
-  const barrowlandsRecruitment = await Recruitments.create({ state: 'Almost Full', role1: 'Soldiers', role2: 'Cooks', role3: 'Builders' });
-  const rivertalRecruitment = await Recruitments.create({ state: 'Open', role1: 'Builders', role2: 'Farmers', role3: 'Cooks' });
-  const heartlandsRecruitment = await Recruitments.create({ state: 'Urgent', role1: 'Builders', role2: 'Soldiers', role3: 'Miners' });
+  const barrowlandsRecruitment = await Recruitments.create({ state: 'Full', role1: 'Soldiers', role2: 'Cooks', role3: 'Builders' });
+  const rivertalRecruitment = await Recruitments.create({ state: 'Urgent', role1: 'Builders', role2: 'Farmers', role3: 'Cooks' });
+  const heartlandsRecruitment = await Recruitments.create({ state: 'Almost Full', role1: 'Miners', role2: 'Builders', role3: 'Soldiers' });
   const vernadosRecruitment = await Recruitments.create({ state: 'Almost Full', role1: 'Cooks', role2: 'Builders', role3: 'Soldiers' });
-  const velkharaanRecruitment = await Recruitments.create({ state: 'Open', role1: 'Builders', role2: 'Carpenters', role3: 'Soldiers' });
+  const velkharaanRecruitment = await Recruitments.create({ state: 'Open', role1: 'Tailors', role2: 'Soldiers', role3: 'Builders' });
 
   const eshaerynRegion = await Regions.create({ name: 'Eshaeryn', rulingHouseId: ayrinHouse.id, roleId: roles.eshaeryn, recruitmentId: eshaerynRecruitment.id });
   const firstLandingRegion = await Regions.create({ name: 'First Landing', rulingHouseId: farringHouse.id, roleId: roles.firstLanding, recruitmentId: firstLandingRecruitment.id });
@@ -73,7 +73,7 @@ sequelize.sync({ force }).then(async () => {
   await Duchies.create({ name: 'Duchy of Bessmere', regionId: riverhelmRegion.id });
 
   await Duchies.create({ name: 'Duchy of Aizdihar', regionId: heartlandsRegion.id });
-  await Duchies.create({ name: 'Duchy of Castellon', regionId: heartlandsRegion.id });
+  await Duchies.create({ name: 'Duchy of Calemonte', regionId: heartlandsRegion.id });
   await Duchies.create({ name: 'Duchy of Golden Garrison', regionId: heartlandsRegion.id });
 
   await Duchies.create({ name: 'Duchy of Caldwyn', regionId: vernadosRegion.id });
@@ -81,7 +81,7 @@ sequelize.sync({ force }).then(async () => {
   await Duchies.create({ name: 'Duchy of Andenshire', regionId: vernadosRegion.id });
 
   await Duchies.create({ name: 'Duchy of Karakorum', regionId: velkharaanRegion.id });
-  await Duchies.create({ name: 'Duchy of Darkhan', regionId: velkharaanRegion.id });
+  await Duchies.create({ name: 'Duchy of Blackmyre', regionId: velkharaanRegion.id });
   await Duchies.create({ name: 'Duchy of Kvasny', regionId: velkharaanRegion.id });
 
   await Vassals.create({ vassalId: heartlandsRegion.id, liegeId: firstLandingRegion.id });

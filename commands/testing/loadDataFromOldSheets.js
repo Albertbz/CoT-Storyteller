@@ -99,6 +99,10 @@ module.exports = {
           houseRows = houseSheetsRows.get(ageRow.get('Affiliation'));
           houseRow = houseRows.find(houseRow => houseRow.get('Discord Username') === ageRow.get('Discord Username'));
 
+          if (!houseRow) {
+            console.log('House row not found for: ' + ageRow.get('Discord Username') + ' in house ' + ageRow.get('Affiliation'));
+            continue;
+          }
           const timezone = houseRow.get('Timezone') === '' ? undefined : houseRow.get('Timezone');
           player = await Players.create({
             id: member.id,
@@ -217,6 +221,9 @@ module.exports = {
                 });
 
                 await duchy.update({ steelbearerId: steelbearer.id });
+              }
+              else {
+                console.log('Duchy not found for steelbearer: ' + duchyName + ' (' + character.name + ')');
               }
             }
           }
@@ -674,7 +681,7 @@ module.exports = {
 
     // Load relationships
     console.log('Syncing relationships.')
-    const relationshipsRows = await offspringDoc.sheetsByTitle['Relationships'].getRows();
+    const relationshipsRows = await offspringDoc.sheetsByTitle['Intercharacter Rolls'].getRows();
 
     for (const relationshipRow of relationshipsRows) {
       let bearingCharacter;
@@ -687,6 +694,7 @@ module.exports = {
         bearingCharacter = await Characters.findOne({ where: { name: bearingCharacterName } });
         if (!bearingCharacter) {
           console.log('Could not find: ' + bearingCharacterName)
+          continue;
         }
         else {
           const deceasedCharacter = await Deceased.findOne({ where: { characterId: bearingCharacter.id } })
@@ -706,6 +714,7 @@ module.exports = {
         conceivingCharacter = await Characters.findOne({ where: { name: conceivingCharacterName } });
         if (!conceivingCharacter) {
           console.log('Could not find: ' + conceivingCharacterName)
+          continue;
         }
         else {
           const deceasedCharacter = await Deceased.findOne({ where: { characterId: conceivingCharacter.id } })
@@ -735,19 +744,22 @@ module.exports = {
         // console.log('The relationship was added to the database succesfully:\n', relationship.toJSON());
       }
       catch (error) {
-        console.log('Error creating relationship for ' + bearingCharacterName + ' and ' + conceivingCharacterName + ':\n' + error);
+        console.log('Something went wrong with creating the relationship between: ' + bearingCharacterName + ' and ' + conceivingCharacterName + '\n' + error);
       }
     }
     console.log('Finished syncing relationships.')
 
     // Load bastard rolls
     console.log('Syncing bastard rolls.')
-    const bastardRollsRows = await offspringDoc.sheetsByTitle['Bastard rolls'].getRows();
+    const bastardRollsRows = await offspringDoc.sheetsByTitle['NPC Rolls'].getRows();
     try {
       for (const row of bastardRollsRows) {
         const character = await Characters.findOne({ where: { name: row.get('Character Name') } })
 
-        if (!character) throw new Error('Could not find: ' + row.get('Character Name'));
+        if (!character) {
+          console.log('Could not find character for bastard roll: ' + row.get('Character Name'));
+          continue;
+        }
 
         const deceasedCharacter = await Deceased.findOne({ where: { characterId: character.id } })
         if (deceasedCharacter && deceasedCharacter.yearOfDeath < world.currentYear) {
