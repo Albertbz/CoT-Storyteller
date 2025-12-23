@@ -31,6 +31,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       defaultValue: 0,
     },
+    yearOfCreation: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
     role: {
       type: DataTypes.STRING,
     },
@@ -82,6 +86,7 @@ module.exports = (sequelize, DataTypes) => {
           `house: ${house ? `\`${house.name}\` (\`${this.houseId}\`)` : '`-`'}\n` +
           `socialClass: \`${this.socialClassName}\`\n` +
           `yearOfMaturity: \`${this.yearOfMaturity}\`\n` +
+          `yearOfCreation: \`${this.yearOfCreation}\`\n` +
           `role: \`${this.role ? this.role : '-'}\`\n` +
           `pveDeaths: \`${this.pveDeaths}\`\n` +
           `comments: \`${this.comments ? this.comments : '-'}\`\n` +
@@ -106,6 +111,7 @@ module.exports = (sequelize, DataTypes) => {
 
         const generalInfo = (
           `**Name:** ${this.name}\n` +
+          `**Year of Creation:** ${this.yearOfCreation}\n` +
           // `**Sex:** ${this.sex}\n` +
           `**Region:** ${region ? region.name : `-`}\n` +
           `**House:** ${house ? house.name : `-`}\n` +

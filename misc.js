@@ -115,6 +115,7 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
       houseId: houseId,
       socialClassName: socialClassName,
       yearOfMaturity: yearOfMaturity,
+      yearOfCreation: yearOfMaturity,
       parent1Id: parent1Id,
       parent2Id: parent2Id
     })

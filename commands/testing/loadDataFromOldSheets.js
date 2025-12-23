@@ -151,6 +151,7 @@ module.exports = {
             socialClassName: socialClassName,
             pveDeaths: ageRow.get('PvE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
+            yearOfCreation: ageRow.get('Year of Maturity'),
             role: role,
             comments: comments,
             deathRoll1: ageRow.get('Year 4'),
@@ -238,6 +239,7 @@ module.exports = {
             houseId: house ? house.id : null,
             pveDeaths: ageRow.get('PvE Deaths'),
             yearOfMaturity: ageRow.get('Year of Maturity'),
+            yearOfCreation: ageRow.get('Year of Maturity'),
             socialClassName: socialClassName,
             deathRoll1: ageRow.get('Year 4'),
             deathRoll2: ageRow.get('Year 5'),
@@ -337,10 +339,24 @@ module.exports = {
             const house = await Houses.findOne({ where: { name: houseName } });
             const region = await Regions.findOne({ where: { rulingHouseId: house.id } });
 
+            // Get commoner 'year of maturity' from comments by looking for
+            // a number
+            const commentsText = commonerRow.get('Comments');
+            if (!commentsText) {
+              console.log('No comments for commoner: ' + commonerRow.get('Character Name'));
+              continue;
+            }
+            const yearTurningNotable = commentsText.replace(/^\D+/g, "");
+            if (isNaN(Number(yearTurningNotable)) || yearTurningNotable === '') {
+              console.log('No year turning notable for commoner: ' + commonerRow.get('Character Name'));
+              continue;
+            }
+
             character = await Characters.create({
               name: commonerRow.get('Character Name'),
               regionId: region.id,
               houseId: house.id,
+              yearOfCreation: yearTurningNotable ? Number(yearTurningNotable) - 2 : world.currentYear,
               role: role,
               comments: comments
             })
@@ -435,6 +451,7 @@ module.exports = {
           regionId: regionId,
           socialClassName: 'Notable',
           yearOfMaturity: yearOfMaturity,
+          yearOfCreation: yearOfMaturity,
           pveDeaths: 3
         })
 
@@ -487,6 +504,7 @@ module.exports = {
           regionId: wandererRegion.id,
           socialClassName: 'Commoner',
           yearOfMaturity: yearOfMaturity,
+          yearOfCreation: yearOfMaturity,
           pveDeaths: 3
         })
 
@@ -566,19 +584,27 @@ module.exports = {
           name: playableChildRow.get('Character Name'),
           sex: playableChildRow.get('Sex'),
           yearOfMaturity: playableChildRow.get('Year of Maturity'),
+          yearOfCreation: playableChildRow.get('Year of Maturity') - 2,
           regionId: region.id,
           houseId: house ? house.id : null,
           socialClassName: socialClassName,
         })
 
         const parentNames = playableChildRow.get('Parents').split(', ')
-        // console.log(parentNames)
 
-        const [parent1Character, created] = await Characters.findOrCreate({ where: { name: parentNames[0] } });
+        const [parent1Character, created] = await Characters.findOrCreate({
+          where: { name: parentNames[0] },
+          defaults: {
+            socialClassName: 'Notable',
+            regionId: region.id,
+            houseId: house ? house.id : null,
+            yearOfMaturity: world.currentYear,
+            yearOfCreation: world.currentYear
+          }
+        });
 
         if (created) {
           console.log('Created parent character, added to deceased as expired child: ' + parentNames[0]);
-          await parent1Character.update({ socialClassName: 'Notable', regionId: region.id, houseId: house ? house.id : null, yearOfMaturity: world.currentYear });
           await Deceased.create({
             characterId: parent1Character.id,
             causeOfDeath: 'Expired Child',
@@ -596,10 +622,18 @@ module.exports = {
         }
 
         if (parentNames.length > 1) {
-          const [parent2Character, created] = await Characters.findOrCreate({ where: { name: parentNames[1] } });
+          const [parent2Character, created] = await Characters.findOrCreate({
+            where: { name: parentNames[1] },
+            defaults: {
+              socialClassName: 'Notable',
+              regionId: region.id,
+              houseId: house ? house.id : null,
+              yearOfMaturity: world.currentYear,
+              yearOfCreation: world.currentYear
+            }
+          });
           if (created) {
             console.log('Created parent character, added to deceased as expired child: ' + parentNames[1]);
-            await parent2Character.update({ socialClassName: 'Notable', regionId: region.id, houseId: house.id, yearOfMaturity: world.currentYear });
             await Deceased.create({
               characterId: parent2Character.id,
               causeOfDeath: 'Expired Child',

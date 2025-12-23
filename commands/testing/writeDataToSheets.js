@@ -311,6 +311,13 @@ module.exports = {
           if (existingNote !== null) {
             nameCell.note = null;
           }
+
+          // If commoner, add note with when they become notable
+          if (player.character.socialClassName === 'Commoner') {
+            const yearTurningNotable = player.character.yearOfCreation + 2;
+            const noteText = `Becomes Notable in year ${yearTurningNotable}`;
+            nameCell.note = noteText;
+          }
         }
       }
 
