@@ -345,7 +345,7 @@ function buildChanceDescription(thresholds, labels) {
 }
 
 function buildOffspringChanceEmbed() {
-  const rollChancesDescription = '**Relationships**\n' + buildChanceDescription(REL_THRESHOLDS, OFFSPRING_LABELS) + '\n**Bastards**\n' + buildChanceDescription(BAST_THRESHOLDS, OFFSPRING_LABELS);
+  const rollChancesDescription = '**Intercharacter Rolls**\n' + buildChanceDescription(REL_THRESHOLDS, OFFSPRING_LABELS) + '\n**NPC Rolls**\n' + buildChanceDescription(BAST_THRESHOLDS, OFFSPRING_LABELS);
 
   const rollChancesEmbed = new EmbedBuilder()
     .setTitle('Offspring roll chances')

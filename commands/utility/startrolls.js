@@ -111,19 +111,19 @@ module.exports = {
 
 
       // Split listing into two embeds: relationships and bastards
-      const relationshipsDescription = '**The following couples are rolling for children:**\n' +
+      const relationshipsDescription = '**The following characters are rolling for children with another character:**\n' +
         (relationshipRollsText.length > 0 ? relationshipRollsText.join('\n') : '*None*');
 
       const bastardsDescription = '**The following characters are rolling for bastards with an NPC:**\n' +
         (bastardRollsTexs.length > 0 ? bastardRollsTexs.join('\n') : '*None*');
 
       const relEmbed = new EmbedBuilder()
-        .setTitle('**Offspring rolls — Relationships**')
+        .setTitle('**Intercharacter Rolls**')
         .setDescription(relationshipsDescription)
         .setColor(COLORS.BLUE);
 
       const bastEmbed = new EmbedBuilder()
-        .setTitle('**Offspring rolls — Bastards**')
+        .setTitle('**NPC Rolls**')
         .setDescription(bastardsDescription)
         .setColor(COLORS.BLUE);
 
@@ -172,26 +172,41 @@ module.exports = {
 
         if (startInteraction.customId === 'start') {
           for (const [_, bearingCharacter] of bearingCharacters) {
-            const relationships = await Relationships.findAll({
-              where: { bearingCharacterId: bearingCharacter.id },
-              include: { model: Characters, as: 'conceivingCharacter' }
-            })
+            // Keep track of whether the roll(s) for this bearing character
+            // is to be monogamous
+            let isMonogamous = true;
 
+            // Get all relationships for this bearing character
+            const relationshipsBearing = await bearingCharacter.getRelationshipsBearing();
+
+            // Get all conceiving characters for this bearing character
             const conceivingCharacters = []
-            for (const relationship of relationships) {
-              conceivingCharacters.push(relationship.conceivingCharacter)
+            for (const relationship of relationshipsBearing) {
+              const conceivingCharacter = await relationship.getConceivingCharacter();
+              conceivingCharacters.push(conceivingCharacter);
+
+              // If any conceiving character is in several relationships, or
+              // is also rolling for bastards, set isMonogamous to false
+              const relationshipsConceiving = await conceivingCharacter.getRelationshipsConceiving();
+              if (relationshipsConceiving.length > 1 || conceivingCharacter.isRollingForBastards) {
+                isMonogamous = false;
+              }
             }
 
+            // If the bearing character is also rolling for bastards, add a
+            // line for that too, and set isMonogamous to false
             let bastardNPC = ''
             if (bearingCharacter.isRollingForBastards) {
-              bastardNPC = '\n' + inlineCode('NPC')
+              bastardNPC = '\n' + inlineCode('NPC');
+              isMonogamous = false;
             }
 
-            // Calculate fertility modifier
+            // Calculate fertility modifier for bearing character
             const fertilityModifierBearing = ageToFertilityModifier(world.currentYear - bearingCharacter.yearOfMaturity) * 100;
 
+            // Build embed 
             const embed = new EmbedBuilder()
-              .setTitle('Relationship roll')
+              .setTitle('Intercharacter roll - ' + (isMonogamous ? 'Monogamous' : 'Polygamous'))
               .setDescription(
                 'Bearing partner:\n' +
                 inlineCode(bearingCharacter.name) + ' (' + fertilityModifierBearing + '% fertile)\n\n' +
@@ -227,6 +242,11 @@ module.exports = {
                 for (const conceivingCharacter of conceivingCharacters) {
                   const roll = calculateOffspringRoll({ age1: bearingCharacterAge, age2: world.currentYear - conceivingCharacter.yearOfMaturity })
                   offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, conceivingCharacter: conceivingCharacter })
+                  // If monogamous, give another roll if first did not produce children
+                  if (isMonogamous && !(roll.result.includes('Son') || roll.result.includes('Daughter'))) {
+                    const secondRoll = calculateOffspringRoll({ age1: bearingCharacterAge, age2: world.currentYear - conceivingCharacter.yearOfMaturity })
+                    offspringResults.push({ rollRes: secondRoll.result, checks: { fertilityCheck: secondRoll.fertilityCheck, offspringCheck: secondRoll.offspringCheck, fertilityModifier: secondRoll.fertilityModifier }, conceivingCharacter: conceivingCharacter })
+                  }
                 }
 
                 if (bearingCharacter.isRollingForBastards) {
