@@ -18,9 +18,12 @@ module.exports = {
           COLORS.RED
         );
         // Set character as deceased
-        await addDeceasedToDatabase(client.application.id, false, { characterId: character.id, yearOfDeath: world.currentYear, monthOfDeath: 1, dayOfDeath: 1, causeOfDeath: 'Left the continent', playedById: player.id })
+        const { deceased, embed } = await addDeceasedToDatabase(client.application.id, false, { characterId: character.id, yearOfDeath: world.currentYear, monthOfDeath: 1, dayOfDeath: 1, causeOfDeath: 'Left the continent', playedById: player.id })
+        if (!deceased && character.socialClassName === 'Commoner') {
+          // If character is commoner, delete them from the database
+          await character.destroy();
+        }
       }
     }
-
   }
 };
