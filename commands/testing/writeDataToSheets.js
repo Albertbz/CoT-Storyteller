@@ -1,8 +1,6 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, HTTPError } = require('discord.js');
 const { Players, Characters, Worlds, Regions, Houses, Recruitments, Deceased, Relationships, PlayableChildren, DeathRollDeaths } = require('../../dbObjects.js');
-const { Op } = require('sequelize');
 const { citizensDoc, offspringDoc } = require('../../sheets.js');
-const { GoogleSpreadsheetRow } = require('google-spreadsheet');
 const { getFertilityModifier } = require('../../helpers/rollHelper.js');
 
 module.exports = {
@@ -17,8 +15,7 @@ module.exports = {
     // Load world
     const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
 
-
-    // Write offspring sheets
+    // Load in the offspring spreadsheet
     await offspringDoc.loadInfo();
 
     // Write relationships

@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const { token } = require('./configs/config.json');
+const { syncSpreadsheetsToDatabase } = require('./spreadsheetSync.js');
 
 // Create a new client instance
 global.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent] });
@@ -40,6 +41,16 @@ for (const file of eventFiles) {
     client.on(event.name, (...args) => event.execute(...args));
   }
 }
+
+// Every hour on the hour, sync the spreadsheets with the database
+setInterval(async () => {
+  const now = new Date();
+  if (now.getMinutes() === 0) {
+    console.log('Starting hourly spreadsheet sync...');
+    await syncSpreadsheetsToDatabase();
+    console.log('Hourly spreadsheet sync complete.');
+  }
+}, 60 * 1000); // Check every minute
 
 // Log in to Discord with your client's token
 client.login(token);
