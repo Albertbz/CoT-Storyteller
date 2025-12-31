@@ -1,21 +1,59 @@
 const { Players, Characters, Worlds, Regions, Houses, Recruitments, Deceased, Relationships, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
 const { citizensDoc, offspringDoc } = require('./sheets.js');
 const { getFertilityModifier } = require('./helpers/rollHelper.js');
+const { postInLogChannel, COLORS } = require('./misc.js');
 
 async function syncSpreadsheetsToDatabase() {
   // Load world
   const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
 
-  // Load in the offspring spreadsheet
-  await offspringDoc.loadInfo();
-
-  // Write relationships
+  // Load all of the data in case it is changed during the sync, so that
+  // everything is taken from the same point in time.
   const relationships = await Relationships.findAll({
     include: [
       { model: Characters, as: 'bearingCharacter' },
       { model: Characters, as: 'conceivingCharacter' }
     ]
   });
+
+  const charactersWithBastardRolls = await Characters.findAll({
+    where: { isRollingForBastards: true },
+    attributes: ['name', 'yearOfMaturity']
+  });
+
+  const playableChildren = await PlayableChildren.findAll({
+    include: {
+      model: Characters, as: 'character',
+      include: [
+        { model: Characters, as: 'parent1' },
+        { model: Characters, as: 'parent2' },
+        { model: Regions, as: 'region' },
+        { model: Houses, as: 'house' }
+      ]
+    }
+  });
+
+  const activePlayers = await Players.findAll({
+    where: { isActive: true },
+    include: { model: Characters, as: 'character' }
+  });
+
+  const deceaseds = await Deceased.findAll({
+    include: {
+      model: Characters, as: 'character',
+      attributes: ['name', 'yearOfMaturity'],
+      include: [
+        { model: Houses, as: 'house', attributes: ['name'] },
+        { model: Regions, as: 'region', attributes: ['name'] }
+      ]
+    },
+  });
+  // End loading data
+
+  // Load in the offspring spreadsheet
+  await offspringDoc.loadInfo();
+
+  // Write relationships
   const sortedRelationships = relationships.sort((relationshipA, relationshipB) => {
     if (relationshipA.bearingCharacter.name < relationshipB.bearingCharacter.name) {
       return -1;
@@ -47,11 +85,6 @@ async function syncSpreadsheetsToDatabase() {
   await relationshipsSheet.saveUpdatedCells();
 
   // Write bastard rolls
-  const charactersWithBastardRolls = await Characters.findAll({
-    where: { isRollingForBastards: true },
-    attributes: ['name', 'yearOfMaturity']
-  })
-
   const sortedCharactersWithBastardRolls = charactersWithBastardRolls.sort((characterA, characterB) => {
     if (characterA.name < characterB.name) {
       return -1;
@@ -78,18 +111,6 @@ async function syncSpreadsheetsToDatabase() {
   await bastardRollsSheet.saveUpdatedCells()
 
   // Write playable children
-  const playableChildren = await PlayableChildren.findAll({
-    include: {
-      model: Characters, as: 'character',
-      include: [
-        { model: Characters, as: 'parent1' },
-        { model: Characters, as: 'parent2' },
-        { model: Regions, as: 'region' },
-        { model: Houses, as: 'house' }
-      ]
-    }
-  })
-
   const playableChildrenSheet = offspringDoc.sheetsByTitle['Playable Children'];
 
   try {
@@ -169,11 +190,6 @@ async function syncSpreadsheetsToDatabase() {
   for (const region of regions) {
     regionSheets.set(region, citizensDoc.sheetsByTitle[region.name]);
   }
-
-  const activePlayers = await Players.findAll({
-    where: { isActive: true },
-    include: { model: Characters, as: 'character' }
-  });
 
   const socialClassToRank = new Map();
   socialClassToRank.set('Ruler', 4);
@@ -315,17 +331,6 @@ async function syncSpreadsheetsToDatabase() {
   // Write deceased to sheet
   const deceasedSheet = citizensDoc.sheetsByTitle['Deceased'];
 
-  const deceaseds = await Deceased.findAll({
-    include: {
-      model: Characters, as: 'character',
-      attributes: ['name', 'yearOfMaturity'],
-      include: [
-        { model: Houses, as: 'house', attributes: ['name'] },
-        { model: Regions, as: 'region', attributes: ['name'] }
-      ]
-    },
-  })
-
   const monthOrder = new Map();
   monthOrder.set('January', 1);
   monthOrder.set('February', 2);
@@ -382,6 +387,12 @@ async function syncSpreadsheetsToDatabase() {
   }
 
   await deceasedSheet.saveUpdatedCells();
+
+  await postInLogChannel(
+    'Spreadsheet Sync Complete',
+    'The spreadsheets have been successfully synchronized with the database.',
+    COLORS.GREEN
+  );
 }
 
 module.exports = { syncSpreadsheetsToDatabase };
