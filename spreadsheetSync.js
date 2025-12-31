@@ -233,13 +233,15 @@ async function syncSpreadsheetsToDatabase() {
       const deathRoll4Cell = regionSheet.getCell(i + 1, 11);
       const deathRoll5Cell = regionSheet.getCell(i + 1, 12);
       const snowflakeCell = regionSheet.getCell(i + 1, 13);
+      const vsUsernameCell = regionSheet.getCell(i + 1, 14);
 
       socialClassCell.value = player.character.socialClassName;
       roleCell.value = player.character.role === null ? '' : player.character.role;
       nameCell.value = player.character.name;
       timezoneCell.value = player.timezone === null ? '' : player.timezone;
       commentsCell.value = player.character.comments === null ? '' : player.character.comments;
-      snowflakeCell.value = player.id
+      snowflakeCell.value = player.id;
+      vsUsernameCell.value = player.ign;
 
       if (player.character.socialClassName !== 'Commoner' || region.name === 'Wanderer') {
         pveDeathsCell.value = player.character.pveDeaths;
@@ -267,6 +269,11 @@ async function syncSpreadsheetsToDatabase() {
           style: 'SOLID', width: 1, color: {}, colorStyle: { rgbColor: {} }
         }
       }
+      const borderLeftThick = {
+        left: {
+          style: 'SOLID', width: 2, color: {}, colorStyle: { rgbColor: {} }
+        }
+      }
       // Add formatting (mainly borders)
       pveDeathsCell.borders = borderLeft;
       deathRoll1Cell.borders = borderLeft;
@@ -274,7 +281,8 @@ async function syncSpreadsheetsToDatabase() {
       deathRoll3Cell.borders = borderLeft;
       deathRoll4Cell.borders = borderLeft;
       deathRoll5Cell.borders = borderLeft;
-      snowflakeCell.borders = borderLeft;
+      snowflakeCell.borders = borderLeftThick;
+      vsUsernameCell.borders = borderLeft;
 
       pveDeathsCell.horizontalAlignment = 'CENTER';
       yearOfMaturityCell.horizontalAlignment = 'CENTER';

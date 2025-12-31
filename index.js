@@ -44,11 +44,16 @@ for (const file of eventFiles) {
 
 // Every hour on the hour, sync the spreadsheets with the database
 setInterval(async () => {
-  const now = new Date();
-  if (now.getMinutes() === 0) {
-    console.log('Starting hourly spreadsheet sync...');
-    await syncSpreadsheetsToDatabase();
-    console.log('Hourly spreadsheet sync complete.');
+  try {
+    const now = new Date();
+    if (now.getMinutes() === 0) {
+      console.log('Starting hourly spreadsheet sync...');
+      await syncSpreadsheetsToDatabase();
+      console.log('Hourly spreadsheet sync complete.');
+    }
+  }
+  catch (error) {
+    console.error('Error during hourly spreadsheet sync:', error);
   }
 }, 60 * 1000); // Check every minute
 
