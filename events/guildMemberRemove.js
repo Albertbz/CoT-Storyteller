@@ -1,5 +1,5 @@
 const { Events } = require('discord.js');
-const { Deceased, Players, Characters } = require('../dbObjects.js');
+const { Deceased, Players, Characters, Worlds } = require('../dbObjects.js');
 const { postInLogChannel, COLORS, addDeceasedToDatabase } = require('../misc');
 
 module.exports = {
@@ -17,6 +17,9 @@ module.exports = {
           `They were playing the character **${character.name}** (ID: ${character.id}).`,
           COLORS.RED
         );
+
+        const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+
         // Set character as deceased
         const { deceased, embed } = await addDeceasedToDatabase(client.application.id, false, { characterId: character.id, yearOfDeath: world.currentYear, monthOfDeath: 1, dayOfDeath: 1, causeOfDeath: 'Left the continent', playedById: player.id })
         if (!deceased && character.socialClassName === 'Commoner') {

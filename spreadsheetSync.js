@@ -38,6 +38,8 @@ async function syncSpreadsheetsToDatabase() {
     include: { model: Characters, as: 'character' }
   });
 
+  const activePlayersWithCharacters = activePlayers.filter(player => player.character !== null);
+
   const deceaseds = await Deceased.findAll({
     include: {
       model: Characters, as: 'character',
@@ -198,7 +200,7 @@ async function syncSpreadsheetsToDatabase() {
   socialClassToRank.set('Commoner', 1);
 
   for (const [region, regionSheet] of regionSheets) {
-    const regionPlayers = activePlayers.filter(activePlayer => activePlayer.character.regionId === region.id);
+    const regionPlayers = activePlayersWithCharacters.filter(activePlayer => activePlayer.character.regionId === region.id);
 
     regionPlayers.sort((playerA, playerB) => {
       const socialClassCompare = socialClassToRank.get(playerB.character.socialClassName) - socialClassToRank.get(playerA.character.socialClassName);
@@ -236,6 +238,10 @@ async function syncSpreadsheetsToDatabase() {
       const vsUsernameCell = regionSheet.getCell(i + 1, 14);
 
       socialClassCell.value = player.character.socialClassName;
+      if (region.name === 'Wanderer' && player.character.socialClassName === 'Commoner') {
+        socialClassCell.value = 'Wanderer';
+      }
+
       roleCell.value = player.character.role === null ? '' : player.character.role;
       nameCell.value = player.character.name;
       timezoneCell.value = player.timezone === null ? '' : player.timezone;

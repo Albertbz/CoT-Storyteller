@@ -698,9 +698,14 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
   if (removeRoles && playedById) {
     if (player) {
       const guild = await client.guilds.fetch(guilds.cot);
-      const member = await guild.members.fetch(player.id);
-      if (member) {
-        await member.roles.remove([roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
+      try {
+        const member = await guild.members.fetch(player.id);
+        if (member) {
+          await member.roles.remove([roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
+        }
+      }
+      catch (error) {
+        console.log('Error fetching member to remove roles on deceased addition: ' + error);
       }
     }
   }
