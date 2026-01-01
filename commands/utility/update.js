@@ -179,9 +179,9 @@ module.exports = {
         }
 
         // Create the message to be posted
-        const lastUpdatedText = '## Last updated: ' + time(new Date(), TimestampStyles.LongDate);
+        const lastUpdatedText = '-# Last updated: ' + time(new Date(), TimestampStyles.LongDate);
         const descriptionText = italic('For new players joining, please prioritize the houses in need in order to ensure fun for everyone.');
-        const overviewLink = '## ' + hyperlink('Detailed Roster Overview', '<https://docs.google.com/spreadsheets/d/1vPk2oXTCj5I6gMtMKNL6LpmL-qFX5LqM2J5oQHK-ZSo/edit?usp=sharing>');
+        const overviewLink = '## ' + hyperlink('Detailed Roster Overview', '<https://docs.google.com/spreadsheets/d/1GSWM4WNu6Af_83PK0b3oVwRAQo1oloxe45FKgnSM9jA/edit?usp=sharing>');
 
         // Get all regions with their recruitment info, excluding Wanderer
         const regions = await Regions.findAll({
@@ -195,6 +195,7 @@ module.exports = {
         for (const region of regions) {
           const house = await region.getRulingHouse();
           const houseEmoji = guildEmojis.find(emoji => emoji.name === house.emojiName);
+          const regionText = region.name;
           const houseText = houseEmoji.toString() + bold('House ' + house.name) + houseEmoji.toString();
           const recruitment = await region.getRecruitment();
           let rolesText = 'Need: ' + recruitment.role1 + ', ' + recruitment.role2 + ', ' + recruitment.role3;
@@ -217,9 +218,10 @@ module.exports = {
           }
 
           housesText +=
+            '## ' + regionText + '\n' +
             houseText + '\n' +
             stateText + '\n' +
-            rolesText + '\n\n'
+            rolesText + '\n'
         };
 
         const fullMessage =
