@@ -42,11 +42,27 @@ for (const file of eventFiles) {
   }
 }
 
+// Make function to check whether database was changed
+const dbPath = './database.sqlite';
+
+function getDatabaseLastModifiedTime() {
+  const stats = fs.statSync(dbPath);
+  return stats.mtime;
+}
+
 // Every hour on the hour, sync the spreadsheets with the database
 setInterval(async () => {
   try {
     const now = new Date();
     if (now.getMinutes() === 0) {
+      // Check whether the database was modified in the last hour, and only
+      // sync if it was
+      const lastModifiedTime = getDatabaseLastModifiedTime();
+      const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
+      if (lastModifiedTime < oneHourAgo) {
+        return;
+      }
+
       console.log('Starting hourly spreadsheet sync...');
       await syncSpreadsheetsToDatabase();
       console.log('Hourly spreadsheet sync complete.');
