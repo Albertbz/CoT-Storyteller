@@ -1,8 +1,8 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Deceased } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
-const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS } = require('../../misc.js');
-
+const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter } = require('../../misc.js');
+const { channels } = require('../../configs/ids.json');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -591,8 +591,10 @@ module.exports = {
      * Handle changing current year
      */
     if (subcommand === 'year') {
+      const embeds = [];
       const newYear = interaction.options.getNumber('year_new');
 
+      // First, update the world's current year
       const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
 
       const oldYear = world.currentYear;
@@ -610,8 +612,239 @@ module.exports = {
         .setTitle('Current Year Changed')
         .setDescription(`**Year**: ${oldYear} -> ${newYear}`)
         .setColor(COLORS.ORANGE)
+      embeds.push(yearChangedEmbed);
 
-      return interaction.editReply({ embeds: [yearChangedEmbed], flags: MessageFlags.Ephemeral });
+      // Then, check whether any relationships and bastard rolls need to be 
+      // removed due to death
+      const relationships = await Relationships.findAll({
+        include: [
+          { model: Characters, as: 'bearingCharacter' },
+          { model: Characters, as: 'conceivingCharacter' }
+        ]
+      });
+
+      // Filter relationships where partner(s) died previous year
+      const relationshipsToRemove = [];
+      for (const rel of relationships) {
+        const deceasedPartner = await Deceased.findOne({
+          where: {
+            [Op.or]: [
+              {
+                characterId: rel.bearingCharacterId,
+                yearOfDeath: world.currentYear - 1
+              },
+              {
+                characterId: rel.conceivingCharacterId,
+                yearOfDeath: world.currentYear - 1
+              }
+            ]
+          }
+        });
+
+        if (deceasedPartner) {
+          relationshipsToRemove.push(rel);
+        }
+      }
+
+      // Remove the relationships and save text for embed
+      const removedRelationshipsTextFormatted = [];
+      const removedRelationshipsTextLog = [];
+      for (const rel of relationshipsToRemove) {
+        const removedRelationshipTextLog = `Relationship between ${inlineCode(rel.bearingCharacter.name)} and ${inlineCode(rel.conceivingCharacter.name)} (${inlineCode(rel.id)})`;
+        removedRelationshipsTextLog.push(removedRelationshipTextLog);
+        const removedRelationshipTextFormatted = `Relationship between ${rel.bearingCharacter.name} and ${rel.conceivingCharacter.name}`;
+        removedRelationshipsTextFormatted.push(removedRelationshipTextFormatted);
+        await rel.destroy();
+      }
+      if (removedRelationshipsTextFormatted.length > 0) {
+        // Post to log channel
+        await postInLogChannel(
+          'Relationships Removed Due to Death',
+          '**Removed by:** ' + userMention(interaction.user.id) + '\n\n' +
+          removedRelationshipsTextLog.join('\n'),
+          COLORS.RED
+        );
+
+        // Create embed for removed relationships
+        const relationshipsRemovedEmbed = new EmbedBuilder()
+          .setTitle('Relationships Removed Due to Death')
+          .setDescription(removedRelationshipsTextFormatted.join('\n'))
+          .setColor(COLORS.RED);
+        embeds.push(relationshipsRemovedEmbed);
+      }
+
+      // Remove bastard rolls for characters who died previous year by setting
+      // isRollingForBastards to false
+      const charactersRollingForBastards = await Characters.findAll({
+        where: { isRollingForBastards: true }
+      });
+
+      const deceasedCharactersRollingForBastards = [];
+      for (const char of charactersRollingForBastards) {
+        const deceasedChar = await Deceased.findOne({
+          where: { characterId: char.id, yearOfDeath: world.currentYear - 1 }
+        });
+        if (deceasedChar) {
+          deceasedCharactersRollingForBastards.push(char);
+        }
+      }
+
+      const removedBastardRollsTextFormatted = [];
+      const removedBastardRollsTextLog = [];
+      for (const char of deceasedCharactersRollingForBastards) {
+        const removedBastardRollTextLog = `${inlineCode(char.name)} (${inlineCode(char.id)})`;
+        removedBastardRollsTextLog.push(removedBastardRollTextLog);
+        const removedBastardRollTextFormatted = `${char.name}`;
+        removedBastardRollsTextFormatted.push(removedBastardRollTextFormatted);
+        await char.update({ isRollingForBastards: false });
+      }
+      if (removedBastardRollsTextFormatted.length > 0) {
+        // Post to log channel
+        await postInLogChannel(
+          'NPC Bastard Rolls Removed Due to Death',
+          '**Removed by:** ' + userMention(interaction.user.id) + '\n\n' +
+          removedBastardRollsTextLog.join('\n'),
+          COLORS.RED
+        );
+
+        // Create embed for removed bastard rolls
+        const bastardRollsRemovedEmbed = new EmbedBuilder()
+          .setTitle('NPC Bastard Rolls Removed Due to Death')
+          .setDescription(removedBastardRollsTextFormatted.join('\n'))
+          .setColor(COLORS.RED);
+        embeds.push(bastardRollsRemovedEmbed);
+      }
+
+      // Go through commoner characters and make notable if their year of
+      // creation is the new current year plus 2. If not a wanderer, set their
+      // year of maturity to year of creation plus 1. If wanderer, set year of
+      // maturity to year of creation (should already be the case normally).
+      const commonerCharactersToPromote = await Characters.findAll({
+        where: {
+          socialClassName: 'Commoner',
+          yearOfCreation: world.currentYear - 2
+        },
+        include: [
+          { model: Regions, as: 'region', where: { name: { [Op.ne]: 'Wanderer' } } }
+        ]
+      });
+
+      const promotedCommonerCharactersTextFormatted = [];
+      const promotedCommonerCharactersTextLog = [];
+
+      for (const char of commonerCharactersToPromote) {
+        const promotedCommonerCharacterTextLog = `${inlineCode(char.name)} (${inlineCode(char.id)})`;
+        promotedCommonerCharactersTextLog.push(promotedCommonerCharacterTextLog);
+        const promotedCommonerCharacterTextFormatted = `${char.name}`;
+        promotedCommonerCharactersTextFormatted.push(promotedCommonerCharacterTextFormatted);
+
+        await char.update({ socialClassName: 'Notable', yearOfMaturity: char.yearOfCreation + 1 });
+        const charPlayer = await char.getPlayer();
+        if (charPlayer) {
+          await syncMemberRolesWithCharacter(charPlayer, char);
+        }
+      }
+
+      if (promotedCommonerCharactersTextFormatted.length > 0) {
+        // Post to log channel
+        await postInLogChannel(
+          'Commoner Characters Changed to Notable for Year ' + world.currentYear,
+          '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
+          promotedCommonerCharactersTextLog.join('\n'),
+          COLORS.ORANGE
+        );
+
+        // Create embed for promoted commoner characters
+        const promotedCommonerCharactersEmbed = new EmbedBuilder()
+          .setTitle('Commoner Characters Changed to Notable for Year ' + world.currentYear)
+          .setDescription(promotedCommonerCharactersTextFormatted.join('\n'))
+          .setColor(COLORS.ORANGE);
+        embeds.push(promotedCommonerCharactersEmbed);
+      }
+
+      const wandererCharactersToPromote = await Characters.findAll({
+        where: {
+          socialClassName: 'Commoner',
+          yearOfCreation: world.currentYear - 2
+        },
+        include: [
+          { model: Regions, as: 'region', where: { name: 'Wanderer' } }
+        ]
+      });
+
+      const promotedWandererCharactersTextFormatted = [];
+      const promotedWandererCharactersTextLog = [];
+
+      for (const char of wandererCharactersToPromote) {
+        const promotedWandererCharacterTextLog = `${inlineCode(char.name)} (${inlineCode(char.id)})`;
+        promotedWandererCharactersTextLog.push(promotedWandererCharacterTextLog);
+        const promotedWandererCharacterTextFormatted = `${char.name}`;
+        promotedWandererCharactersTextFormatted.push(promotedWandererCharacterTextFormatted);
+
+        await char.update({ socialClassName: 'Notable', yearOfMaturity: char.yearOfCreation });
+        const charPlayer = await char.getPlayer();
+        if (charPlayer) {
+          await syncMemberRolesWithCharacter(charPlayer, char);
+        }
+      }
+
+      if (promotedWandererCharactersTextFormatted.length > 0) {
+        // Post to log channel
+        await postInLogChannel(
+          'Wanderer Characters Changed to Notable for Year ' + world.currentYear,
+          '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
+          promotedWandererCharactersTextLog.join('\n'),
+          COLORS.ORANGE
+        );
+
+        // Create embed for promoted wanderer characters
+        const promotedWandererCharactersEmbed = new EmbedBuilder()
+          .setTitle('Wanderer Characters Changed to Notable for Year ' + world.currentYear)
+          .setDescription(promotedWandererCharactersTextFormatted.join('\n'))
+          .setColor(COLORS.ORANGE);
+        embeds.push(promotedWandererCharactersEmbed);
+      }
+
+      // Post in Notable chat about the characters who have been changed to
+      // Notable and ping them with a message. One message for commoners and one
+      // for wanderers.
+      const notableChat = await interaction.client.channels.fetch(channels.notableChat);
+      // First, commoners
+      const commonerMentions = [];
+      for (const char of commonerCharactersToPromote) {
+        const charPlayer = await char.getPlayer();
+        if (charPlayer) {
+          commonerMentions.push(userMention(charPlayer.id));
+        }
+      }
+
+      if (commonerMentions.length > 0) {
+        await notableChat.send(
+          `# Commoners made in Year ${world.currentYear - 2} that have now been made notable\n` +
+          `If you are tagged in this message, then it means that you have become notable, and are no longer a commoner! Welcome to mortality! From now on, you must record any PvE deaths in <#1328825990276972706>, and you will slowly be aging. You will start at Age 1, so you still have plenty of years before you have to worry about dying of old age.\n\n` +
+          commonerMentions.join('\n')
+        );
+      }
+
+      // Then, wanderers
+      const wandererMentions = [];
+      for (const char of wandererCharactersToPromote) {
+        const charPlayer = await char.getPlayer();
+        if (charPlayer) {
+          wandererMentions.push(userMention(charPlayer.id));
+        }
+      }
+
+      if (wandererMentions.length > 0) {
+        await notableChat.send(
+          `# Wanderers made in Year ${world.currentYear - 2} that have now been made notable\n` +
+          `If you are tagged in this message, then it means that you have become notable, and can no longer become a commoner if you join a house! Not much has changed for you, as you were a wanderer and as such were already mortal.\n\n` +
+          wandererMentions.join('\n')
+        );
+      }
+
+
+      return interaction.editReply({ embeds: embeds, flags: MessageFlags.Ephemeral });
     }
 
     /**

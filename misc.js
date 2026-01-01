@@ -816,6 +816,16 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
     }
   }
 
+  // If year of maturity is 0 and new year of maturity is not provided, make 
+  // sure to update to at least year of creation
+  if (character.yearOfMaturity === 0 && newValues.yearOfMaturity === null) {
+    newValues.yearOfMaturity = character.yearOfCreation;
+  }
+
+  // If comment is '-', change to null
+  if (newValues.comments === '-') {
+    newValues.comments = null;
+  }
 
   // All checks passed, prepare the description of changes
   const logInfoChanges = [];
@@ -871,8 +881,8 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
         break;
       }
       case 'comments': {
-        logInfoChanges.push({ key: 'comments', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
-        formattedInfoChanges.push({ key: '**Comments**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
+        logInfoChanges.push({ key: 'comments', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Comments**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
         break;
       }
       case 'parent1Id': {
@@ -1487,5 +1497,6 @@ module.exports = {
   changePlayableChildInDatabase,
   changeRelationshipInDatabase,
   assignSteelbearerToRegion,
+  syncMemberRolesWithCharacter,
   COLORS
 }; 
