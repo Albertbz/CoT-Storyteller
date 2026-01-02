@@ -667,6 +667,19 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
       causeOfDeath: causeOfDeath,
       playedById: playedById
     });
+
+    // Remove as steelbearer if applicable
+    const existingSteelbearer = await Steelbearers.findOne({ where: { characterId: characterId } });
+    if (existingSteelbearer) {
+      // If duchy steelbearer, set duchy's steelbearerId to null
+      if (existingSteelbearer.type === 'Duchy') {
+        const duchy = await Duchies.findOne({ where: { steelbearerId: existingSteelbearer.id } });
+        if (duchy) {
+          await duchy.update({ steelbearerId: null });
+        }
+      }
+      await existingSteelbearer.destroy();
+    }
   }
   catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
