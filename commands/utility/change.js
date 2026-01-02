@@ -87,6 +87,11 @@ module.exports = {
         )
         .addNumberOption(option =>
           option
+            .setName('yearofcreation_new')
+            .setDescription('The new Year of Creation.')
+        )
+        .addNumberOption(option =>
+          option
             .setName('pvedeaths_new')
             .setDescription('The new amount of PvE deaths.')
         )
@@ -109,6 +114,11 @@ module.exports = {
               { name: 'Yes', value: 'Yes' },
               { name: 'No', value: 'No' }
             )
+        )
+        .addBooleanOption(option =>
+          option
+            .setName('forcechange')
+            .setDescription('Force the change even if it may cause issues.')
         )
     )
     .addSubcommand(subcommand =>
@@ -554,10 +564,12 @@ module.exports = {
       const newHouseId = interaction.options.getString('house_new');
       const newSocialClassName = interaction.options.getString('socialclass_new');
       const newYearOfMaturity = interaction.options.getNumber('yearofmaturity_new');
+      const newYearOfCreation = interaction.options.getNumber('yearofcreation_new');
       const newPveDeaths = interaction.options.getNumber('pvedeaths_new');
       const newRole = interaction.options.getString('role_new');
       const newComments = interaction.options.getString('comments_new');
       const newIsRollingForBastards = interaction.options.getString('rollingforbastards_new') === null ? null : (interaction.options.getString('rollingforbastards_new') === 'Yes' ? true : false);
+      const forceChange = interaction.options.getBoolean('forcechange') || false;
 
       const character = await Characters.findByPk(characterId);
 
@@ -569,10 +581,12 @@ module.exports = {
           newHouseId: newHouseId,
           newSocialClassName: newSocialClassName,
           newYearOfMaturity: newYearOfMaturity,
+          newYearOfCreation: newYearOfCreation,
           newPveDeaths: newPveDeaths,
           newRole: newRole,
           newComments: newComments,
-          newIsRollingForBastards: newIsRollingForBastards
+          newIsRollingForBastards: newIsRollingForBastards,
+          forceChange: forceChange
         })
 
         return interaction.editReply({ embeds: [characterChangedEmbed], flags: MessageFlags.Ephemeral });

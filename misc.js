@@ -728,7 +728,7 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
 
 // Changes the provided values of a character and posts the change to the log
 // channel using postInLogChannel.
-async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newRegionId = null, newHouseId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null } = {}) {
+async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newRegionId = null, newHouseId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null, newYearOfCreation = null, forceChange = false } = {}) {
   const characterNotChangedEmbed = new EmbedBuilder()
     .setTitle('Character Not Changed')
     .setColor(COLORS.RED);
@@ -786,7 +786,7 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   // Check social class validity
   if (newValues.socialClassName) {
     // Cannot go from anything that is not commoner and back to commoner
-    if (newValues.socialClassName === 'Commoner' && oldValues.socialClassName !== 'Commoner') {
+    if (!forceChange && newValues.socialClassName === 'Commoner' && oldValues.socialClassName !== 'Commoner') {
       characterNotChangedEmbed
         .setDescription('Cannot change character social class back to Commoner from a higher social class.');
       return { character: null, embed: characterNotChangedEmbed };

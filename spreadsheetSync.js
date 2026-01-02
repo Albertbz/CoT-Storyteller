@@ -347,6 +347,14 @@ async function syncSpreadsheetsToDatabase() {
         const noteText = `Steelbearer (${await steelbearer.fullType})`;
         noteLines.push(noteText);
       }
+      else {
+        // Set text color to black and remove bold/italic formatting
+        nameCell.textFormat = {
+          foregroundColor: { red: 0, green: 0, blue: 0 },
+          bold: false,
+          italic: false
+        };
+      }
 
 
       // If there are any note lines, set them. Otherwise, leave note as null
