@@ -871,6 +871,11 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
         formattedInfoChanges.push({ key: '**Year of Maturity**', oldValue: oldValue, newValue: newValue });
         break;
       }
+      case 'yearOfCreation': {
+        logInfoChanges.push({ key: 'yearOfCreation', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Year of Creation**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
       case 'role': {
         logInfoChanges.push({ key: 'role', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
         formattedInfoChanges.push({ key: '**Role**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
