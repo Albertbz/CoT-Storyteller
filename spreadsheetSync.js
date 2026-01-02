@@ -1,4 +1,4 @@
-const { Players, Characters, Worlds, Regions, Houses, Recruitments, Deceased, Relationships, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
+const { Players, Characters, Worlds, Regions, Houses, Recruitments, Deceased, Relationships, PlayableChildren, DeathRollDeaths, Steelbearers } = require('./dbObjects.js');
 const { citizensDoc, offspringDoc } = require('./sheets.js');
 const { getFertilityModifier } = require('./helpers/rollHelper.js');
 const { postInLogChannel, COLORS } = require('./misc.js');
@@ -305,12 +305,14 @@ async function syncSpreadsheetsToDatabase() {
         where: { characterId: player.character.id }
       });
 
+      const noteLines = [];
+
       if (deathRollDeath !== null) {
         // Set the background color to light red (#f4c7c3)
         // Translated to RGB with decimals: red: 0.957, green: 0.780, blue: 0.765
         nameCell.backgroundColor = { red: 0.957, green: 0.780, blue: 0.765 };
         const noteText = `Dying of old age: ${deathRollDeath.dateOfDeath}`;
-        nameCell.note = noteText;
+        noteLines.push(noteText);
       }
       else {
         // Take alternating coloring into account
@@ -322,19 +324,37 @@ async function syncSpreadsheetsToDatabase() {
         else {
           nameCell.backgroundColor = { red: 0.965, green: 0.973, blue: 0.9765 };
         }
+      }
 
-        // Remove any existing notes
-        const existingNote = nameCell.note;
-        if (existingNote !== null) {
-          nameCell.note = null;
-        }
+      // If commoner, add note with when they become notable
+      if (player.character.socialClassName === 'Commoner') {
+        const yearTurningNotable = player.character.yearOfCreation + 2;
+        const noteText = `Becomes Notable in year ${yearTurningNotable}`;
+        noteLines.push(noteText);
+      }
 
-        // If commoner, add note with when they become notable
-        if (player.character.socialClassName === 'Commoner') {
-          const yearTurningNotable = player.character.yearOfCreation + 2;
-          const noteText = `Becomes Notable in year ${yearTurningNotable}`;
-          nameCell.note = noteText;
-        }
+      // If a steelbearer, add note indicating so and color the name cell text
+      // grey silver, bold and italicized
+      const steelbearer = await Steelbearers.findOne({ where: { characterId: player.character.id } });
+      if (steelbearer !== null) {
+        // Grey silver color: #999999
+        // Translated to RGB with decimals: red: 0.6, green: 0.6, blue: 0.6
+        nameCell.textFormat = {
+          foregroundColor: { red: 0.6, green: 0.6, blue: 0.6 },
+          bold: true,
+          italic: true
+        };
+        const noteText = `Steelbearer (${await steelbearer.fullType})`;
+        noteLines.push(noteText);
+      }
+
+
+      // If there are any note lines, set them. Otherwise, leave note as null
+      if (noteLines.length > 0) {
+        nameCell.note = noteLines.join('\n');
+      }
+      else {
+        nameCell.note = null;
       }
     }
 

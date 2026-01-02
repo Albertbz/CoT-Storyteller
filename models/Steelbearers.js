@@ -51,6 +51,21 @@ module.exports = (sequelize, DataTypes) => {
       set(value) {
         throw new Error('Do not try to set the `formattedInfo` value!');
       }
+    },
+    fullType: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        if (this.type === 'Duchy') {
+          const duchy = await sequelize.models.duchies.findOne({ where: { steelbearerId: this.id } });
+          return duchy.name;
+        }
+        else {
+          return this.type;
+        }
+      },
+      set(value) {
+        throw new Error('Do not try to set the `fullType` value!');
+      }
     }
   });
 }
