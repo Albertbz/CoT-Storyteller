@@ -58,6 +58,14 @@ Steelbearers.addHook('afterDestroy', async (steelbearer, options) => {
       }
     }
   }
+
+  // If duchy steelbearer, remove steelbearerId from duchy
+  if (steelbearer.type === 'Duchy') {
+    const duchy = await sequelize.models.duchies.findOne({ where: { steelbearerId: steelbearer.id } });
+    if (duchy) {
+      await duchy.update({ steelbearerId: null });
+    }
+  }
 });
 
 Characters.belongsTo(Regions, { foreignKey: 'regionId', as: 'region' });

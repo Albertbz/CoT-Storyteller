@@ -569,9 +569,13 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
       // Make sure duchy does not already have a steelbearer (steelbearerId is not null)
       const duchySteelbearer = await Duchies.findOne({ where: { steelbearerId: { [Op.not]: null }, id: duchyId } });
       if (duchySteelbearer) {
-        notAssignedEmbed
-          .setDescription('Duchy already has a steelbearer assigned.');
-        return { steelbearer: null, embed: notAssignedEmbed };
+        // Check whether the assigned steelbearer is actually still a steelbearer
+        const assignedSteelbearer = await Steelbearers.findByPk(duchySteelbearer.steelbearerId);
+        if (assignedSteelbearer) {
+          notAssignedEmbed
+            .setDescription('Duchy already has a steelbearer assigned.');
+          return { steelbearer: null, embed: notAssignedEmbed };
+        }
       }
     }
 
