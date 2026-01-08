@@ -405,6 +405,10 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
      */
     await player.setCharacter(characterId);
     await syncMemberRolesWithCharacter(player, character)
+    // Change member's nickname to character name if not present
+    if (!member.nickname.includes(character.name)) {
+      await member.setNickname(character.name.trim());
+    }
 
     // If the character was a playable child, remove that entry
     if (playableChild) {
