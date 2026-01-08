@@ -407,7 +407,12 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     await syncMemberRolesWithCharacter(player, character)
     // Change member's nickname to character name if not present
     if (!member.nickname.includes(character.name)) {
-      await member.setNickname(character.name.trim());
+      try {
+        await member.setNickname(character.name.trim());
+      }
+      catch (error) {
+        console.log(`Could not set nickname for ${member.user.username}: ${error}`);
+      }
     }
 
     // If the character was a playable child, remove that entry
