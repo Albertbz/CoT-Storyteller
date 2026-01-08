@@ -406,7 +406,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     await player.setCharacter(characterId);
     await syncMemberRolesWithCharacter(player, character)
     // Change member's nickname to character name if not present
-    if (!member.nickname.includes(character.name)) {
+    if (!member.nickname || (member.nickname && !member.nickname.includes(character.name))) {
       try {
         await member.setNickname(character.name.trim());
       }
