@@ -1319,7 +1319,7 @@ async function changeRelationshipInDatabase(storyteller, relationship, { newIsCo
 
   // If setting inherited title to Noble, make sure relationship is committed
   if (newValues.inheritedTitle && newValues.inheritedTitle === 'Noble') {
-    const isCommittedToCheck = newValues.isCommitted !== null ? newValues.isCommitted : relationship.isCommitted;
+    const isCommittedToCheck = newValues.isCommitted !== undefined ? newValues.isCommitted : relationship.isCommitted;
     if (!isCommittedToCheck) {
       relationshipNotChangedEmbed
         .setDescription('Only committed relationships can have an inherited title of Noble.');

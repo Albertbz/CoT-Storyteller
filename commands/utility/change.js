@@ -1006,47 +1006,6 @@ module.exports = {
           .setColor(COLORS.RED);
         return interaction.editReply({ embeds: [relationshipNotChangedEmbed], flags: MessageFlags.Ephemeral });
       }
-
-      // const relationship = await Relationships.findOne({
-      //   include: [
-      //     { model: Characters, as: 'bearingCharacter' },
-      //     { model: Characters, as: 'conceivingCharacter' }
-      //   ],
-      //   where: { id: relationshipId }
-      // });
-
-      const changes = []
-
-      if (newCommitted) {
-        const oldCommitted = relationship.isCommitted ? 'Yes' : 'No';
-        const committedValue = newCommitted === 'Yes' ? true : false;
-        await relationship.update({ isCommitted: committedValue });
-
-        changes.push('Committed: ' + inlineCode(oldCommitted) + ' -> ' + inlineCode(newCommitted));
-      }
-
-      if (newInheritedTitle) {
-        const oldInheritedTitle = relationship.inheritedTitle ? relationship.inheritedTitle : 'None';
-        const inheritedTitleValue = newInheritedTitle === 'None' ? null : newInheritedTitle;
-        await relationship.update({ inheritedTitle: inheritedTitleValue });
-
-        changes.push('Inherited Title: ' + inlineCode(oldInheritedTitle) + ' -> ' + inlineCode(newInheritedTitle));
-      }
-
-      if (changes.length === 0) {
-        return interaction.editReply({ content: 'Please specify what to change.', flags: MessageFlags.Ephemeral });
-      }
-
-      await postInLogChannel(
-        'Relationship Changed',
-        '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
-        'Relationship: ' + inlineCode(relationship.bearingCharacter.name + ' & ' + relationship.conceivingCharacter.name) + '\n\n' +
-        changes.join('\n'),
-        0xD98C00
-      )
-
-      changes.unshift('**The following was changed for the relationship between ' + inlineCode(relationship.bearingCharacter.name + ' & ' + relationship.conceivingCharacter.name) + ':**');
-      return interaction.editReply({ content: changes.join('\n'), flags: MessageFlags.Ephemeral });
     }
 
 
