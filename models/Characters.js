@@ -120,7 +120,7 @@ module.exports = (sequelize, DataTypes) => {
           `**Comments:** ${this.comments ? this.comments : '-'}`);
 
         // Show all info for non-commoners and wanderers
-        if (this.socialClassName !== 'Commoner' || region.name === 'Wanderer') {
+        if (this.socialClassName !== 'Commoner' || (region && region.name === 'Wanderer')) {
           const infoList = [generalInfo];
 
           const agingInfo = (
