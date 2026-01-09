@@ -314,6 +314,54 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
   }
 }
 
+async function addHouseToDatabase(storyteller, { name, emojiname = null } = {}) {
+  // storyteller is required
+  if (!storyteller) {
+    throw new Error('storyteller is required');
+  }
+
+  const houseNotCreatedEmbed = new EmbedBuilder()
+    .setTitle('House Not Created')
+    .setColor(COLORS.RED);
+
+  // Check whether a house with the same name already exists
+  const existsWithName = await Houses.findOne({ where: { name: name } });
+  if (existsWithName) {
+    houseNotCreatedEmbed
+      .setDescription('A house with the same name already exists.');
+    return { house: null, embed: houseNotCreatedEmbed };
+  }
+
+  // Checks passed, create the house
+  try {
+    const house = await Houses.create({
+      name: name,
+      emojiname: emojiname
+    });
+
+    await postInLogChannel(
+      'House Created',
+      '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
+      (await house.logInfo),
+      COLORS.GREEN
+    )
+
+    // Make an embed for house creation to return
+    const houseCreatedEmbed = new EmbedBuilder()
+      .setTitle('House Created')
+      .setDescription((await house.formattedInfo))
+      .setColor(COLORS.GREEN);
+
+    return { house, embed: houseCreatedEmbed };
+  }
+  catch (error) {
+    console.log(error);
+    houseNotCreatedEmbed
+      .setDescription(`An error occured while trying to create the house: ${error.message}`);
+    return { house: null, embed: houseNotCreatedEmbed };
+  }
+}
+
 async function addPlayableChildToDatabase(storyteller, { characterId, legitimacy, contact1Snowflake, contact2Snowflake } = {}) {
   // storyteller is required
   if (!storyteller) {
@@ -1540,6 +1588,7 @@ module.exports = {
   postInLogChannel,
   ageToFertilityModifier,
   addRelationshipToDatabase,
+  addHouseToDatabase,
   addPlayableChildToDatabase,
   addDeceasedToDatabase,
   changeCharacterInDatabase,

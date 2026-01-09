@@ -2,7 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Regions, Houses, SocialClasses, Relationships } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase } = require('../../misc.js')
+const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase } = require('../../misc.js')
 
 
 module.exports = {
@@ -157,7 +157,25 @@ module.exports = {
               { name: 'None', value: 'None' }
             )
         )
-    ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('house')
+        .setDescription('Create a new house.')
+        .addStringOption(option =>
+          option
+            .setName('name')
+            .setDescription('The name of the house.')
+            .setRequired(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('emojiname')
+            .setDescription('The emoji name of the house.')
+            .setRequired(true)
+        )
+    )
+  ,
   async autocomplete(interaction) {
     let choices;
 
@@ -324,6 +342,23 @@ module.exports = {
       try {
         const { relationship, embed: relationshipCreatedEmbed } = await addRelationshipToDatabase(interaction.user, givenValues);
         return interaction.editReply({ embeds: [relationshipCreatedEmbed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
+      }
+    }
+    else if (interaction.options.getSubcommand() === 'house') {
+      const name = interaction.options.getString('name');
+      const emojiName = interaction.options.getString('emojiname');
+
+      let givenValues = {};
+      if (name) givenValues.name = name;
+      if (emojiName) givenValues.emojiName = emojiName;
+
+      try {
+        const { house, embed: houseCreatedEmbed } = await addHouseToDatabase(interaction.user, givenValues);
+        return interaction.editReply({ embeds: [houseCreatedEmbed], flags: MessageFlags.Ephemeral });
       }
       catch (error) {
         console.log(error);
