@@ -1218,7 +1218,7 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
   if (newValues.rulingHouseId) {
     const playersInRegion = await Players.findAll({
       include: [{
-        model: Characters,
+        model: Characters, as: 'character',
         where: { regionId: region.id }
       }]
     });
