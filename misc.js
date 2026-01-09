@@ -314,7 +314,7 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
   }
 }
 
-async function addHouseToDatabase(storyteller, { name, emojiname = null } = {}) {
+async function addHouseToDatabase(storyteller, { name, emojiName = null } = {}) {
   // storyteller is required
   if (!storyteller) {
     throw new Error('storyteller is required');
@@ -336,7 +336,7 @@ async function addHouseToDatabase(storyteller, { name, emojiname = null } = {}) 
   try {
     const house = await Houses.create({
       name: name,
-      emojiname: emojiname
+      emojiName: emojiName
     });
 
     await postInLogChannel(
@@ -1212,6 +1212,37 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
       formattedInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n')
     )
     .setColor(COLORS.ORANGE);
+
+  // If ruling house changed, update all characters in the region that are
+  // currently being played to have the new ruling house
+  if (newValues.rulingHouseId) {
+    const playersInRegion = await Players.findAll({
+      include: [{
+        model: Characters,
+        where: { regionId: region.id }
+      }]
+    });
+
+    const updatedCharacters = [];
+    // Update all players' characters' houseId to the new ruling house
+    for (const player of playersInRegion) {
+      const character = await player.getCharacter();
+      if (character) {
+        await character.update({ houseId: newValues.rulingHouseId });
+        updatedCharacters.push(character);
+      }
+    }
+
+    await postInLogChannel(
+      'Region Ruling House Changed - Characters Updated',
+      `**Changed by: ${userMention(storyteller.id)}**\n\n` +
+      `Region: ${inlineCode(region.name)} (${inlineCode(region.id)})\n\n` +
+      `Ruling House changed to: ${inlineCode(newValues.rulingHouseId)}\n\n` +
+      `The following characters had their house updated to the new ruling house:\n` +
+      updatedCharacters.map(char => `${inlineCode(char.name)} (${inlineCode(char.id)})`).join('\n'),
+      COLORS.ORANGE
+    );
+  }
 
   return { region, embed: regionChangedEmbed }
 }
