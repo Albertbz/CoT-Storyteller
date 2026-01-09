@@ -95,6 +95,26 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
     }
   }
 
+  // Make sure that regionId is valid if one is provided
+  if (regionId) {
+    const region = await Regions.findByPk(regionId);
+    if (!region) {
+      characterNotCreatedEmbed
+        .setDescription('Region not found in database.');
+      return { character: null, embed: characterNotCreatedEmbed };
+    }
+  }
+
+  // Make sure that houseId is valid if one is provided
+  if (houseId) {
+    const house = await Houses.findByPk(houseId);
+    if (!house) {
+      characterNotCreatedEmbed
+        .setDescription('House not found in database.');
+      return { character: null, embed: characterNotCreatedEmbed };
+    }
+  }
+
   const existsWithName = await Characters.findOne({ where: { name: name } });
   if (existsWithName) {
     // Ignore if name is 'Son' or 'Daughter'
