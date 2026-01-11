@@ -851,11 +851,11 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   if (newParent1Id !== null && newParent1Id !== character.parent1Id) newValues.parent1Id = newParent1Id; oldValues.parent1Id = character.parent1Id;
   if (newParent2Id !== null && newParent2Id !== character.parent2Id) newValues.parent2Id = newParent2Id; oldValues.parent2Id = character.parent2Id;
   if (newIsRollingForBastards !== null && newIsRollingForBastards !== character.isRollingForBastards) newValues.isRollingForBastards = newIsRollingForBastards; oldValues.isRollingForBastards = character.isRollingForBastards;
-  if (newDeathRoll1 !== null && newDeathRoll1 !== character.deathRoll1) newValues.deathRoll1 = newDeathRoll1; oldValues.deathRoll1 = character.deathRoll1;
-  if (newDeathRoll2 !== null && newDeathRoll2 !== character.deathRoll2) newValues.deathRoll2 = newDeathRoll2; oldValues.deathRoll2 = character.deathRoll2;
-  if (newDeathRoll3 !== null && newDeathRoll3 !== character.deathRoll3) newValues.deathRoll3 = newDeathRoll3; oldValues.deathRoll3 = character.deathRoll3;
-  if (newDeathRoll4 !== null && newDeathRoll4 !== character.deathRoll4) newValues.deathRoll4 = newDeathRoll4; oldValues.deathRoll4 = character.deathRoll4;
-  if (newDeathRoll5 !== null && newDeathRoll5 !== character.deathRoll5) newValues.deathRoll5 = newDeathRoll5; oldValues.deathRoll5 = character.deathRoll5;
+  if (newDeathRoll1 !== null && newDeathRoll1 !== character.deathRoll1) newValues.deathRoll1 = newDeathRoll1 === 0 ? null : newDeathRoll1; oldValues.deathRoll1 = character.deathRoll1;
+  if (newDeathRoll2 !== null && newDeathRoll2 !== character.deathRoll2) newValues.deathRoll2 = newDeathRoll2 === 0 ? null : newDeathRoll2; oldValues.deathRoll2 = character.deathRoll2;
+  if (newDeathRoll3 !== null && newDeathRoll3 !== character.deathRoll3) newValues.deathRoll3 = newDeathRoll3 === 0 ? null : newDeathRoll3; oldValues.deathRoll3 = character.deathRoll3;
+  if (newDeathRoll4 !== null && newDeathRoll4 !== character.deathRoll4) newValues.deathRoll4 = newDeathRoll4 === 0 ? null : newDeathRoll4; oldValues.deathRoll4 = character.deathRoll4;
+  if (newDeathRoll5 !== null && newDeathRoll5 !== character.deathRoll5) newValues.deathRoll5 = newDeathRoll5 === 0 ? null : newDeathRoll5; oldValues.deathRoll5 = character.deathRoll5;
 
   // Check if anything is actually changing
   if (Object.keys(newValues).length === 0) {
