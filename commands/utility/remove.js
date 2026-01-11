@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Steelbearers, Deceased } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Steelbearers, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel, COLORS } = require('../../misc.js');
@@ -93,7 +93,20 @@ module.exports = {
             .setRequired(true)
             .setAutocomplete(true)
         )
-    ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('deathrolldeath')
+        .setDescription('Remove a deathroll death entry.')
+        .addStringOption(option =>
+          option
+            .setName('character')
+            .setDescription('The character of the deathroll death entry to remove.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
+  ,
   async autocomplete(interaction) {
     let choices;
     const subcommand = interaction.options.getSubcommand();
@@ -237,6 +250,25 @@ module.exports = {
       }));
     }
 
+    // Handle autocompletes for deathrolldeath subcommand
+    if (subcommand === 'deathrolldeath') {
+      const focusedValue = interaction.options.getFocused();
+
+      const deathrollDeaths = await DeathRollDeaths.findAll({
+        include: {
+          model: Characters, as: 'character',
+          where: { name: { [Op.startsWith]: focusedValue } },
+        },
+        attributes: ['id'],
+        limit: 25
+      });
+
+      choices = deathrollDeaths.map(entry => ({
+        name: entry.character.name,
+        value: entry.id
+      }));
+    }
+
     await interaction.respond(choices);
   },
   async execute(interaction) {
@@ -334,6 +366,18 @@ module.exports = {
       const character = await toRemove.getCharacter();
       entityName = `deceased entry for ${inlineCode(character.name)}`;
       embedTitle = 'Deceased Entry Removed';
+    }
+
+    /**
+     * Handle 'deathrolldeath' subcommand
+     */
+    if (subcommand === 'deathrolldeath') {
+      const deathrollDeathId = interaction.options.getString('character');
+
+      toRemove = await DeathRollDeaths.findByPk(deathrollDeathId);
+      const character = await toRemove.getCharacter();
+      entityName = `deathroll death entry for ${inlineCode(character.name)}`;
+      embedTitle = 'Deathroll Death Entry Removed';
     }
 
 

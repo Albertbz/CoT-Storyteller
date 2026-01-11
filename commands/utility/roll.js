@@ -1,9 +1,8 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, subtext, EmbedBuilder, italic, bold } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationships, PlayableChildren } = require('../../dbObjects.js');
-const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
-const { calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringChanceEmbed, getFertilityModifier } = require('../../helpers/rollHelper.js');
+const { calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringChanceEmbed, getFertilityModifier, rollDeathAndGetResult, saveDeathRollResultToDatabase } = require('../../helpers/rollHelper.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -40,60 +39,107 @@ module.exports = {
             )
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('death')
+        .setDescription('Roll for death for a character.')
+        .addStringOption(option =>
+          option
+            .setName('character')
+            .setDescription('The character to roll death for.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
   ,
   async autocomplete(interaction) {
-    // Get focused subcommand and option
-    const optionName = interaction.options.getFocused(true).name;
+    // Get subcommand name
+    const subcommandName = interaction.options.getSubcommand();
 
-    // Autocomplete for relationships
-    if (optionName === 'relationship') {
-      const focusedValue = interaction.options.getFocused();
+    // Handle relationship subcommand autocomplete
+    if (subcommandName === 'relationship') {
+      // Get focused subcommand and option
+      const optionName = interaction.options.getFocused(true).name;
 
-      // Find relationships where the focused character name is a parent
-      const relationships = await Relationships.findAll({
-        include: [
-          { model: Characters, as: 'bearingCharacter' },
-          { model: Characters, as: 'conceivingCharacter' }
-        ],
-        where: {
-          [Op.or]: [
-            { '$bearingCharacter.name$': { [Op.startsWith]: `%${focusedValue}%` } },
-            { '$conceivingCharacter.name$': { [Op.startsWith]: `%${focusedValue}%` } }
-          ]
-        },
-        limit: 25
-      });
+      // Autocomplete for relationships
+      if (optionName === 'relationship') {
+        const focusedValue = interaction.options.getFocused();
 
-      const choices = relationships.map(rel => {
-        const bearingCharacterName = rel.bearingCharacter ? rel.bearingCharacter.name : 'Unknown';
-        const conceivingCharacterName = rel.conceivingCharacter ? rel.conceivingCharacter.name : 'Unknown';
-        return {
-          name: `${bearingCharacterName} & ${conceivingCharacterName}`,
-          value: rel.id
-        };
-      });
-      await interaction.respond(choices);
+        // Find relationships where the focused character name is a parent
+        const relationships = await Relationships.findAll({
+          include: [
+            { model: Characters, as: 'bearingCharacter' },
+            { model: Characters, as: 'conceivingCharacter' }
+          ],
+          where: {
+            [Op.or]: [
+              { '$bearingCharacter.name$': { [Op.startsWith]: `%${focusedValue}%` } },
+              { '$conceivingCharacter.name$': { [Op.startsWith]: `%${focusedValue}%` } }
+            ]
+          },
+          limit: 25
+        });
+
+        const choices = relationships.map(rel => {
+          const bearingCharacterName = rel.bearingCharacter ? rel.bearingCharacter.name : 'Unknown';
+          const conceivingCharacterName = rel.conceivingCharacter ? rel.conceivingCharacter.name : 'Unknown';
+          return {
+            name: `${bearingCharacterName} & ${conceivingCharacterName}`,
+            value: rel.id
+          };
+        });
+        await interaction.respond(choices);
+      }
     }
 
-    // Autocomplete for characters (bastard roll)
-    else if (optionName === 'character') {
-      const focusedValue = interaction.options.getFocused();
+    // Handle bastard subcommand autocomplete
+    if (subcommandName === 'bastard') {
+      const optionName = interaction.options.getFocused(true).name;
 
-      // Find characters whose name starts with the focused value and are 
-      // rolling for bastards
-      const characters = await Characters.findAll({
-        where: {
-          name: { [Op.startsWith]: focusedValue },
-          isRollingForBastards: true
-        },
-        limit: 25
-      });
+      // Autocomplete for characters (bastard roll)
+      if (optionName === 'character') {
+        const focusedValue = interaction.options.getFocused();
 
-      const choices = characters.map(char => ({
-        name: char.name,
-        value: char.id
-      }));
-      await interaction.respond(choices);
+        // Find characters whose name starts with the focused value and are 
+        // rolling for bastards
+        const characters = await Characters.findAll({
+          where: {
+            name: { [Op.startsWith]: focusedValue },
+            isRollingForBastards: true
+          },
+          limit: 25
+        });
+
+        const choices = characters.map(char => ({
+          name: char.name,
+          value: char.id
+        }));
+        await interaction.respond(choices);
+      }
+    }
+
+    // Handle death subcommand autocomplete
+    if (subcommandName === 'death') {
+      const optionName = interaction.options.getFocused(true).name;
+
+      // Autocomplete for characters (death roll)
+      if (optionName === 'character') {
+        const focusedValue = interaction.options.getFocused();
+
+        // Find characters whose name starts with the focused value
+        const characters = await Characters.findAll({
+          where: {
+            name: { [Op.startsWith]: focusedValue }
+          },
+          limit: 25
+        });
+
+        const choices = characters.map(char => ({
+          name: char.name,
+          value: char.id
+        }));
+        await interaction.respond(choices);
+      }
     }
   },
   async execute(interaction) {
@@ -519,6 +565,129 @@ module.exports = {
       catch (error) {
         if (error.code === 'InteractionCollectorError') {
           return interaction.editReply({ content: 'No response received. Bastard offspring roll cancelled.', embeds: [], components: [] });
+        }
+        console.log(error);
+        return interaction.editReply({ content: 'Something went wrong. Please let Albert know.', embeds: [], components: [] });
+      }
+    }
+
+    // Handle death roll for character
+    else if (interaction.options.getSubcommand() === 'death') {
+      const characterId = interaction.options.getString('character');
+
+      const character = await Characters.findByPk(characterId);
+      if (!character) {
+        return interaction.editReply({ content: 'Character not found.', embeds: [], components: [] });
+      }
+
+      // Make button to perform death roll
+      const rollButton = new ButtonBuilder()
+        .setCustomId('roll_death')
+        .setLabel('Roll Death')
+        .setStyle(ButtonStyle.Danger);
+
+      const rollRow = new ActionRowBuilder()
+        .addComponents(rollButton);
+
+      // Make save button
+      const saveButton = new ButtonBuilder()
+        .setCustomId('save_death_roll')
+        .setLabel('Save')
+        .setStyle(ButtonStyle.Primary);
+
+      const saveRow = new ActionRowBuilder()
+        .addComponents(saveButton);
+
+      const nextYear = world.currentYear + 1;
+      const age = nextYear - character.yearOfMaturity;
+      const player = await Players.findOne({ where: { characterId: character.id } });
+      const description = (
+        `Name: ${inlineCode(character.name)}\n` +
+        `Age: ${inlineCode(age)}\n` +
+        `PvE Deaths: ${inlineCode(character.pveDeaths)}\n` +
+        `Played by: ${player ? userMention(player.id) : inlineCode('None')}`
+      );
+      const rollEmbed = new EmbedBuilder()
+        .setTitle('Death Roll for ' + character.name)
+        .setDescription(description)
+        .setColor(COLORS.BLUE);
+
+      // Make the initial reply
+      const rollMessage = await interaction.editReply({
+        embeds: [rollEmbed],
+        components: [rollRow],
+        withResponse: true
+      });
+
+      try {
+        const rollInteraction = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 60000 });
+        try {
+          await rollInteraction.deferUpdate();
+        }
+        catch (error) {
+          console.log('Error deferring death roll interaction:', error);
+        }
+
+        if (rollInteraction.customId === 'roll_death') {
+          // Proceed to death roll result
+          // Use the death roll helper to perform the roll and get result embed
+          const { resultDescription, color, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath } = rollDeathAndGetResult(character, world.currentYear + 1);
+
+          const resultEmbed = new EmbedBuilder()
+            .setTitle('Death Roll Result')
+            .setDescription(resultDescription)
+            .setColor(color);
+
+          const resultMessage = await rollMessage.edit({
+            embeds: [resultEmbed],
+            components: [saveRow],
+            withResponse: true
+          });
+
+          try {
+            const saveInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 60000 });
+            try {
+              await saveInteraction.deferUpdate();
+            }
+            catch (error) {
+              console.log('Error deferring death save interaction:', error);
+            }
+
+            if (saveInteraction.customId === 'save_death_roll') {
+              // Update the message to indicate saving
+              const savingEmbed = new EmbedBuilder()
+                .setTitle('Death Roll Result')
+                .setDescription(resultDescription + '\n\n**Saving death roll to database...**')
+                .setColor(color);
+
+              await resultMessage.edit({ embeds: [savingEmbed], components: [] });
+
+              // Save death roll results to database
+              await saveDeathRollResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, [], [], [], [], true);
+
+              // Confirm saved death roll to user by editing reply with added
+              // text at bottom of embed description and removing buttons
+              const savedDescription = resultDescription + '\n\n**Death roll saved to database.**';
+              const savedEmbed = new EmbedBuilder()
+                .setTitle('Death Roll Result')
+                .setDescription(savedDescription)
+                .setColor(color);
+
+              return resultMessage.edit({ embeds: [savedEmbed], components: [] });
+            }
+          }
+          catch (error) {
+            if (error.code === 'InteractionCollectorError') {
+              return interaction.editReply({ content: 'No response received. Death roll finalised without saving.', embeds: [], components: [] });
+            }
+            console.log(error);
+            return interaction.editReply({ content: 'Something went wrong. Please let Albert know.', embeds: [], components: [] });
+          }
+        }
+      }
+      catch (error) {
+        if (error.code === 'InteractionCollectorError') {
+          return interaction.editReply({ content: 'No response received. Death roll cancelled.', embeds: [], components: [] });
         }
         console.log(error);
         return interaction.editReply({ content: 'Something went wrong. Please let Albert know.', embeds: [], components: [] });
