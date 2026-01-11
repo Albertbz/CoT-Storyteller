@@ -284,7 +284,45 @@ module.exports = {
               { name: 'Noble', value: 'Noble' }
             )
         )
-    ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('deathrolls')
+        .setDescription('Change a death roll for a character.')
+        .addStringOption(option =>
+          option
+            .setName('character')
+            .setDescription('The character whose death roll to change.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addIntegerOption(option =>
+          option
+            .setName('deathroll1_new')
+            .setDescription('The new first death roll.')
+        )
+        .addIntegerOption(option =>
+          option
+            .setName('deathroll2_new')
+            .setDescription('The new second death roll.')
+        )
+        .addIntegerOption(option =>
+          option
+            .setName('deathroll3_new')
+            .setDescription('The new third death roll.')
+        )
+        .addIntegerOption(option =>
+          option
+            .setName('deathroll4_new')
+            .setDescription('The new fourth death roll.')
+        )
+        .addIntegerOption(option =>
+          option
+            .setName('deathroll5_new')
+            .setDescription('The new fifth death roll.')
+        )
+    )
+  ,
   async autocomplete(interaction) {
     let choices;
     const subcommand = interaction.options.getSubcommand();
@@ -514,6 +552,18 @@ module.exports = {
       });
     }
 
+    // Handle autocompletes for deathrolls subcommand
+    if (subcommand === 'deathrolls') {
+      const focusedValue = interaction.options.getFocused();
+
+      const characters = await Characters.findAll({
+        where: { name: { [Op.startsWith]: focusedValue } },
+        attributes: ['name', 'id'],
+        limit: 25
+      });
+
+      choices = characters.map(character => ({ name: character.name, value: character.id }));
+    }
 
     await interaction.respond(choices);
   },
@@ -892,7 +942,6 @@ module.exports = {
       }
     }
 
-
     /**
      * Handle changing house info
      */
@@ -1008,7 +1057,41 @@ module.exports = {
       }
     }
 
+    /**
+     * Handle changing death rolls
+     */
+    if (subcommand === 'deathrolls') {
+      const characterId = interaction.options.getString('character');
+      const newDeathRoll1 = interaction.options.getInteger('deathroll1_new');
+      const newDeathRoll2 = interaction.options.getInteger('deathroll2_new');
+      const newDeathRoll3 = interaction.options.getInteger('deathroll3_new');
+      const newDeathRoll4 = interaction.options.getInteger('deathroll4_new');
+      const newDeathRoll5 = interaction.options.getInteger('deathroll5_new');
 
+      const character = await Characters.findByPk(characterId);
+
+      try {
+        const { character: updatedCharacter, embed } = await changeCharacterInDatabase(interaction.user, character, true, {
+          newDeathRoll1: newDeathRoll1,
+          newDeathRoll2: newDeathRoll2,
+          newDeathRoll3: newDeathRoll3,
+          newDeathRoll4: newDeathRoll4,
+          newDeathRoll5: newDeathRoll5
+        });
+        return interaction.editReply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        const deathRollsNotChangedEmbed = new EmbedBuilder()
+          .setTitle('Death Rolls Not Changed')
+          .setDescription(`An error occurred while trying to change the death rolls: ${error.message}`)
+          .setColor(COLORS.RED);
+        return interaction.editReply({
+          embeds: [deathRollsNotChangedEmbed], flags: MessageFlags.Ephemeral
+        })
+      }
+
+    }
 
     return interaction.editReply({ content: 'Hmm, whatever you just did shouldn\'t be possible. What did you do?', flags: MessageFlags.Ephemeral })
   }
