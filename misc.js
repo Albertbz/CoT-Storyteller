@@ -913,7 +913,7 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
 
   // If year of maturity is 0 and new year of maturity is not provided, make 
   // sure to update to at least year of creation
-  if (character.yearOfMaturity === 0 && newValues.yearOfMaturity === null) {
+  if (character.yearOfMaturity === 0 && newValues.yearOfMaturity === undefined) {
     newValues.yearOfMaturity = character.yearOfCreation;
   }
 
