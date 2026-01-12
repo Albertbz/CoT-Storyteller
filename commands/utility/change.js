@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Deceased } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Deceased, Duchies } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
-const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter } = require('../../misc.js');
+const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter, changeDuchyInDatabase } = require('../../misc.js');
 const { channels } = require('../../configs/ids.json');
 
 module.exports = {
@@ -322,6 +322,29 @@ module.exports = {
             .setDescription('The new fifth death roll.')
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('duchy')
+        .setDescription('Change something about a duchy.')
+        .addStringOption(option =>
+          option
+            .setName('name')
+            .setDescription('The name of the duchy to change something about.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('name_new')
+            .setDescription('The new name of the duchy.')
+        )
+        .addStringOption(option =>
+          option
+            .setName('region_new')
+            .setDescription('The new region of the duchy.')
+            .setAutocomplete(true)
+        )
+    )
   ,
   async autocomplete(interaction) {
     let choices;
@@ -563,6 +586,35 @@ module.exports = {
       });
 
       choices = characters.map(character => ({ name: character.name, value: character.id }));
+    }
+
+    // Handle autocompletes for duchy subcommand
+    if (subcommand === 'duchy') {
+      const focusedOption = interaction.options.getFocused(true);
+      const focusedValue = interaction.options.getFocused();
+
+      // Handle autocomplete for duchy name
+      if (focusedOption.name === 'name') {
+
+        const duchies = await Duchies.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
+          attributes: ['name', 'id'],
+          limit: 25
+        });
+
+        choices = duchies.map(duchy => ({ name: duchy.name, value: duchy.id }));
+      }
+
+      // Handle autocomplete for duchy region
+      if (focusedOption.name === 'region_new') {
+        const regions = await Regions.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
+          attributes: ['name', 'id'],
+          limit: 25
+        });
+
+        choices = regions.map(region => ({ name: region.name, value: region.id }));
+      }
     }
 
     await interaction.respond(choices);
@@ -1091,6 +1143,33 @@ module.exports = {
         })
       }
 
+    }
+
+    /**
+     * Handle changing duchy info
+     */
+    if (subcommand === 'duchy') {
+      const duchyId = interaction.options.getString('name');
+      const newName = interaction.options.getString('name_new');
+      const newRegionId = interaction.options.getString('region_new');
+
+      const duchy = await Duchies.findByPk(duchyId);
+
+      try {
+        const { duchy: updatedDuchy, embed: duchyChangedEmbed } = await changeDuchyInDatabase(interaction.user, duchy, {
+          newName: newName,
+          newRegionId: newRegionId
+        });
+        return interaction.editReply({ embeds: [duchyChangedEmbed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        const duchyNotChangedEmbed = new EmbedBuilder()
+          .setTitle('Duchy Not Changed')
+          .setDescription(`An error occurred while trying to change the duchy: ${error.message}`)
+          .setColor(COLORS.RED);
+        return interaction.editReply({ embeds: [duchyNotChangedEmbed], flags: MessageFlags.Ephemeral });
+      }
     }
 
     return interaction.editReply({ content: 'Hmm, whatever you just did shouldn\'t be possible. What did you do?', flags: MessageFlags.Ephemeral })

@@ -1315,6 +1315,76 @@ async function changeHouseInDatabase(storyteller, house, { newName = null, newEm
   return { house, embed: houseChangedEmbed }
 }
 
+async function changeDuchyInDatabase(storyteller, duchy, { newName = null, newRegionId = null } = {}) {
+  const duchyNotChangedEmbed = new EmbedBuilder()
+    .setTitle('Duchy Not Changed')
+    .setColor(COLORS.RED);
+
+  if (!duchy) {
+    duchyNotChangedEmbed
+      .setDescription('Duchy does not exist in the database.');
+    return { duchy: null, embed: duchyNotChangedEmbed };
+  }
+
+  let newValues = {};
+  let oldValues = {};
+
+  // Save all old and new values for the values that are changing
+  if (newName !== null && newName !== duchy.name) newValues.name = newName; oldValues.name = duchy.name;
+  if (newRegionId !== null && newRegionId !== duchy.regionId) newValues.regionId = newRegionId; oldValues.regionId = duchy.regionId;
+
+  // Check if anything is actually changing
+  if (Object.keys(newValues).length === 0) {
+    duchyNotChangedEmbed
+      .setDescription('No changes provided.');
+    return { duchy: null, embed: duchyNotChangedEmbed };
+  }
+
+  // All checks passed, proceed with update
+  await duchy.update(newValues);
+
+  // Post in log channel
+  const logInfoChanges = [];
+  const formattedInfoChanges = [];
+  for (const [key, newValue] of Object.entries(newValues)) {
+    const oldValue = oldValues[key];
+
+    switch (key) {
+      case 'name': {
+        logInfoChanges.push({ key: 'name', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Name**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'regionId': {
+        const oldRegion = await Regions.findByPk(oldValue);
+        const newRegion = await Regions.findByPk(newValue);
+        logInfoChanges.push({ key: 'region', oldValue: oldRegion ? inlineCode(oldRegion.name) + `(${inlineCode(oldRegion.id)})` : inlineCode('-'), newValue: newRegion ? inlineCode(newRegion.name) + `(${inlineCode(newRegion.id)})` : inlineCode('-') });
+        formattedInfoChanges.push({ key: '**Region**', oldValue: oldRegion ? oldRegion.name : '-', newValue: newRegion ? newRegion.name : '-' });
+        break;
+      }
+    }
+  }
+
+  await postInLogChannel(
+    'Duchy Changed',
+    `**Changed by: ${userMention(storyteller.id)}**\n\n` +
+    `Duchy: ${inlineCode(duchy.name)} (${inlineCode(duchy.id)})\n\n` +
+    logInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n'),
+    COLORS.ORANGE
+  );
+
+  // Make an embed for duchy change to return
+  const duchyChangedEmbed = new EmbedBuilder()
+    .setTitle('Duchy Changed')
+    .setDescription(
+      `**Duchy**: ${duchy.name}\n\n` +
+      formattedInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n')
+    )
+    .setColor(COLORS.ORANGE);
+
+  return { duchy, embed: duchyChangedEmbed }
+}
+
 async function changePlayableChildInDatabase(storyteller, playableChild, { newComments = null, newLegitimacy = null, newContact1Snowflake = null, newContact2Snowflake = null } = {}) {
   const playableChildNotChangedEmbed = new EmbedBuilder()
     .setTitle('Playable Child Not Changed')
@@ -1626,6 +1696,7 @@ module.exports = {
   changePlayerInDatabase,
   changeRegionInDatabase,
   changeHouseInDatabase,
+  changeDuchyInDatabase,
   changePlayableChildInDatabase,
   changeRelationshipInDatabase,
   assignSteelbearerToRegion,
