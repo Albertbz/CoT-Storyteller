@@ -598,16 +598,13 @@ module.exports = {
 
         const duchies = await Duchies.findAll({
           where: { name: { [Op.startsWith]: focusedValue } },
+          include: { model: Regions, as: 'region' },
           attributes: ['name', 'id'],
           limit: 25
         });
 
         for (const duchy of duchies) {
-          // const region = await duchy.getRegion();
-          const region = await Regions.findByPk(duchy.regionId);
-          console.log(duchy.regionId);
-          console.log(region);
-          choices.push({ name: duchy.name + ` (${region ? region.name : 'Unknown Region'})`, value: duchy.id });
+          choices.push({ name: duchy.name + ` (${duchy.region ? duchy.region.name : 'Unknown Region'})`, value: duchy.id });
         }
       }
 
