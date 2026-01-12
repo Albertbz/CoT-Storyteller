@@ -603,7 +603,8 @@ module.exports = {
         });
 
         for (const duchy of duchies) {
-          const region = await duchy.getRegion();
+          // const region = await duchy.getRegion();
+          const region = await Regions.findByPk(duchy.regionId);
           choices.push({ name: duchy.name + ` (${region ? region.name : 'Unknown Region'})`, value: duchy.id });
         }
       }
