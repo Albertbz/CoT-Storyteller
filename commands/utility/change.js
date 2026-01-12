@@ -328,8 +328,8 @@ module.exports = {
         .setDescription('Change something about a duchy.')
         .addStringOption(option =>
           option
-            .setName('name')
-            .setDescription('The name of the duchy to change something about.')
+            .setName('duchy')
+            .setDescription('The duchy to change something about.')
             .setRequired(true)
             .setAutocomplete(true)
         )
@@ -594,7 +594,7 @@ module.exports = {
       const focusedValue = interaction.options.getFocused();
 
       // Handle autocomplete for duchy name
-      if (focusedOption.name === 'name') {
+      if (focusedOption.name === 'duchy') {
 
         const duchies = await Duchies.findAll({
           where: { name: { [Op.startsWith]: focusedValue } },
@@ -602,7 +602,10 @@ module.exports = {
           limit: 25
         });
 
-        choices = duchies.map(duchy => ({ name: duchy.name, value: duchy.id }));
+        choices = duchies.map(duchy => {
+          const region = duchy.getRegion();
+          return { name: duchy.name + ` (${region ? region.name : 'Unknown Region'})`, value: duchy.id };
+        });
       }
 
       // Handle autocomplete for duchy region

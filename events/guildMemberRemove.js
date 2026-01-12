@@ -6,7 +6,7 @@ module.exports = {
   name: Events.GuildMemberRemove,
   async execute(member) {
     // When a member leaves, then if they were playing a character, note it in
-    // the storyteller log and set them as inactive in the database.
+    // the storyteller log and set the character as deceased in the database.
     const player = await Players.findByPk(member.id);
     if (player) {
       const character = await player.getCharacter();
