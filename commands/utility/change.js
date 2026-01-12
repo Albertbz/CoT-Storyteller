@@ -1152,7 +1152,7 @@ module.exports = {
      * Handle changing duchy info
      */
     if (subcommand === 'duchy') {
-      const duchyId = interaction.options.getString('name');
+      const duchyId = interaction.options.getString('duchy');
       const newName = interaction.options.getString('name_new');
       const newRegionId = interaction.options.getString('region_new');
 
