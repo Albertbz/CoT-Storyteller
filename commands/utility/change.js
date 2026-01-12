@@ -602,10 +602,10 @@ module.exports = {
           limit: 25
         });
 
-        choices = duchies.map(duchy => {
-          const region = duchy.getRegion();
+        choices = await Promise.all(duchies.map(async duchy => {
+          const region = await duchy.getRegion();
           return { name: duchy.name + ` (${region ? region.name : 'Unknown Region'})`, value: duchy.id };
-        });
+        }));
       }
 
       // Handle autocomplete for duchy region
