@@ -605,6 +605,8 @@ module.exports = {
         for (const duchy of duchies) {
           // const region = await duchy.getRegion();
           const region = await Regions.findByPk(duchy.regionId);
+          console.log(duchy.regionId);
+          console.log(region);
           choices.push({ name: duchy.name + ` (${region ? region.name : 'Unknown Region'})`, value: duchy.id });
         }
       }
