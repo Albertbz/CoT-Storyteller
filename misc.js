@@ -83,24 +83,12 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
   // If yearOfMaturity is null (not provided), set it to current year
   yearOfMaturity = yearOfMaturity === null ? world.currentYear : yearOfMaturity;
 
-  // If regionId or houseId is null, set to Wanderer or ruling house of region respectively
-  const wandererRegion = await Regions.findOne({ where: { name: 'Wanderer' } });
-  if (regionId === null) {
-    regionId = wandererRegion.id;
-  }
-  if (houseId === null) {
-    if (regionId !== wandererRegion.id) {
-      const rulingHouse = await Houses.findOne({ where: { id: (await Regions.findByPk(regionId)).rulingHouseId } });
-      houseId = rulingHouse.id;
-    }
-  }
-
   // Make sure that regionId is valid if one is provided
   if (regionId) {
     const region = await Regions.findByPk(regionId);
     if (!region) {
       characterNotCreatedEmbed
-        .setDescription('Region not found in database.');
+        .setDescription('Region not found in database. Please choose one of the options from the autocomplete.');
       return { character: null, embed: characterNotCreatedEmbed };
     }
   }
@@ -110,8 +98,20 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
     const house = await Houses.findByPk(houseId);
     if (!house) {
       characterNotCreatedEmbed
-        .setDescription('House not found in database.');
+        .setDescription('House not found in database. Please choose one of the options from the autocomplete.');
       return { character: null, embed: characterNotCreatedEmbed };
+    }
+  }
+
+  // If regionId or houseId is null, set to Wanderer or ruling house of region respectively
+  const wandererRegion = await Regions.findOne({ where: { name: 'Wanderer' } });
+  if (regionId === null) {
+    regionId = wandererRegion.id;
+  }
+  if (houseId === null) {
+    if (regionId !== wandererRegion.id) {
+      const rulingHouse = await Houses.findOne({ where: { id: (await Regions.findByPk(regionId)).rulingHouseId } });
+      houseId = rulingHouse.id;
     }
   }
 
