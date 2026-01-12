@@ -347,7 +347,7 @@ module.exports = {
     )
   ,
   async autocomplete(interaction) {
-    let choices;
+    let choices = [];
     const subcommand = interaction.options.getSubcommand();
 
     // Handle autocompletes for character subcommand
