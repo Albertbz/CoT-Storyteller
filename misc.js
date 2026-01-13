@@ -1555,7 +1555,14 @@ async function changeRelationshipInDatabase(storyteller, relationship, { newIsCo
 // Syncs a Discord member's roles based on their character's region and social class
 async function syncMemberRolesWithCharacter(player, character) {
   const guild = await client.guilds.fetch(guilds.cot);
-  const member = await guild.members.fetch(player.id);
+  let member = null;
+  try {
+    member = await guild.members.fetch(player.id);
+  }
+  catch (error) {
+    console.log('Could not fetch member with ID ' + player.id + ' on the server.');
+    return false;
+  }
 
   // If could not find the member on the server, return false
   if (!member) {

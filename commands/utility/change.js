@@ -733,6 +733,49 @@ module.exports = {
         .setColor(COLORS.ORANGE)
       embeds.push(yearChangedEmbed);
 
+      // First, fetch playable children that are turning 4, remove them as playable
+      // and set their characters as deceased as they have now expired
+      const playableChildrenTurningFour = await PlayableChildren.findAll({
+        include: { model: Characters, as: 'character', where: { yearOfMaturity: newYear - 4 } }
+      });
+
+      const deceasedChildrenTextFormatted = [];
+      const deceasedChildrenTextLog = [];
+      for (const child of playableChildrenTurningFour) {
+        const deceasedChildTextLog = `${inlineCode(child.character.name)} (${inlineCode(child.character.id)})`;
+        deceasedChildrenTextLog.push(deceasedChildTextLog);
+        const deceasedChildTextFormatted = `${child.character.name}`;
+        deceasedChildrenTextFormatted.push(deceasedChildTextFormatted);
+        // Set character as deceased
+        await Deceased.create({
+          characterId: child.character.id,
+          yearOfDeath: newYear,
+          monthOfDeath: 'January',
+          dayOfDeath: 1,
+          causeOfDeath: 'Expired Child'
+        });
+
+        // Remove playable child entry
+        await child.destroy();
+      }
+
+      if (deceasedChildrenTextFormatted.length > 0) {
+        // Post to log channel
+        await postInLogChannel(
+          'Playable Children Expired',
+          '**Expired by:** ' + userMention(interaction.user.id) + '\n\n' +
+          deceasedChildrenTextLog.join('\n'),
+          COLORS.RED
+        );
+
+        // Create embed for deceased children
+        const deceasedChildrenEmbed = new EmbedBuilder()
+          .setTitle('Playable Children Expired')
+          .setDescription(deceasedChildrenTextFormatted.join('\n'))
+          .setColor(COLORS.RED);
+        embeds.push(deceasedChildrenEmbed);
+      }
+
       // Then, check whether any relationships and bastard rolls need to be 
       // removed due to death
       const relationships = await Relationships.findAll({
