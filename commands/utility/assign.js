@@ -8,7 +8,7 @@ const { assignCharacterToPlayer, assignSteelbearerToRegion } = require('../../mi
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('assign')
-    .setDescription('Assign a character to a player.')
+    .setDescription('Assign something to someone.')
     .setContexts(InteractionContextType.Guild)
     .setDefaultMemberPermissions(0)
     .addSubcommand(subcommand =>

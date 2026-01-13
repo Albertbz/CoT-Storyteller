@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Deceased, Duchies } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
-const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter, changeDuchyInDatabase } = require('../../misc.js');
+const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter, changeDuchyInDatabase, changeDeceasedInDatabase } = require('../../misc.js');
 const { channels } = require('../../configs/ids.json');
 
 module.exports = {
@@ -345,6 +345,59 @@ module.exports = {
             .setAutocomplete(true)
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('deceased')
+        .setDescription('Change something about a deceased entry for a character.')
+        .addStringOption(option =>
+          option
+            .setName('character')
+            .setDescription('The character whose deceased entry to change.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addIntegerOption(option =>
+          option
+            .setName('yearofdeath_new')
+            .setDescription('The new year of death.')
+        )
+        .addStringOption(option =>
+          option
+            .setName('monthofdeath_new')
+            .setDescription('The new month of death.')
+            .addChoices(
+              { name: 'January', value: 'January' },
+              { name: 'February', value: 'February' },
+              { name: 'March', value: 'March' },
+              { name: 'April', value: 'April' },
+              { name: 'May', value: 'May' },
+              { name: 'June', value: 'June' },
+              { name: 'July', value: 'July' },
+              { name: 'August', value: 'August' },
+              { name: 'September', value: 'September' },
+              { name: 'October', value: 'October' },
+              { name: 'November', value: 'November' },
+              { name: 'December', value: 'December' }
+            )
+        )
+        .addIntegerOption(option =>
+          option
+            .setName('dayofdeath_new')
+            .setDescription('The new day of death.')
+            .setMinValue(1)
+            .setMaxValue(24)
+        )
+        .addStringOption(option =>
+          option
+            .setName('causeofdeath_new')
+            .setDescription('The new cause of death.')
+        )
+        .addUserOption(option =>
+          option
+            .setName('playedby_new')
+            .setDescription('The new player who played the character.')
+        )
+    )
   ,
   async autocomplete(interaction) {
     let choices = [];
@@ -618,6 +671,18 @@ module.exports = {
 
         choices = regions.map(region => ({ name: region.name, value: region.id }));
       }
+    }
+
+    // Handle autocompletes for deceased subcommand
+    if (subcommand === 'deceased') {
+      const focusedValue = interaction.options.getFocused();
+      const characters = await Deceased.findAll({
+        include: { model: Characters, as: 'character' },
+        where: { '$character.name$': { [Op.startsWith]: focusedValue } },
+        limit: 25
+      });
+
+      choices = characters.map(deceased => ({ name: deceased.character ? deceased.character.name : 'Unknown', value: deceased.id }));
     }
 
     await interaction.respond(choices);
@@ -1215,6 +1280,39 @@ module.exports = {
           .setDescription(`An error occurred while trying to change the duchy: ${error.message}`)
           .setColor(COLORS.RED);
         return interaction.editReply({ embeds: [duchyNotChangedEmbed], flags: MessageFlags.Ephemeral });
+      }
+    }
+
+    /**
+     * Handle changing deceased info
+     */
+    if (subcommand === 'deceased') {
+      const deceasedId = interaction.options.getString('character');
+      const newYearOfDeath = interaction.options.getInteger('yearofdeath_new');
+      const newMonthOfDeath = interaction.options.getString('monthofdeath_new');
+      const newDayOfDeath = interaction.options.getInteger('dayofdeath_new');
+      const newCauseOfDeath = interaction.options.getString('causeofdeath_new');
+      const newPlayedBy = interaction.options.getUser('playedby_new');
+
+      const deceased = await Deceased.findByPk(deceasedId);
+
+      try {
+        const { deceased: updatedDeceased, embed: deceasedChangedEmbed } = await changeDeceasedInDatabase(interaction.user, deceased, {
+          newYearOfDeath: newYearOfDeath,
+          newMonthOfDeath: newMonthOfDeath,
+          newDayOfDeath: newDayOfDeath,
+          newCauseOfDeath: newCauseOfDeath,
+          newPlayedById: newPlayedBy ? newPlayedBy.id : null
+        });
+        return interaction.editReply({ embeds: [deceasedChangedEmbed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        const deceasedNotChangedEmbed = new EmbedBuilder()
+          .setTitle('Deceased Not Changed')
+          .setDescription(`An error occurred while trying to change the deceased entry: ${error.message}`)
+          .setColor(COLORS.RED);
+        return interaction.editReply({ embeds: [deceasedNotChangedEmbed], flags: MessageFlags.Ephemeral });
       }
     }
 

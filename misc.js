@@ -515,6 +515,53 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
   }
 }
 
+async function unassignCharacterFromPlayer(storyteller, player) {
+  // storyteller is required
+  if (!storyteller) {
+    throw new Error('storyteller is required');
+  }
+
+  const notUnassignedEmbed = new EmbedBuilder()
+    .setTitle('Character Not Unassigned')
+    .setColor(COLORS.RED);
+
+  try {
+    const character = await player.getCharacter();
+    if (!character) {
+      notUnassignedEmbed
+        .setDescription('Player does not have a character assigned.');
+      return { embed: notUnassignedEmbed };
+    }
+
+    player.setCharacter(null);
+
+    await postInLogChannel(
+      'Character unassigned from Player',
+      '**Unassigned by**: ' + userMention(storyteller.id) + '\n\n' +
+      'Character: ' + inlineCode(character.name) + ` (${inlineCode(character.id)})` + '\n' +
+      'Player: ' + userMention(player.id) + ` (${inlineCode(player.id)})`,
+      COLORS.ORANGE
+    )
+
+    // Make an embed for unassignment to return
+    const unassignedEmbed = new EmbedBuilder()
+      .setTitle('Character unassigned from Player')
+      .setDescription(
+        `**Character:** ${character.name}\n` +
+        `**Player:** ${userMention(player.id)}`
+      )
+      .setColor(COLORS.ORANGE);
+
+    return { embed: unassignedEmbed };
+  }
+  catch (error) {
+    console.log(error);
+    notUnassignedEmbed
+      .setDescription(`An error occurred while trying to unassign the character: ${error.message}`);
+    return { embed: notUnassignedEmbed };
+  }
+}
+
 async function assignSteelbearerToRegion(storyteller, character, type, duchyId = null) {
   // storyteller is required
   if (!storyteller) {
@@ -1551,6 +1598,96 @@ async function changeRelationshipInDatabase(storyteller, relationship, { newIsCo
   return { relationship, embed: relationshipChangedEmbed }
 }
 
+async function changeDeceasedInDatabase(storyteller, deceased, { newYearOfDeath = null, newMonthOfDeath = null, newDayOfDeath = null, newCauseOfDeath = null, newPlayedById = null } = {}) {
+  const deceasedNotChangedEmbed = new EmbedBuilder()
+    .setTitle('Deceased Not Changed')
+    .setColor(COLORS.RED);
+
+  if (!deceased) {
+    deceasedNotChangedEmbed
+      .setDescription('Deceased does not exist in the database.');
+    return { deceased: null, embed: deceasedNotChangedEmbed };
+  }
+
+  let newValues = {};
+  let oldValues = {};
+
+  // Save all old and new values for the values that are changing
+  if (newYearOfDeath !== null && newYearOfDeath !== deceased.yearOfDeath) newValues.yearOfDeath = newYearOfDeath; oldValues.yearOfDeath = deceased.yearOfDeath;
+  if (newMonthOfDeath !== null && newMonthOfDeath !== deceased.monthOfDeath) newValues.monthOfDeath = newMonthOfDeath; oldValues.monthOfDeath = deceased.monthOfDeath;
+  if (newDayOfDeath !== null && newDayOfDeath !== deceased.dayOfDeath) newValues.dayOfDeath = newDayOfDeath; oldValues.dayOfDeath = deceased.dayOfDeath;
+  if (newCauseOfDeath !== null && newCauseOfDeath !== deceased.causeOfDeath) newValues.causeOfDeath = newCauseOfDeath; oldValues.causeOfDeath = deceased.causeOfDeath;
+  if (newPlayedById !== null && newPlayedById !== deceased.playedById) newValues.playedById = newPlayedById; oldValues.playedById = deceased.playedById;
+
+  // Check if anything is actually changing
+  if (Object.keys(newValues).length === 0) {
+    deceasedNotChangedEmbed
+      .setDescription('No changes provided.');
+    return { deceased: null, embed: deceasedNotChangedEmbed };
+  }
+
+  // All checks passed, proceed with update
+  await deceased.update(newValues);
+
+  // Post in log channel
+  const logInfoChanges = [];
+  const formattedInfoChanges = [];
+
+  for (const [key, newValue] of Object.entries(newValues)) {
+    const oldValue = oldValues[key];
+
+    switch (key) {
+      case 'yearOfDeath': {
+        logInfoChanges.push({ key: 'yearOfDeath', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Year of Death**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'monthOfDeath': {
+        logInfoChanges.push({ key: 'monthOfDeath', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Month of Death**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'dayOfDeath': {
+        logInfoChanges.push({ key: 'dayOfDeath', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Day of Death**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'causeOfDeath': {
+        logInfoChanges.push({ key: 'causeOfDeath', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Cause of Death**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'playedById': {
+        logInfoChanges.push({ key: 'playedById', oldValue: oldValue ? `${userMention(oldValue)} (${oldValue})` : '`-`', newValue: newValue ? `${userMention(newValue)} (${newValue})` : '`-`' });
+        formattedInfoChanges.push({ key: '**Played By**', oldValue: oldValue ? userMention(oldValue) : '-', newValue: newValue ? userMention(newValue) : '-' });
+        break;
+      }
+    }
+  }
+
+  const deceasedCharacter = await deceased.getCharacter();
+
+  await postInLogChannel(
+    'Deceased Changed',
+    `**Changed by: ${userMention(storyteller.id)}**\n\n` +
+    `id: ${inlineCode(deceased.id)}\n` +
+    `Character: ${inlineCode(deceasedCharacter.name)} (${inlineCode(deceasedCharacter.id)})\n\n` +
+    logInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n'),
+    COLORS.ORANGE
+  );
+
+  // Make an embed for deceased change to return
+  const deceasedChangedEmbed = new EmbedBuilder()
+    .setTitle('Deceased Changed')
+    .setDescription(
+      `**Deceased**: ${deceasedCharacter.name}\n\n` +
+      formattedInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n')
+    )
+    .setColor(COLORS.ORANGE);
+
+  return { deceased, embed: deceasedChangedEmbed }
+}
+
 
 // Syncs a Discord member's roles based on their character's region and social class
 async function syncMemberRolesWithCharacter(player, character) {
@@ -1693,6 +1830,7 @@ module.exports = {
   addPlayerToDatabase,
   addCharacterToDatabase,
   assignCharacterToPlayer,
+  unassignCharacterFromPlayer,
   postInLogChannel,
   ageToFertilityModifier,
   addRelationshipToDatabase,
@@ -1704,6 +1842,7 @@ module.exports = {
   changeRegionInDatabase,
   changeHouseInDatabase,
   changeDuchyInDatabase,
+  changeDeceasedInDatabase,
   changePlayableChildInDatabase,
   changeRelationshipInDatabase,
   assignSteelbearerToRegion,
