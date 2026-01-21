@@ -808,6 +808,12 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
       }
       await existingSteelbearer.destroy();
     }
+
+    // Remove relationships if applicable
+    const bearingRelationships = await Relationships.findAll({ where: { bearingCharacterId: characterId } });
+    for (const relationship of bearingRelationships) {
+      await relationship.destroy();
+    }
   }
   catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
