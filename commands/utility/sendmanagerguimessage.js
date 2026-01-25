@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, ContainerBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, ContainerBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -58,19 +58,17 @@ async function createCharacterManagerMessage() {
       ))
     .addActionRowComponents((actionRow) =>
       actionRow.setComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId('character-manager-select')
-          .setPlaceholder('Select what to manage...')
-          .addOptions(
-            new StringSelectMenuOptionBuilder()
-              .setLabel('Character')
-              .setDescription('Create a new character, or edit your currently played character.')
-              .setValue('manage-character'),
-            new StringSelectMenuOptionBuilder()
-              .setLabel('Offspring')
-              .setDescription('Manage all offspring that you are a contact for.')
-              .setValue('manage-offspring')
-          )
+        new ButtonBuilder()
+          .setCustomId('manage-character-button')
+          .setLabel('Character')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('👤')
+        ,
+        new ButtonBuilder()
+          .setCustomId('manage-offspring-button')
+          .setLabel('Offspring')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('👶')
       )
     )
 

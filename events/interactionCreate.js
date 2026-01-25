@@ -1,5 +1,5 @@
 const { Events, MessageFlags } = require('discord.js');
-const { handleStringSelectMenuInteraction } = require('../helpers/stringSelectHelper.js');
+const { handleButtonInteraction } = require('../helpers/buttonHelper.js');
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -49,8 +49,8 @@ module.exports = {
         console.error(error);
       }
     }
-    else if (interaction.isStringSelectMenu()) {
-      handleStringSelectMenuInteraction(interaction.customId, interaction);
+    else if (interaction.isButton()) {
+      handleButtonInteraction(interaction.customId, interaction);
     }
   },
 };
