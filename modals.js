@@ -11,57 +11,60 @@ async function showDeceasedModal(interaction, characterId) {
 // Year input, doubt we get to year 100 so set a limit of 3
     const year = new TextInputBuilder()
     .setCustomId('year')
-    .setLabel('Year of Death')
     .setStyle(TextInputStyle.Short)
     .setMaxLength(3)
     .setPlaceholder('10')
     .setRequired(true);
 
+    const yearlabel = new LabelBuilder()
+    .setLabel('Year of Death')
+
 // Month input
     const month = new TextInputBuilder()
     .setCustomId('month')
-    .setLabel('Month of Death')
     .setStyle(TextInputStyle.Short)
     .setPlaceholder('January, February, March')
     .setRequired(true);
 
+    const monthlabel = new LabelBuilder()
+    .setLabel('Month of Death')
+
 // Day input
     const day = new TextInputBuilder()
     .setCustomId('day')
-    .setLabel('Day of Death (1-24)')
     .setStyle(TextInputStyle.Short)
     .setMaxLength(2)
     .setPlaceholder('15')
-
     .setRequired(true);
+
+    const daylabel = new LabelBuilder()
+    .setLabel('Day of Death (1-24)')
 
 // Cause input
     const cause = new TextInputBuilder()
     .setCustomId('cause')
-    .setLabel('Cause of Death')
     .setStyle(TextInputStyle.Short)
     .setPlaceholder('Note how your character died')
     .setMaxLength(30)
     .setRequired(true);
+
+    const causelabel = new LabelBuilder()
+    .setLabel('Cause of Death')
 // Final Note Input
     const note = new TextInputBuilder()
     .setCustomId('notes')
-    .setLabel('Final Notes')
     .setStyle(TextInputStyle.Short)
     .setPlaceholder('Leave your final note, this is not allowed to reveal anything IC.')
     .setMaxLength(100)
     .setRequired(true);
 
-// Add inputs to action rows
-  const rows = [
-    new ActionRowBuilder().addComponents(year),
-    new ActionRowBuilder().addComponents(month),
-    new ActionRowBuilder().addComponents(day),
-    new ActionRowBuilder().addComponents(cause),
-    new ActionRowBuilder().addComponents(note),
-  ];
+    const notelabel = new LabelBuilder()
+    .setLabel('Final Notes')
 
-  modal.addComponents(...rows);
+// Add Label Components
+  modal
+      .addLabelComponents(
+      yearlabel, monthlabel, daylabel, causelabel, notelabel)
 
 // Show modal
   await interaction.showModal(modal);
@@ -185,15 +188,6 @@ async function handleDeceasedConfirmation(interaction) {
         console.error("Failed to send graveyard message:", err);
     }
     }, 7200000);
-
-     await postInLogChannel(
-    'Deceased Changed',
-    `**Changed by: ${userMention(interaction.user.id)}**\n\n` +
-    `id: ${inlineCode(characterId)}\n` +
-    `Character: ${inlineCode(characterId)}\n\n` +
-    logInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n'),
-    COLORS.ORANGE
-    );
 
     return interaction.editReply({ 
       content: 'Character successfully marked as deceased, this death should be posted in 2 hours in #Graveyard. If this has not happened please open a user support ticket.',
