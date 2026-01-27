@@ -1,5 +1,4 @@
 const { Events, MessageFlags } = require('discord.js');
-const { handleButtonInteraction } = require('../helpers/buttonHelper.js');
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -50,7 +49,31 @@ module.exports = {
       }
     }
     else if (interaction.isButton()) {
-      handleButtonInteraction(interaction.customId, interaction);
+      // Check whether a button handler exists for this customId
+      const buttonHandler = interaction.client.buttons.get(interaction.customId);
+
+      // If not, ignore button and return (this assumes that the button was
+      // a temporary button, and not one of the permanent ones registered in buttons/)
+      if (!buttonHandler) return;
+
+      // Otherwise, handle the button interaction
+      try {
+        await buttonHandler.execute(interaction);
+      }
+      catch (error) {
+        console.error(error);
+        try {
+          if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({ content: 'There was an error while executing this interaction!', flags: MessageFlags.Ephemeral });
+          } else {
+            await interaction.reply({ content: 'There was an error while executing this interaction!', flags: MessageFlags.Ephemeral });
+          }
+        }
+        catch (error) {
+          console.error(error);
+          return null;
+        }
+      }
     }
   },
 };

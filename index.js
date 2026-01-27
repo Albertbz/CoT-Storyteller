@@ -8,7 +8,9 @@ const { syncSpreadsheetsToDatabase } = require('./spreadsheetSync.js');
 // Create a new client instance
 global.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent] });
 
-// Load commands
+/**
+ * Load commands
+ */
 client.commands = new Collection();
 
 const foldersPath = path.join(__dirname, 'commands');
@@ -29,6 +31,9 @@ for (const folder of commandFolders) {
   }
 }
 
+/**
+ * Load events
+ */
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
@@ -42,6 +47,31 @@ for (const file of eventFiles) {
   }
 }
 
+/**
+ * Load buttons
+ */
+// Create a new collection for buttons
+client.buttons = new Collection();
+
+// Read button files from the buttons directory
+const buttonsPath = path.join(__dirname, 'buttons');
+const buttonFiles = fs.readdirSync(buttonsPath).filter(file => file.endsWith('.js'));
+
+// Loop through button files and set them in the collection
+for (const file of buttonFiles) {
+  const filePath = path.join(buttonsPath, file);
+  const button = require(filePath);
+  // Set a new item in the Collection with the key as the button customId and the value as the exported module
+  if ('customId' in button && 'execute' in button) {
+    client.buttons.set(button.customId, button);
+  } else {
+    console.log(`[WARNING] The button at ${filePath} is missing a required "customId" or "execute" property.`);
+  }
+}
+
+/**
+ * Hourly spreadsheet sync
+ */
 // Make function to check whether database was changed
 const dbPath = './database.sqlite';
 
@@ -73,5 +103,5 @@ setInterval(async () => {
   }
 }, 60 * 1000); // Check every minute
 
-// Log in to Discord with your client's token
+// Log in to Discord with the client's token
 client.login(token);
