@@ -440,7 +440,8 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     }
 
     // Check whether a character is already assigned to the player
-    if (player.characterId) {
+    const existingCharacter = await player.getCharacter();
+    if (existingCharacter) {
       notAssignedEmbed
         .setDescription(userMention(member.id) + ' is already playing a character.');
       return notAssignedEmbed;
