@@ -119,30 +119,39 @@ module.exports = (sequelize, DataTypes) => {
         const region = await this.getRegion();
         const house = await this.getHouse();
 
+        const infoList = [];
+
         const generalInfo = (
           `**Name:** ${this.name}\n` +
           `**Year of Creation:** ${this.yearOfCreation}\n` +
           // `**Sex:** ${this.sex}\n` +
           `**Region:** ${region ? region.name : `-`}\n` +
-          `**House:** ${house ? house.name : `-`}\n` +
+          `${region && region.name === `Wanderer` ? `` : `**House:** ${house ? house.name : `-`}\n`}` +
           `**Social Class:** ${this.socialClassName}\n` +
           `**Role:** ${this.role ? this.role : '-'}\n` +
           `**Comments:** ${this.comments ? this.comments : '-'}`);
 
+        infoList.push(generalInfo);
+
         // Show all info for non-commoners and wanderers
         if (this.socialClassName !== 'Commoner' || (region && region.name === 'Wanderer')) {
-          const infoList = [generalInfo];
+
+          const world = await sequelize.models.worlds.findOne({ where: { name: 'Elstrand' } });
+
+          const deathRollStrings = [];
+          for (let i = 1; i <= 5; i++) {
+            const rollValue = this[`deathRoll${i}`];
+            if (rollValue) {
+              deathRollStrings.push(`- Age ${i + 3}${i === 5 ? '+' : ''}: ${rollValue} (${rollValue < (i === 1 ? 6 : i === 2 ? 26 : i === 3 ? 51 : i === 4 ? 76 : 91) ? `:x:` : `:white_check_mark:`})`);
+            }
+          }
 
           const agingInfo = (
             `### Aging Info\n` +
             `**Year of Maturity:** ${this.yearOfMaturity}\n` +
+            `**Current Age:** ${world.currentYear - this.yearOfMaturity}\n` +
             `**PvE Deaths:** ${this.pveDeaths}\n` +
-            `**Death rolls:**` +
-            (this.deathRoll1 ? (`\n- Age 4: ${this.deathRoll1 ? `${this.deathRoll1} (${this.deathRoll1 < 6 ? `:x:` : `:white_check_mark:`})` : `-`}`) : ` None`) +
-            (this.deathRoll2 ? (`\n- Age 5: ${this.deathRoll2 ? `${this.deathRoll2} (${this.deathRoll2 < 26 ? `:x:` : `:white_check_mark:`})` : `-`}`) : ``) +
-            (this.deathRoll3 ? (`\n- Age 6: ${this.deathRoll3 ? `${this.deathRoll3} (${this.deathRoll3 < 51 ? `:x:` : `:white_check_mark:`})` : `-`}`) : ``) +
-            (this.deathRoll4 ? (`\n- Age 7: ${this.deathRoll4 ? `${this.deathRoll4} (${this.deathRoll4 < 76 ? `:x:` : `:white_check_mark:`})` : `-`}`) : ``) +
-            (this.deathRoll5 ? (`\n- Age 8+: ${this.deathRoll5 ? `${this.deathRoll5} (${this.deathRoll5 < 91 ? `:x:` : `:white_check_mark:`})` : `-`}`) : ``)
+            `**Death rolls:** ${deathRollStrings.length === 0 ? `None` : `\n` + deathRollStrings.join('\n')}`
           );
           infoList.push(agingInfo);
 
@@ -170,27 +179,27 @@ module.exports = (sequelize, DataTypes) => {
             infoList.push(dyingInfo);
           }
 
-          const parent1 = await this.getParent1();
-          const parent2 = await this.getParent2();
-
-          const parents = [];
-          if (parent1) parents.push(`\`${parent1.name}\``);
-          if (parent2) parents.push(`\`${parent2.name}\``);
-
-          const relationships = await sequelize.models.relationships.findAll({
-            where: { [Op.or]: [{ bearingCharacterId: this.id }, { conceivingCharacterId: this.id }] }
-          })
-
-          // Make a list of relationships with the names of the characters involved
-          const relationshipList = [];
-          for (const relationship of relationships) {
-            const bearingCharacter = await relationship.getBearingCharacter();
-            const conceivingCharacter = await relationship.getConceivingCharacter();
-            relationshipList.push(`${bearingCharacter.name} & ${conceivingCharacter.name}`);
-          }
-
           // Only add offspring info if they are not commoner
           if (this.socialClassName !== 'Commoner') {
+            const parent1 = await this.getParent1();
+            const parent2 = await this.getParent2();
+
+            const parents = [];
+            if (parent1) parents.push(`\`${parent1.name}\``);
+            if (parent2) parents.push(`\`${parent2.name}\``);
+
+            const relationships = await sequelize.models.relationships.findAll({
+              where: { [Op.or]: [{ bearingCharacterId: this.id }, { conceivingCharacterId: this.id }] }
+            })
+
+            // Make a list of relationships with the names of the characters involved
+            const relationshipList = [];
+            for (const relationship of relationships) {
+              const bearingCharacter = await relationship.getBearingCharacter();
+              const conceivingCharacter = await relationship.getConceivingCharacter();
+              relationshipList.push(`${bearingCharacter.name} & ${conceivingCharacter.name}`);
+            }
+
             const offspringInfo = (
               `### Offspring Info\n` +
               `**Parents:** ${parents.length > 0 ? parents.join(', ') : `Unknown`}\n` +
@@ -201,10 +210,9 @@ module.exports = (sequelize, DataTypes) => {
           }
 
           return infoList.join('\n');
-        } // Show limited info for commoners
-        else {
-          return generalInfo;
         }
+
+        return infoList.join('\n');
       },
       set(value) {
         throw new Error('Do not try to set the formattedInfo value!')

@@ -1,4 +1,4 @@
-const { MessageFlags, ContainerBuilder } = require('discord.js');
+const { MessageFlags, ContainerBuilder, inlineCode } = require('discord.js');
 const { addCharacterToDatabase, assignCharacterToPlayer } = require('../misc.js');
 
 module.exports = {
@@ -51,7 +51,7 @@ module.exports = {
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
           `# Character Created\n` +
-          `Your character, **${character.name}**, has been successfully created and assigned to you.\n` +
+          `Your character, **${inlineCode(character.name)}**, has been successfully created and assigned to you.\n` +
           `You can manage your character using the Character Manager GUI above.`
         )
       );
