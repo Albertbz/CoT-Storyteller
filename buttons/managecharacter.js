@@ -11,10 +11,10 @@ module.exports = {
     // Get player that invoked the interaction
     const player = await Players.findByPk(interaction.user.id);
     if (!player) {
-      return {
+      return interaction.editReply({
         content: 'You are not registered as a player. Please make a ticket to register.',
         flags: MessageFlags.Ephemeral,
-      };
+      });
     }
 
     const character = await player.getCharacter();
