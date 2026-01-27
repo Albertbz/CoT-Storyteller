@@ -712,16 +712,11 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
       type: type
     });
 
-    // If it was a duchy steelbearer, set the duchy's steelbearerId, and make
-    // text to add to posting in log channel
-    let logDuchyText = '';
-    let formattedDuchyText = '';
+    // If it was a duchy steelbearer, set the duchy's steelbearerId
     if (type === 'Duchy') {
       const duchy = await region.getDuchies({ where: { id: duchyId } });
       if (duchy.length > 0) {
         await duchy[0].update({ steelbearerId: steelbearer.id });
-        logDuchyText = `\nduchy: ${inlineCode(duchy[0].name)} (${inlineCode(duchy[0].id)})`;
-        formattedDuchyText = `\n**Duchy:** ${duchy[0].name}`;
       }
     }
 
@@ -735,8 +730,7 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
     await postInLogChannel(
       'Steelbearer assigned to Region',
       '**Assigned by: ' + userMention(storyteller.id) + '**\n\n' +
-      (await steelbearer.logInfo) +
-      logDuchyText,
+      (await steelbearer.logInfo),
       COLORS.BLUE
     )
 
@@ -744,10 +738,7 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
     const assignedEmbed = new EmbedBuilder()
       .setTitle('Steelbearer assigned to Region')
       .setDescription(
-        `**Steelbearer:** ${character.name}\n` +
-        `**Region:** ${region.name}\n` +
-        `**Type:** ${type}` +
-        formattedDuchyText
+        (await steelbearer.formattedInfo)
       )
       .setColor(COLORS.GREEN);
 

@@ -51,8 +51,6 @@ Steelbearers.addHook('afterDestroy', async (steelbearer, options) => {
           try {
             const member = await guild.members.fetch(player.id);
             if (member) {
-              console.log('Removing steelbearer from ' + member.user.username);
-              // console.log(member.user.username + ' is losing the steelbearer role due to steelbearer deletion.');
               await member.roles.remove(roles.steelbearer);
             }
           }

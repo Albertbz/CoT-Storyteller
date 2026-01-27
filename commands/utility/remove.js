@@ -433,12 +433,12 @@ module.exports = {
           COLORS.RED
         );
 
-        await toRemove.destroy();
-
         const confirmationEmbed = new EmbedBuilder()
           .setTitle(embedTitle)
           .setDescription(`The ${entityName} has been successfully removed from the database:\n\n${(await toRemove.formattedInfo)}`)
           .setColor(COLORS.GREEN);
+
+        await toRemove.destroy();
 
         await interaction.editReply({ embeds: [confirmationEmbed], components: [] });
       }
