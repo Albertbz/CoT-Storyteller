@@ -22,13 +22,16 @@ module.exports = {
     const container = new ContainerBuilder()
 
     if (character) {
+      const characterInfo = await character.formattedInfo;
+
       container
-        .addTextDisplayComponents((textDisplay) =>
-          textDisplay.setContent(
-            `# Managing your current character, **${inlineCode(character.name)}**.\n` +
-            `Use the buttons below to manage various aspects of your character.`
-          )
+        .addTextDisplayComponents(
+          (textDisplay) => textDisplay.setContent(`# Manage your current character: **${inlineCode(character.name)}**`),
+          (textDisplay) => textDisplay.setContent(characterInfo)
         )
+        .addSeparatorComponents((separator) => separator)
+        .addTextDisplayComponents((textDisplay) =>
+          textDisplay.setContent(`Use the buttons below to manage various aspects of your character.`))
         .addActionRowComponents((actionRow) =>
           actionRow.setComponents(
             new ButtonBuilder()
@@ -40,20 +43,35 @@ module.exports = {
               .setCustomId('character-change-region-button')
               .setLabel('Change Region/House')
               .setStyle(ButtonStyle.Secondary)
-              .setEmoji('🏠'),
-            new ButtonBuilder()
-              .setCustomId('character-notability-button')
-              .setLabel('Opt in to Notability')
-              .setStyle(ButtonStyle.Secondary)
-              .setEmoji('⭐'),
+              .setEmoji('🏠')
+          )
+        );
+
+      if (await character.isMortal) {
+        container.addActionRowComponents((actionRow) =>
+          actionRow.setComponents(
             new ButtonBuilder()
               .setCustomId('character-register-death-button')
               .setLabel('Register Death')
               .setStyle(ButtonStyle.Secondary)
               .setEmoji('💀')
           )
-        )
-        .addActionRowComponents((actionRow) =>
+        );
+      }
+
+      if (character.socialClassName === 'Commoner') {
+        container.addActionRowComponents((actionRow) =>
+          actionRow.setComponents(
+            new ButtonBuilder()
+              .setCustomId('character-notability-button')
+              .setLabel('Opt in to Notability')
+              .setStyle(ButtonStyle.Secondary)
+              .setEmoji('⭐')
+          )
+        );
+      }
+      else {
+        container.addActionRowComponents((actionRow) =>
           actionRow.setComponents(
             new ButtonBuilder()
               .setCustomId('character-npc-rolls-button')
@@ -67,6 +85,7 @@ module.exports = {
               .setEmoji('👥')
           )
         );
+      }
     }
     else {
       container

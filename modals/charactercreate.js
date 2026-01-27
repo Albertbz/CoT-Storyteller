@@ -8,6 +8,23 @@ module.exports = {
     await interaction.deferUpdate();
 
     /**
+     * Notify the user of character creation in progress
+     */
+    const components = [];
+    const container = new ContainerBuilder()
+      .addTextDisplayComponents((textDisplay) =>
+        textDisplay.setContent(
+          `# Creating Character...\n` +
+          `Your character is being created. This may take a few moments...`
+        )
+      );
+
+    components.push(container);
+
+    await interaction.editReply({ components: components, flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+
+
+    /**
      * Extract modal inputs
      */
     const characterName = interaction.fields.getTextInputValue('character-name-input');
@@ -24,9 +41,13 @@ module.exports = {
     }
     await assignCharacterToPlayer(character.id, interaction.user.id, interaction.user);
 
-    const components = [];
+    /**
+     * Notify the user of successful character creation
+     */
+    components.length = 0; // Clear components array
+    container.spliceComponents(0, container.components.length); // Clear container components
 
-    const container = new ContainerBuilder()
+    container
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
           `# Character Created\n` +

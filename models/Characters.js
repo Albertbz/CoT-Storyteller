@@ -70,6 +70,16 @@ module.exports = (sequelize, DataTypes) => {
     deathRoll5: {
       type: DataTypes.INTEGER
     },
+    isMortal: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        const region = await this.getRegion();
+        return this.socialClassName !== 'Commoner' || (region && region.name === 'Wanderer');
+      },
+      set(value) {
+        throw new Error('Do not try to set the isMortal value!')
+      }
+    },
     logInfo: {
       type: DataTypes.VIRTUAL,
       async get() {
