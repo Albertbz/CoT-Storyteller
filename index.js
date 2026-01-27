@@ -70,6 +70,28 @@ for (const file of buttonFiles) {
 }
 
 /**
+ * Load modals
+ */
+// Create a new collection for modals
+client.modals = new Collection();
+
+// Read modal files from the modals directory
+const modalsPath = path.join(__dirname, 'modals');
+const modalFiles = fs.readdirSync(modalsPath).filter(file => file.endsWith('.js'));
+
+// Loop through modal files and set them in the collection
+for (const file of modalFiles) {
+  const filePath = path.join(modalsPath, file);
+  const modal = require(filePath);
+  // Set a new item in the Collection with the key as the modal customId and the value as the exported module
+  if ('customId' in modal && 'execute' in modal) {
+    client.modals.set(modal.customId, modal);
+  } else {
+    console.log(`[WARNING] The modal at ${filePath} is missing a required "customId" or "execute" property.`);
+  }
+}
+
+/**
  * Hourly spreadsheet sync
  */
 // Make function to check whether database was changed

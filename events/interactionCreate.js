@@ -75,5 +75,31 @@ module.exports = {
         }
       }
     }
+    else if (interaction.isModalSubmit()) {
+      // Check whether a modal handler exists for this customId
+      const modalHandler = interaction.client.modals.get(interaction.customId);
+
+      // If not, ignore modal and return
+      if (!modalHandler) return;
+
+      // Otherwise, handle the modal interaction
+      try {
+        await modalHandler.execute(interaction);
+      }
+      catch (error) {
+        console.error(error);
+        try {
+          if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({ content: 'There was an error while executing this interaction!', flags: MessageFlags.Ephemeral });
+          } else {
+            await interaction.reply({ content: 'There was an error while executing this interaction!', flags: MessageFlags.Ephemeral });
+          }
+        }
+        catch (error) {
+          console.error(error);
+          return null;
+        }
+      }
+    }
   },
 };
