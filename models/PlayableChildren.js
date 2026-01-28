@@ -44,12 +44,30 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.VIRTUAL,
       async get() {
         const character = await this.getCharacter();
+        const region = await character.getRegion();
+        const house = await character.getHouse();
+        const world = await sequelize.models.worlds.findOne({ where: { name: 'Elstrand' } });
+        const parents = [];
+        const parent1 = await character.getParent1();
+        const parent2 = await character.getParent2();
+        if (parent1) parents.push(parent1.name);
+        if (parent2) parents.push(parent2.name);
+        const contacts = [];
+        if (this.contact1Snowflake) contacts.push(`<@${this.contact1Snowflake}>`);
+        if (this.contact2Snowflake) contacts.push(`<@${this.contact2Snowflake}>`);
         return (
-          `**Character:** ${character ? character.name : '-'}\n` +
-          `**Contact 1:** ${this.contact1Snowflake ? `<@${this.contact1Snowflake}>` : '-'}\n` +
-          `**Contact 2:** ${this.contact2Snowflake ? `<@${this.contact2Snowflake}>` : '-'}\n` +
+          `**Name:** ${character ? character.name : '-'}\n` +
+          `**Sex:** ${character ? character.sex : '-'}\n` +
+          `**Region:** ${region ? region.name : '-'}\n` +
+          `${region && region.name === `Wanderer` ? `` : `**House:** ${house ? house.name : `-`}\n`}` +
+          `**Social Class:** ${character ? character.socialClassName : '-'}\n\n` +
+          `**Year of Maturity:** ${character ? character.yearOfMaturity : '-'}\n` +
+          `**Current Age:** ${character ? world.currentYear - character.yearOfMaturity : '-'}\n\n` +
+          `**Legitimacy:** ${this.legitimacy ? this.legitimacy : '-'}\n` +
+          `**Parents:** ${parents.length > 0 ? parents.join(' & ') : '-'}\n` +
           `**Comments:** ${this.comments ? this.comments : '-'}\n` +
-          `**Legitimacy:** ${this.legitimacy ? this.legitimacy : '-'}\n`);
+          `**Contacts:** ${contacts.length > 0 ? contacts.join(', ') : '-'}`
+        );
       },
       set(value) {
         throw new Error('Do not try to set the formattedInfo value!')

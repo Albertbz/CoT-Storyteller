@@ -92,6 +92,30 @@ for (const file of modalFiles) {
 }
 
 /**
+ * Load string select menus
+ */
+// Create a new collection for string select menus
+client.stringSelectMenus = new Collection();
+
+// Read string select menu files from the stringselectmenus directory
+const stringSelectMenusPath = path.join(__dirname, 'stringselectmenus');
+const stringSelectMenuFiles = fs.readdirSync(stringSelectMenusPath).filter(file => file.endsWith('.js'));
+
+// Loop through string select menu files and set them in the collection
+for (const file of stringSelectMenuFiles) {
+  const filePath = path.join(stringSelectMenusPath, file);
+  const stringSelectMenu = require(filePath);
+  // Set a new item in the Collection with the key as the string select menu customId and the value as the exported module
+  if ('customId' in stringSelectMenu && 'execute' in stringSelectMenu) {
+    client.stringSelectMenus.set(stringSelectMenu.customId, stringSelectMenu);
+  } else {
+    console.log(`[WARNING] The string select menu at ${filePath} is missing a required "customId" or "execute" property.`);
+  }
+}
+
+
+
+/**
  * Hourly spreadsheet sync
  */
 // Make function to check whether database was changed

@@ -49,8 +49,11 @@ module.exports = {
       }
     }
     else if (interaction.isButton()) {
+      // Split the customId on colons to get the base customId
+      const baseCustomId = interaction.customId.split(':')[0];
+
       // Check whether a button handler exists for this customId
-      const buttonHandler = interaction.client.buttons.get(interaction.customId);
+      const buttonHandler = interaction.client.buttons.get(baseCustomId);
 
       // If not, ignore button and return (this assumes that the button was
       // a temporary button, and not one of the permanent ones registered in buttons/)
@@ -85,6 +88,32 @@ module.exports = {
       // Otherwise, handle the modal interaction
       try {
         await modalHandler.execute(interaction);
+      }
+      catch (error) {
+        console.error(error);
+        try {
+          if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({ content: 'There was an error while executing this interaction!', flags: MessageFlags.Ephemeral });
+          } else {
+            await interaction.reply({ content: 'There was an error while executing this interaction!', flags: MessageFlags.Ephemeral });
+          }
+        }
+        catch (error) {
+          console.error(error);
+          return null;
+        }
+      }
+    }
+    else if (interaction.isStringSelectMenu()) {
+      // Check whether a string select menu handler exists for this customId
+      const selectMenuHandler = interaction.client.stringSelectMenus.get(interaction.customId);
+
+      // If not, ignore select menu and return
+      if (!selectMenuHandler) return;
+
+      // Otherwise, handle the select menu interaction
+      try {
+        await selectMenuHandler.execute(interaction);
       }
       catch (error) {
         console.error(error);

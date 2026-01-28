@@ -32,7 +32,7 @@ module.exports = {
             .setLabel('Confirm Notability Opt-In')
             .setStyle(ButtonStyle.Success),
           new ButtonBuilder()
-            .setCustomId('character-notability-cancel-button')
+            .setCustomId('character-manager-return-button')
             .setLabel('Cancel')
             .setStyle(ButtonStyle.Danger)
         )
