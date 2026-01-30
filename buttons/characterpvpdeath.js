@@ -1,4 +1,5 @@
 const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
+const { Players, Characters } = require('../../dbObjects.js');
 
 module.exports = {
   customId: 'character-pvp-death-button',
@@ -25,7 +26,20 @@ module.exports = {
       .setCustomId('character-month-select')
       .setPlaceholder('Select month of death')
       .setRequired(true)
-    monthInput.addOptions('January','February','March','April','May','June','July','August','September','October','November','December');
+      .addOptions(
+        new StringSelectMenuOptionBuilder().setLabel('January').setValue('January'),
+        new StringSelectMenuOptionBuilder().setLabel('February').setValue('February'),
+        new StringSelectMenuOptionBuilder().setLabel('March').setValue('March'),
+        new StringSelectMenuOptionBuilder().setLabel('April').setValue('April'),
+        new StringSelectMenuOptionBuilder().setLabel('May').setValue('May'),
+        new StringSelectMenuOptionBuilder().setLabel('June').setValue('June'),
+        new StringSelectMenuOptionBuilder().setLabel('July').setValue('July'),
+        new StringSelectMenuOptionBuilder().setLabel('August').setValue('August'),
+        new StringSelectMenuOptionBuilder().setLabel('September').setValue('September'),
+        new StringSelectMenuOptionBuilder().setLabel('October').setValue('October'),
+        new StringSelectMenuOptionBuilder().setLabel('November').setValue('November'),
+        new StringSelectMenuOptionBuilder().setLabel('December').setValue('December')
+      )
 
     const monthLabel = new LabelBuilder()
       .setLabel('Month of Death')
@@ -55,7 +69,7 @@ module.exports = {
     const causeLabel = new LabelBuilder()
       
       .setLabel('Cause of Death')
-      .setDescription('Note how your character died. This will be posted publically in #Graveyard.')
+      .setDescription('Note how your character died. (eg. Old age, Execution, Fall damage, Bear attack)')
       .setTextInputComponent(causeInput);
 
     // Death Final Note

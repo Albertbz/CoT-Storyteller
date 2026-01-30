@@ -1,6 +1,6 @@
 const { MessageFlags, ContainerBuilder, inlineCode } = require('discord.js');
 const { addDeceasedToDatabase } = require('../../misc.js');
-const { Players } = require('../dbObjects');
+const { Players, Characters } = require('../dbObjects');
 
 module.exports = {
   customId: 'character-death-modal',
@@ -16,7 +16,7 @@ module.exports = {
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
           `# Updating Character...\n` +
-          `Your character is being murdered. This may take a few moments...`
+          `Character Death being Registered. This may take a few moments...`
         )
       );
 
@@ -57,7 +57,7 @@ module.exports = {
     container
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
-          `# Character Updated\n` +
+          `# Character Death being Registered\n` +
           `Your character, **${inlineCode(character.name)}**, has been successfully marked as deceased, this death should be posted in 2 hours in #Graveyard. If this has not happened please open a user support ticket.\n` +
           `You can create a new character using the Character Manager GUI above.`
         )

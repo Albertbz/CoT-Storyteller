@@ -1,6 +1,6 @@
 const { ContainerBuilder, MessageFlags, inlineCode } = require('discord.js');
 const { changeCharacterInDatabase } = require('../misc.js');
-const { Players } = require('../dbObjects');
+const { Players, Characters } = require('../../dbObjects.js');
 
 module.exports = {
   customId: 'character-pve-death-button',
@@ -30,12 +30,7 @@ module.exports = {
      */
     const player = await Players.findByPk(interaction.user.id);
     const character = await player.getCharacter();
-    const addedpvedeath = int(character.pvedeaths) + 1
-
-    if (addedpvedeath == 4) {
-    await interaction.followUp({ content: 'You are out of PvE lives! Please register this death as PvP/Final Death.', flags: MessageFlags.Ephemeral });
-      return;
-    }
+    const addedpvedeath = int(character.pveDeaths) + 1
     const { character: changedCharacter, embed: _ } = await changeCharacterInDatabase(interaction.user, character, true, { newPveDeaths: addedpvedeath });
     if (!changedCharacter) {
       await interaction.followUp({ content: 'There was an error registering your character PvE death. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
@@ -52,7 +47,7 @@ module.exports = {
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
           `# PvE death added Successfully!\n` +
-          `Your character, **${inlineCode(changedCharacter.name)}**, has spent ${inlineCode(changedCharacter.pvedeaths)} PvE lives.\n` +
+          `Your character, **${inlineCode(character.name)}**, has spent ${inlineCode(character.pveDeaths)} PvE lives.\n` +
           `You can continue to manage your character using the Character Manager GUI above.`
         )
       );
