@@ -7,6 +7,9 @@ module.exports = {
     // Defer the update to allow time to process
     await interaction.deferUpdate();
 
+    const player = await Players.findByPk(interaction.user.id);
+    const character = await player.getCharacter();
+
     const components = [];
 
     const container = new ContainerBuilder()
@@ -19,9 +22,6 @@ module.exports = {
       .addSeparatorComponents((separator) => separator)
       .addTextDisplayComponents((textDisplay) => textDisplay.setContent('Please select what type of death you would like to register.\n'),
         (textDisplay) => textDisplay.setContent(`You have currently have ${inlineCode(character.pveDeaths)} PvE deaths.`))
-
-    const player = await Players.findByPk(interaction.user.id);
-    const character = await player.getCharacter();
 
     if ((character.pveDeaths) >= 2) {
       container.addActionRowComponents((actionRow) =>
