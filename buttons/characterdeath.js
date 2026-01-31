@@ -10,46 +10,52 @@ module.exports = {
     const player = await Players.findByPk(interaction.user.id);
     const character = await player.getCharacter();
 
-    const components = [];
-
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
-          `# Registering Character Deaths\n` +
-          `This is to be used when your character has experienced a PvE or Final death.\n`
+          `# Registering Character Death\n` +
+          `This is to be used when your character has experienced a PvE or Final death.\n` +
+          `Your character, **${inlineCode(character.name)}**, has currently experienced ${inlineCode(character.pveDeaths)} PvE deaths.`
         )
       )
       .addSeparatorComponents((separator) => separator)
-      .addTextDisplayComponents((textDisplay) => textDisplay.setContent('Please select what type of death you would like to register.\n'),
-        (textDisplay) => textDisplay.setContent(`You have currently have ${inlineCode(character.pveDeaths)} PvE deaths.`))
+      .addTextDisplayComponents((textDisplay) => textDisplay.setContent('Please select what type of death you would like to register.\n'));
+
+    const pveDeathButton = new ButtonBuilder()
+      .setCustomId('character-pve-death-button')
+      .setLabel('PvE death')
+      .setEmoji('💀')
+      .setStyle(ButtonStyle.Secondary);
+
+    const finalDeathButton = new ButtonBuilder()
+      .setCustomId('character-final-death-button')
+      .setLabel('Final death')
+      .setEmoji('💀')
+      .setStyle(ButtonStyle.Secondary);
+
+    const cancelButton = new ButtonBuilder()
+      .setCustomId('character-manager-return-button')
+      .setLabel('Cancel')
+      .setStyle(ButtonStyle.Danger);
 
     if ((character.pveDeaths) < 2) {
       container.addActionRowComponents((actionRow) =>
         actionRow.setComponents(
-          new ButtonBuilder()
-            .setCustomId('character-pve-death-button')
-            .setLabel('Add PvE death')
-            .setEmoji('💀')
-            .setStyle(ButtonStyle.Secondary)
+          pveDeathButton,
+          finalDeathButton,
+          cancelButton
         )
-      )
+      );
     }
-    container.addActionRowComponents((actionRow) =>
-      actionRow.setComponents(
-        new ButtonBuilder()
-          .setCustomId('character-pvp-death-button')
-          .setLabel('Add PvP/Final Death')
-          .setEmoji('💀')
-          .setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId('character-manager-return-button')
-          .setLabel('Cancel')
-          .setStyle(ButtonStyle.Danger)
-      )
-    );
+    else {
+      container.addActionRowComponents((actionRow) =>
+        actionRow.setComponents(
+          finalDeathButton,
+          cancelButton
+        )
+      );
+    }
 
-    components.push(container);
-
-    return interaction.editReply({ components: components, flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 }

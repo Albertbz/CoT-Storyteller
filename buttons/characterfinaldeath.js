@@ -1,7 +1,7 @@
 const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
 
 module.exports = {
-  customId: 'character-pvp-death-button',
+  customId: 'character-final-death-button',
   async execute(interaction) {
     const modal = new ModalBuilder()
       .setCustomId('character-death-modal')
