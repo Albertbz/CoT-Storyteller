@@ -23,14 +23,14 @@ module.exports = {
       .addTextDisplayComponents((textDisplay) => textDisplay.setContent('Please select what type of death you would like to register.\n'),
         (textDisplay) => textDisplay.setContent(`You have currently have ${inlineCode(character.pveDeaths)} PvE deaths.`))
 
-    if ((character.pveDeaths) >= 2) {
+    if ((character.pveDeaths) < 2) {
       container.addActionRowComponents((actionRow) =>
         actionRow.setComponents(
           new ButtonBuilder()
             .setCustomId('character-pve-death-button')
             .setLabel('Add PvE death')
             .setEmoji('💀')
-            .setStyle(ButtonStyle.Success)
+            .setStyle(ButtonStyle.Secondary)
         )
       )
     }
@@ -40,7 +40,7 @@ module.exports = {
           .setCustomId('character-pvp-death-button')
           .setLabel('Add PvP/Final Death')
           .setEmoji('💀')
-          .setStyle(ButtonStyle.Success),
+          .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId('character-manager-return-button')
           .setLabel('Cancel')
