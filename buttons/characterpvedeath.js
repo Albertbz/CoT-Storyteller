@@ -47,7 +47,7 @@ module.exports = {
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
           `# PvE death added Successfully!\n` +
-          `Your character, **${inlineCode(character.name)}**, has spent ${inlineCode(addedpvedeath)} PvE lives.\n` +
+          `Your character, **${inlineCode(character.name)}**, has now spent ${inlineCode(addedpvedeath)} PvE ${addedpvedeath === 1 ? 'life' : 'lives'}.\n` +
           `You can continue to manage your character using the Character Manager GUI above.`
         )
       );

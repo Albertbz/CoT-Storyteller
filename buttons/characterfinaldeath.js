@@ -60,12 +60,13 @@ module.exports = {
     const causeInput = new TextInputBuilder()
       .setCustomId('death-cause-input')
       .setStyle(TextInputStyle.Short)
+      .setPlaceholder('e.g., old age, execution, fall damage, bear attack')
       .setRequired(true)
       .setMaxLength(30);
 
     const causeLabel = new LabelBuilder()
       .setLabel('Cause of Death')
-      .setDescription('Note how your character died (eg. old age, execution, fall damage, bear attack).')
+      .setDescription('Note the cause of the death, i.e. how your character died.')
       .setTextInputComponent(causeInput);
 
     // Death Final Note
@@ -77,7 +78,7 @@ module.exports = {
 
     const noteLabel = new LabelBuilder()
       .setLabel('Final note')
-      .setDescription('Leave your final note. This is not allowed to reveal any IC information.\nThis will be posted publicly in the graveyard channel.')
+      .setDescription('Your final note. This is not allowed to reveal any IC information.')
       .setTextInputComponent(noteInput);
 
     modal.addLabelComponents(dayLabel, monthLabel, yearLabel, causeLabel, noteLabel);
