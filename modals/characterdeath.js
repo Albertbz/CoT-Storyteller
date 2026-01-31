@@ -1,5 +1,5 @@
 const { MessageFlags, ContainerBuilder, inlineCode } = require('discord.js');
-const { addDeceasedToDatabase } = require('../../misc.js');
+const { addDeceasedToDatabase } = require('../misc.js');
 const { Players, Characters } = require('../dbObjects');
 
 module.exports = {
@@ -8,9 +8,9 @@ module.exports = {
     // Defer reply to allow time to process
     await interaction.deferUpdate();
 
-    
-   // Notify the user of death register in progress
-    
+
+    // Notify the user of death register in progress
+
     const components = [];
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
@@ -37,12 +37,12 @@ module.exports = {
     //collect player 
     const player = await Players.findByPk(interaction.user.id);
     const character = await player.getCharacter();
-    
+
 
     /**
      * Create the character in the database and assign to the player
      */
-     const { deceased, embed: deceasedCreatedEmbed } = await addDeceasedToDatabase(interaction.user, true, { characterId: character.id,  yearOfDeath: yearInput, monthOfDeath: monthInput, dayOfDeath: dayInput, causeOfDeath: causeInput, playedById: interaction.user});
+    const { deceased, embed: deceasedCreatedEmbed } = await addDeceasedToDatabase(interaction.user, true, { characterId: character.id, yearOfDeath: yearInput, monthOfDeath: monthInput, dayOfDeath: dayInput, causeOfDeath: causeInput, playedById: interaction.user });
     if (!character) {
       await interaction.followUp({ content: 'There was an error marking your character as deceased. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
       return;
