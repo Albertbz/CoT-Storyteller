@@ -1,4 +1,5 @@
 const { ContainerBuilder, ButtonBuilder, MessageFlags, ButtonStyle, inlineCode } = require('discord.js');
+const { Players } = require('../dbObjects.js');
 
 module.exports = {
   customId: 'character-register-death-button',
@@ -12,12 +13,15 @@ module.exports = {
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
           `# Registering Character Deaths\n` +
-          `This is to be used when your character has experienced a PVE or PVP death.\n`
+          `This is to be used when your character has experienced a PvE or Final death.\n`
         )
       )
       .addSeparatorComponents((separator) => separator)
       .addTextDisplayComponents((textDisplay) => textDisplay.setContent('Please select what type of death you would like to register.\n'),
-        (textDisplay) => textDisplay.setContent(`You have currently have ${inlineCode(character.pveDeaths)} PVE deaths.`))
+        (textDisplay) => textDisplay.setContent(`You have currently have ${inlineCode(character.pveDeaths)} PvE deaths.`))
+
+    const player = await Players.findByPk(interaction.user.id);
+    const character = await player.getCharacter();
 
     if ((character.pveDeaths) >= 2) {
       container.addActionRowComponents((actionRow) =>

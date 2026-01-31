@@ -1,5 +1,4 @@
 const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
-const { Players, Characters } = require('../dbObjects.js');
 
 module.exports = {
   customId: 'character-pvp-death-button',
@@ -16,9 +15,8 @@ module.exports = {
       .setMaxLength(2);
 
     const dayLabel = new LabelBuilder()
-
       .setLabel('Day of Death')
-      .setDescription('Enter In-Game Day your character died (1-24)')
+      .setDescription('Enter the in-game day your character died (1-24).')
       .setTextInputComponent(dayInput);
 
     // Month Input
@@ -43,10 +41,10 @@ module.exports = {
 
     const monthLabel = new LabelBuilder()
       .setLabel('Month of Death')
-      .setDescription('Enter In-Game Month your chararcter Died')
+      .setDescription('Choose the in-game month your character died.')
       .setStringSelectMenuComponent(monthInput);
 
-    //Year Input, To be prefilled once date API added
+    // Year Input, To be prefilled once date API added
     const yearInput = new TextInputBuilder()
       .setCustomId('death-year-input')
       .setStyle(TextInputStyle.Short)
@@ -54,10 +52,9 @@ module.exports = {
       .setMaxLength(2);
 
     const yearLabel = new LabelBuilder()
-
       .setLabel('Year of Death')
-      .setDescription('Enter In-Game Year your character died ')
-      .setTextInputComponent(dayInput);
+      .setDescription('Enter the in-game year your character died.')
+      .setTextInputComponent(yearInput);
 
     // Death Cause
     const causeInput = new TextInputBuilder()
@@ -67,9 +64,8 @@ module.exports = {
       .setMaxLength(30);
 
     const causeLabel = new LabelBuilder()
-
       .setLabel('Cause of Death')
-      .setDescription('Note how your character died. (eg. Old age, Execution, Fall damage, Bear attack)')
+      .setDescription('Note how your character died (eg. old age, execution, fall damage, bear attack).')
       .setTextInputComponent(causeInput);
 
     // Death Final Note
@@ -80,10 +76,9 @@ module.exports = {
       .setMaxLength(100);
 
     const noteLabel = new LabelBuilder()
-
-      .setLabel('Final notes')
-      .setDescription('Leave your final note, this is not allowed to reveal any In Character information.\n This will be posted publically in #Graveyard.')
-      .setTextInputComponent(dayInput);
+      .setLabel('Final note')
+      .setDescription('Leave your final note. This is not allowed to reveal any IC information.\nThis will be posted publicly in the graveyard channel.')
+      .setTextInputComponent(noteInput);
 
     modal.addLabelComponents(dayLabel, monthLabel, yearLabel, causeLabel, noteLabel);
 

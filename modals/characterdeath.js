@@ -1,6 +1,6 @@
 const { MessageFlags, ContainerBuilder, inlineCode } = require('discord.js');
 const { addDeceasedToDatabase } = require('../misc.js');
-const { Players, Characters } = require('../dbObjects');
+const { Players } = require('../dbObjects');
 
 module.exports = {
   customId: 'character-death-modal',
@@ -9,21 +9,18 @@ module.exports = {
     await interaction.deferUpdate();
 
 
-    // Notify the user of death register in progress
-
-    const components = [];
+    /**
+     * Notify the user of death register in progress
+     */
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
-          `# Updating Character...\n` +
+          `# Registering death of Character...\n` +
           `Character Death being Registered. This may take a few moments...`
         )
       );
 
-    components.push(container);
-
-    await interaction.editReply({ components: components, flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
-
+    await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 
     /**
      * Extract modal inputs
@@ -34,7 +31,7 @@ module.exports = {
     const causeInput = interaction.fields.getTextInputValue('death-cause-input');
     const noteInput = interaction.fields.getTextInputValue('death-note-input');
 
-    //collect player 
+    // Find player and character 
     const player = await Players.findByPk(interaction.user.id);
     const character = await player.getCharacter();
 
@@ -42,8 +39,8 @@ module.exports = {
     /**
      * Create the character in the database and assign to the player
      */
-    const { deceased, embed: deceasedCreatedEmbed } = await addDeceasedToDatabase(interaction.user, true, { characterId: character.id, yearOfDeath: yearInput, monthOfDeath: monthInput, dayOfDeath: dayInput, causeOfDeath: causeInput, playedById: interaction.user });
-    if (!character) {
+    const { deceased, embed: deceasedCreatedEmbed } = await addDeceasedToDatabase(interaction.user, true, { characterId: character.id, yearOfDeath: yearInput, monthOfDeath: monthInput, dayOfDeath: dayInput, causeOfDeath: causeInput, playedById: player.id });
+    if (!deceased) {
       await interaction.followUp({ content: 'There was an error marking your character as deceased. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
       return;
     }
@@ -51,20 +48,18 @@ module.exports = {
     /**
      * Notify the user of successful character death
      */
-    components.length = 0; // Clear components array
     container.spliceComponents(0, container.components.length); // Clear container components
 
     container
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
-          `# Character Death being Registered\n` +
-          `Your character, **${inlineCode(character.name)}**, has been successfully marked as deceased, this death should be posted in 2 hours in #Graveyard. If this has not happened please open a user support ticket.\n` +
-          `You can create a new character using the Character Manager GUI above.`
+          `# Character Death Registered\n` +
+          `Your character, **${inlineCode(character.name)}**, has been successfully marked as deceased. This death will be posted in the graveyard channel in 2 hours.\n` +
+          `You can now create a new character using the Character Manager GUI above.`
         )
       );
 
-    components.push(container);
 
-    await interaction.editReply({ components: components, flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 }
