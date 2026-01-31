@@ -55,5 +55,6 @@ module.exports = {
         )
       )
 
+    await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 }
