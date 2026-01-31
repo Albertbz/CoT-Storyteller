@@ -1,5 +1,5 @@
 const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
-const { Players, Characters } = require('../../dbObjects.js');
+const { Players, Characters } = require('../dbObjects.js');
 
 module.exports = {
   customId: 'character-pvp-death-button',
@@ -16,7 +16,7 @@ module.exports = {
       .setMaxLength(2);
 
     const dayLabel = new LabelBuilder()
-      
+
       .setLabel('Day of Death')
       .setDescription('Enter In-Game Day your character died (1-24)')
       .setTextInputComponent(dayInput);
@@ -47,14 +47,14 @@ module.exports = {
       .setStringSelectMenuComponent(monthInput);
 
     //Year Input, To be prefilled once date API added
-     const yearInput = new TextInputBuilder()
+    const yearInput = new TextInputBuilder()
       .setCustomId('death-year-input')
       .setStyle(TextInputStyle.Short)
       .setRequired(true)
       .setMaxLength(2);
 
     const yearLabel = new LabelBuilder()
-      
+
       .setLabel('Year of Death')
       .setDescription('Enter In-Game Year your character died ')
       .setTextInputComponent(dayInput);
@@ -67,7 +67,7 @@ module.exports = {
       .setMaxLength(30);
 
     const causeLabel = new LabelBuilder()
-      
+
       .setLabel('Cause of Death')
       .setDescription('Note how your character died. (eg. Old age, Execution, Fall damage, Bear attack)')
       .setTextInputComponent(causeInput);
@@ -80,7 +80,7 @@ module.exports = {
       .setMaxLength(100);
 
     const noteLabel = new LabelBuilder()
-      
+
       .setLabel('Final notes')
       .setDescription('Leave your final note, this is not allowed to reveal any In Character information.\n This will be posted publically in #Graveyard.')
       .setTextInputComponent(dayInput);

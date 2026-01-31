@@ -1,5 +1,5 @@
 const { ContainerBuilder, ButtonBuilder, MessageFlags, ButtonStyle, inlineCode } = require('discord.js');
-const { Players, Characters } = require('../../dbObjects.js');
+const { Players, Characters } = require('../dbObjects.js');
 
 module.exports = {
   customId: 'character-register-death-button',
@@ -19,9 +19,9 @@ module.exports = {
       .addSeparatorComponents((separator) => separator)
       .addTextDisplayComponents((textDisplay) => textDisplay.setContent('Please select what type of death you would like to register.\n'),
         (textDisplay) => textDisplay.setContent(`You have currently have ${inlineCode(character.pveDeaths)} PVE deaths.`))
-      
-      if ((character.pveDeaths) >= 2 ) {
-       container.addActionRowComponents((actionRow) =>
+
+    if ((character.pveDeaths) >= 2) {
+      container.addActionRowComponents((actionRow) =>
         actionRow.setComponents(
           new ButtonBuilder()
             .setCustomId('character-pve-death-button')
@@ -30,20 +30,20 @@ module.exports = {
             .setStyle(ButtonStyle.Success)
         )
       )
-      }
-      container.addActionRowComponents((actionRow) =>
-        actionRow.setComponents(
-            new ButtonBuilder()
-            .setCustomId('character-pvp-death-button')
-            .setLabel('Add PvP/Final Death')
-            .setEmoji('💀')
-            .setStyle(ButtonStyle.Success),
-          new ButtonBuilder()
-            .setCustomId('character-manager-return-button')
-            .setLabel('Cancel')
-            .setStyle(ButtonStyle.Danger)
-        )
-      );
+    }
+    container.addActionRowComponents((actionRow) =>
+      actionRow.setComponents(
+        new ButtonBuilder()
+          .setCustomId('character-pvp-death-button')
+          .setLabel('Add PvP/Final Death')
+          .setEmoji('💀')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('character-manager-return-button')
+          .setLabel('Cancel')
+          .setStyle(ButtonStyle.Danger)
+      )
+    );
 
     components.push(container);
 

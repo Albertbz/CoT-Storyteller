@@ -1,6 +1,6 @@
 const { ContainerBuilder, MessageFlags, inlineCode } = require('discord.js');
 const { changeCharacterInDatabase } = require('../misc.js');
-const { Players, Characters } = require('../../dbObjects.js');
+const { Players, Characters } = require('../dbObjects.js');
 
 module.exports = {
   customId: 'character-pve-death-button',
