@@ -24,7 +24,7 @@ module.exports = {
     const textDisplay = new TextDisplayBuilder()
       .setContent(
         `You are currently changing the surname of your character, **${inlineCode(character.name)}**, ` +
-        (currentSurname === '' ? `who does not currently have surname.` : `whose current surname is **${inlineCode(currentSurname)}**.\n`) +
+        (currentSurname === '' ? `who does not have a surname yet.\n` : `whose current surname is **${inlineCode(currentSurname)}**.\n`) +
         `Please do not choose a surname that already exists, unless your character is part of said family.`
       )
 
