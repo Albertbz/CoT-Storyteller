@@ -53,7 +53,7 @@ module.exports = {
     container
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
-          `# Character Death Registered\n` +
+          `# Character Final Death Registered\n` +
           `Your character, **${inlineCode(character.name)}**, has been successfully marked as deceased. This death will be posted in the graveyard channel in 2 hours.\n` +
           `You can now create a new character using the Character Manager GUI above.`
         )

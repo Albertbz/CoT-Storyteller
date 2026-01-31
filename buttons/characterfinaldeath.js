@@ -11,6 +11,7 @@ module.exports = {
     const dayInput = new TextInputBuilder()
       .setCustomId('death-day-input')
       .setStyle(TextInputStyle.Short)
+      .setPlaceholder('e.g., 15')
       .setRequired(true)
       .setMaxLength(2);
 
@@ -21,7 +22,7 @@ module.exports = {
 
     // Month Input
     const monthInput = new StringSelectMenuBuilder()
-      .setCustomId('character-month-select')
+      .setCustomId('death-month-select')
       .setPlaceholder('Select month of death')
       .setRequired(true)
       .addOptions(
@@ -48,6 +49,7 @@ module.exports = {
     const yearInput = new TextInputBuilder()
       .setCustomId('death-year-input')
       .setStyle(TextInputStyle.Short)
+      .setPlaceholder('e.g., 28')
       .setRequired(true)
       .setMaxLength(2);
 
@@ -72,13 +74,13 @@ module.exports = {
     // Death Final Note
     const noteInput = new TextInputBuilder()
       .setCustomId('death-note-input')
-      .setStyle(TextInputStyle.Short)
+      .setStyle(TextInputStyle.Paragraph)
       .setRequired(true)
-      .setMaxLength(100);
+      .setMaxLength(250);
 
     const noteLabel = new LabelBuilder()
       .setLabel('Final note')
-      .setDescription('Your final note. This is not allowed to reveal any IC information.')
+      .setDescription('Your final note. This is not allowed to reveal any IC information. Max 250 characters.')
       .setTextInputComponent(noteInput);
 
     modal.addLabelComponents(dayLabel, monthLabel, yearLabel, causeLabel, noteLabel);
