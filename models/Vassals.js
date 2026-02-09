@@ -14,6 +14,37 @@ module.exports = (sequelize, DataTypes) => {
     liegeId: {
       type: DataTypes.STRING,
       allowNull: false
+    },
+    logInfo: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        const vassal = await this.getVassalRegion();
+        const liege = await this.getLiegeRegion();
+
+        return (
+          `id: \`${this.id}\`\n` +
+          `\n` +
+          `vassal: \`${vassal.name}\` (\`${vassal.id}\`)\n` +
+          `liege: \`${liege.name}\` (\`${liege.id}\`)`
+        );
+      },
+      set(value) {
+        throw new Error('Do not try to set the logInfo value!')
+      }
+    },
+    formattedInfo: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        const vassal = await this.getVassalRegion();
+        const liege = await this.getLiegeRegion();
+
+        return (
+          `**Vassal:** ${vassal.name}\n` +
+          `**Liege:** ${liege.name}`);
+      },
+      set(value) {
+        throw new Error('Do not try to set the formattedInfo value!')
+      }
     }
   });
 }

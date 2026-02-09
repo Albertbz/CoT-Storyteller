@@ -362,6 +362,77 @@ async function addHouseToDatabase(storyteller, { name, emojiName = null } = {}) 
   }
 }
 
+async function addVassalToDatabase(storyteller, { vassalId, liegeId } = {}) {
+  // storyteller is required
+  if (!storyteller) {
+    throw new Error('storyteller is required');
+  }
+
+  const vassalNotCreatedEmbed = new EmbedBuilder()
+    .setTitle('Vassal Not Created')
+    .setColor(COLORS.RED);
+
+  // Check whether the vassal and liege regions exist
+  const vassalRegion = await Regions.findByPk(vassalId);
+  const liegeRegion = await Regions.findByPk(liegeId);
+
+  if (!vassalRegion) {
+    vassalNotCreatedEmbed
+      .setDescription('Vassal region not found in database.');
+    return { vassal: null, embed: vassalNotCreatedEmbed };
+  }
+
+  if (!liegeRegion) {
+    vassalNotCreatedEmbed
+      .setDescription('Liege region not found in database.');
+    return { vassal: null, embed: vassalNotCreatedEmbed };
+  }
+
+  // Check whether the vassal and liege regions are the same
+  if (vassalRegion.id === liegeRegion.id) {
+    vassalNotCreatedEmbed
+      .setDescription('A region cannot be a vassal to itself.');
+    return { vassal: null, embed: vassalNotCreatedEmbed };
+  }
+
+  // Check whether the vassal region is already a vassal to another liege
+  const existingVassalRecord = await Vassals.findOne({ where: { vassalId: vassalRegion.id } });
+  if (existingVassalRecord) {
+    vassalNotCreatedEmbed
+      .setDescription('The vassal region is already a vassal to another liege region.');
+    return { vassal: null, embed: vassalNotCreatedEmbed };
+  }
+
+  // Checks passed, create the vassal record
+  try {
+    const vassal = await Vassals.create({
+      vassalId: vassalRegion.id,
+      liegeId: liegeRegion.id
+    });
+
+    await postInLogChannel(
+      'Vassal Created',
+      '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
+      (await vassal.logInfo),
+      COLORS.GREEN
+    )
+
+    // Make an embed for vassal creation to return
+    const vassalCreatedEmbed = new EmbedBuilder()
+      .setTitle('Vassal Created')
+      .setDescription((await vassal.formattedInfo))
+      .setColor(COLORS.GREEN);
+
+    return { vassal, embed: vassalCreatedEmbed };
+  }
+  catch (error) {
+    console.log(error);
+    vassalNotCreatedEmbed
+      .setDescription(`An error occured while trying to create the vassal record: ${error.message}`);
+    return { vassal: null, embed: vassalNotCreatedEmbed };
+  }
+}
+
 async function addPlayableChildToDatabase(storyteller, { characterId, legitimacy, contact1Snowflake, contact2Snowflake } = {}) {
   // storyteller is required
   if (!storyteller) {
@@ -1833,6 +1904,7 @@ module.exports = {
   ageToFertilityModifier,
   addRelationshipToDatabase,
   addHouseToDatabase,
+  addVassalToDatabase,
   addPlayableChildToDatabase,
   addDeceasedToDatabase,
   changeCharacterInDatabase,

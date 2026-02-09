@@ -2,7 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Regions, Houses, SocialClasses, Relationships } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
-const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase } = require('../../misc.js')
+const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase, addVassalToDatabase } = require('../../misc.js')
 
 
 module.exports = {
@@ -175,13 +175,32 @@ module.exports = {
             .setRequired(true)
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('vassal')
+        .setDescription('Create a new vassal-liege relationship.')
+        .addStringOption(option =>
+          option
+            .setName('vassal')
+            .setDescription('The vassal region.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('liege')
+            .setDescription('The liege region.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
   ,
   async autocomplete(interaction) {
     let choices;
 
-    // Autocomplete for regions, check which option is being autocompleted
     const focusedOption = interaction.options.getFocused(true);
 
+    // Autocomplete for regions, check which option is being autocompleted
     if (focusedOption.name === 'region') {
       const focusedValue = interaction.options.getFocused();
 
@@ -220,12 +239,28 @@ module.exports = {
       choices = characters.map(character => ({ name: character.name, value: character.id }));
     }
 
+    // Autocomplete for vassal-liege relationship
+    else if (focusedOption.name === 'vassal' || focusedOption.name === 'liege') {
+      const focusedValue = interaction.options.getFocused();
+
+      // All regions except for the Wanderer region, since the Wanderer region cannot be a vassal or liege
+      const regions = await Regions.findAll({
+        where: { name: { [Op.startsWith]: focusedValue }, name: { [Op.not]: 'Wanderer' } },
+        attributes: ['name', 'id'],
+        limit: 25
+      });
+
+      choices = regions.map(region => ({ name: region.name, value: region.id }));
+    }
+
     await interaction.respond(choices);
   },
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    if (interaction.options.getSubcommand() === 'player') {
+    const subcommand = interaction.options.getSubcommand();
+
+    if (subcommand === 'player') {
       // For creating the player
       const user = interaction.options.getUser('user');
       const ign = interaction.options.getString('ign');
@@ -277,7 +312,7 @@ module.exports = {
       }
 
     }
-    else if (interaction.options.getSubcommand() === 'character') {
+    else if (subcommand === 'character') {
       const name = interaction.options.getString('name');
       const sex = interaction.options.getString('sex');
       const regionId = interaction.options.getString('region');
@@ -327,7 +362,7 @@ module.exports = {
         return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral })
       }
     }
-    else if (interaction.options.getSubcommand() === 'relationship') {
+    else if (subcommand === 'relationship') {
       const bearingCharacterId = interaction.options.getString('bearingcharacter');
       const conceivingCharacterId = interaction.options.getString('conceivingcharacter');
       const isCommitted = interaction.options.getString('committed');
@@ -348,7 +383,7 @@ module.exports = {
         return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
       }
     }
-    else if (interaction.options.getSubcommand() === 'house') {
+    else if (subcommand === 'house') {
       const name = interaction.options.getString('name');
       const emojiName = interaction.options.getString('emojiname');
 
@@ -359,6 +394,23 @@ module.exports = {
       try {
         const { house, embed: houseCreatedEmbed } = await addHouseToDatabase(interaction.user, givenValues);
         return interaction.editReply({ embeds: [houseCreatedEmbed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
+      }
+    }
+    else if (subcommand === 'vassal') {
+      const vassalRegionId = interaction.options.getString('vassal');
+      const liegeRegionId = interaction.options.getString('liege');
+
+      let givenValues = {};
+      if (vassalRegionId) givenValues.vassalId = vassalRegionId;
+      if (liegeRegionId) givenValues.liegeId = liegeRegionId;
+
+      try {
+        const { vassal, embed: vassalCreatedEmbed } = await addVassalToDatabase(interaction.user, givenValues);
+        return interaction.editReply({ embeds: [vassalCreatedEmbed], flags: MessageFlags.Ephemeral });
       }
       catch (error) {
         console.log(error);

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Steelbearers, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Steelbearers, Deceased, DeathRollDeaths, Vassals } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
 const { Op } = require('sequelize');
 const { postInLogChannel, COLORS } = require('../../misc.js');
@@ -102,6 +102,18 @@ module.exports = {
           option
             .setName('character')
             .setDescription('The character of the deathroll death entry to remove.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('vassal')
+        .setDescription('Remove a vassal-liege relationship.')
+        .addStringOption(option =>
+          option
+            .setName('vassaliege')
+            .setDescription('The vassal-liege relationship to remove.')
             .setRequired(true)
             .setAutocomplete(true)
         )
@@ -269,6 +281,31 @@ module.exports = {
       }));
     }
 
+    // Handle autocompletes for vassal subcommand
+    if (subcommand === 'vassal') {
+      const focusedValue = interaction.options.getFocused();
+
+      const vassals = await Vassals.findAll({
+        include: [
+          {
+            model: Regions, as: 'vassalRegion',
+            where: { name: { [Op.startsWith]: focusedValue } },
+          },
+          {
+            model: Regions, as: 'liegeRegion',
+            where: { name: { [Op.startsWith]: focusedValue } },
+          }
+        ],
+        attributes: ['id'],
+        limit: 25
+      });
+
+      choices = vassals.map(vassal => ({
+        name: `${vassal.vassalRegion.name} (Vassal) - ${vassal.liegeRegion.name} (Liege)`,
+        value: vassal.id
+      }));
+    }
+
     await interaction.respond(choices);
   },
   async execute(interaction) {
@@ -378,6 +415,19 @@ module.exports = {
       const character = await toRemove.getCharacter();
       entityName = `deathroll death entry for ${inlineCode(character.name)}`;
       embedTitle = 'Deathroll Death Entry Removed';
+    }
+
+    /**
+     * Handle 'vassal' subcommand
+     */
+    if (subcommand === 'vassal') {
+      const vassalId = interaction.options.getString('vassaliege');
+
+      toRemove = await Vassals.findByPk(vassalId);
+      const vassalRegion = await toRemove.getVassalRegion();
+      const liegeRegion = await toRemove.getLiegeRegion();
+      entityName = `vassal-liege relationship between ${inlineCode(vassalRegion.name)} and ${inlineCode(liegeRegion.name)}`;
+      embedTitle = 'Vassal-Liege Relationship Removed';
     }
 
 
