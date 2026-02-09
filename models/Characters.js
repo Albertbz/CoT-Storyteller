@@ -138,6 +138,9 @@ module.exports = (sequelize, DataTypes) => {
 
           const world = await sequelize.models.worlds.findOne({ where: { name: 'Elstrand' } });
 
+          const deceasedRecord = await sequelize.models.deceased.findOne({ where: { characterId: this.id } });
+          const isDeceased = !!deceasedRecord;
+
           const deathRollStrings = [];
           for (let i = 1; i <= 5; i++) {
             const rollValue = this[`deathRoll${i}`];
@@ -149,15 +152,14 @@ module.exports = (sequelize, DataTypes) => {
           const agingInfo = (
             `### Aging Info\n` +
             `**Year of Maturity:** ${this.yearOfMaturity}\n` +
-            `**Current Age:** ${world.currentYear - this.yearOfMaturity}\n` +
+            (!isDeceased ? `**Current Age:** ${world.currentYear - this.yearOfMaturity}\n` : '') +
             `**PvE Deaths:** ${this.pveDeaths}\n` +
             `**Death rolls:** ${deathRollStrings.length === 0 ? `None` : `\n` + deathRollStrings.join('\n')}`
           );
           infoList.push(agingInfo);
 
           // Check whether character is dead, add death info if so
-          const deceasedRecord = await sequelize.models.deceased.findOne({ where: { characterId: this.id } });
-          if (deceasedRecord) {
+          if (isDeceased) {
             const deathInfo = (
               `### Death Info\n` +
               `**Date of Death:** ${deceasedRecord.dateOfDeath}\n` +
@@ -172,9 +174,7 @@ module.exports = (sequelize, DataTypes) => {
           if (dyingRecord) {
             const dyingInfo = (
               `### Death Info\n` +
-              `**Date of Death:** ${dyingRecord.dateOfDeath}\n` +
-              `**Cause of Death:** Age\n` +
-              `**Played By:** <@${dyingRecord.playedById}>`
+              `**Dying of Old Age:** ${dyingRecord.dateOfDeath}`
             );
             infoList.push(dyingInfo);
           }
@@ -203,8 +203,8 @@ module.exports = (sequelize, DataTypes) => {
             const offspringInfo = (
               `### Offspring Info\n` +
               `**Parents:** ${parents.length > 0 ? parents.join(', ') : `Unknown`}\n` +
-              `**Rolling for Bastards:** ${this.isRollingForBastards ? `Yes` : `No`}\n` +
-              `**Relationships:** ${relationshipList.length > 0 ? `\n- ${relationshipList.join('\n- ')}` : `None`}`
+              `**Opted in to NPC rolls:** ${this.isRollingForBastards ? `Yes` : `No`}\n` +
+              `**Intercharacter Rolls:** ${relationshipList.length > 0 ? `\n- ${relationshipList.join('\n- ')}` : `None`}`
             )
             infoList.push(offspringInfo);
           }

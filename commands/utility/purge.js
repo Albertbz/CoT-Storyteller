@@ -363,7 +363,7 @@ module.exports = {
             for (const player of playersToUpdate) {
               if (!player.character) continue;
 
-              const socialClassName = await player.character.getSocialClassName();
+              const socialClassName = player.character.socialClassName;
               if (socialClassName === 'Commoner') {
                 // Delete the character
                 await player.character.destroy();
@@ -372,7 +372,7 @@ module.exports = {
               }
               else {
                 // Make deceased by adding to the Deceased table and removing character link from player
-                await addDeceasedToDatabase(interactionUser, false, { characterId: player.character.id, causeOfDeath: 'Inactivity', yearOfDeath: world.currentYear, monthOfDeath: 'January', dayOfDeath: 1, playedById: player.id });
+                await addDeceasedToDatabase(interactionUser, false, { characterId: player.character.id, causeOfDeath: 'Left the continent', yearOfDeath: world.currentYear, monthOfDeath: 'January', dayOfDeath: 1, playedById: player.id });
                 console.log(`Character ${player.character.name} marked as deceased in database (Notable or higher).`);
               }
             }
