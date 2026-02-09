@@ -11,8 +11,6 @@ module.exports = {
     /**
      * Notify the user of notability change in progress
      */
-    const components = [];
-
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
@@ -21,9 +19,7 @@ module.exports = {
         )
       );
 
-    components.push(container);
-
-    await interaction.editReply({ components: components, flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 
     /**
      * Update the character to be notable
@@ -39,7 +35,6 @@ module.exports = {
     /**
      * Notify the user of successful notability update
      */
-    components.length = 0; // Clear components array
     container.spliceComponents(0, container.components.length); // Clear container components
 
     container
@@ -51,8 +46,6 @@ module.exports = {
         )
       );
 
-    components.push(container);
-
-    return interaction.editReply({ components: components, flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 }

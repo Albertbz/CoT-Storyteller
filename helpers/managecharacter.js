@@ -53,16 +53,18 @@ async function createManageCharacterContainer(character) {
       );
     }
     else {
+      const npcRollsText = character.isRollingForBastards ? 'Opt out of NPC Rolls' : 'Opt in to NPC Rolls';
+
       container.addActionRowComponents((actionRow) =>
         actionRow.setComponents(
           new ButtonBuilder()
             .setCustomId('character-npc-rolls-button')
-            .setLabel('Opt in/out of NPC Rolls')
+            .setLabel(npcRollsText)
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('🎲'),
           new ButtonBuilder()
             .setCustomId('character-intercharacter-rolls-button')
-            .setLabel('Opt in/out of Intercharacter Rolls')
+            .setLabel('Change Intercharacter Rolls')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('👥')
         )

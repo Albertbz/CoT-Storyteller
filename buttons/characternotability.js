@@ -10,8 +10,6 @@ module.exports = {
      * Ensure the user wants to opt in to notability by editing the reply and
      * adding a button for confirmation.
      */
-    const components = [];
-
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
@@ -38,8 +36,6 @@ module.exports = {
         )
       );
 
-    components.push(container);
-
-    return interaction.editReply({ components: components, flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 }
