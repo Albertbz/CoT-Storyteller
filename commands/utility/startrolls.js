@@ -1,12 +1,28 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, subtext, EmbedBuilder, WorkerContextFetchingStrategy, italic, bold, spoiler } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, subtext, EmbedBuilder, italic, bold, spoiler, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, Client } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
-const { Op } = require('sequelize');
 const { postInLogChannel, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
-const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathRollResultToDatabase, makeDeathRollsSummaryEmbeds, buildOffspringChanceEmbed } = require('../../helpers/rollHelper.js');
+const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathRollResultToDatabase, makeDeathRollsSummaryMessages, buildOffspringChanceEmbed } = require('../../helpers/rollHelper.js');
+const { channels } = require('../../configs/ids.json');
 
 // Centralized messages
+const CANCEL_CONTAINER = new ContainerBuilder()
+  .addTextDisplayComponents(
+    new TextDisplayBuilder()
+      .setContent(
+        `# Stopping Rolls\n` +
+        `An error occurred. Please let Albert know.`
+      )
+  )
 const CANCEL_MESSAGE = 'Something went wrong. Please let Albert know.';
-const TIMEOUT_MESSAGE = 'No response received for 5 minutes, cancelling the rolls.';
+const TIMEOUT_CONTAINER = new ContainerBuilder()
+  .addTextDisplayComponents(
+    new TextDisplayBuilder()
+      .setContent(
+        `# Stopping Rolls\n` +
+        'No response received for 5 minutes, stopping the rolls.'
+      )
+  );
+const TIMEOUT_MESSAGE = 'No response received for 5 minutes, stopping the rolls.';
 
 // Picks a random element from an array
 function pickRandomElement(arr) {
@@ -644,92 +660,100 @@ module.exports = {
         return interaction.editReply({ content: `There are no eligible characters for death rolls.`, components: [], embeds: [] });
       }
 
-      // Make embeds with all of the dying characters, about 50 in each embed
-      const embeds = [];
+      // Make textdisplays with all of the dying characters, about 50 in each textdisplay
+      const dyingCharactersTextDisplays = [];
       const chunkSize = 50;
       for (let i = 0; i < eligibleCharacters.length; i += chunkSize) {
         const chunk = eligibleCharacters.slice(i, i + chunkSize);
-        let description = `The Age specified here is the age the character will be turning in Year ${nextYear}.\n\n`;
-        description += chunk.map(character => {
+        let content = `The Age specified here is the age the character will be turning in Year ${nextYear}.\n\n`;
+        content += chunk.map(character => {
           const age = nextYear - character.yearOfMaturity;
-          return `${inlineCode(character.name)} - Age: ${age}`;
+          return `${inlineCode(character.name)} | Age: ${age}`;
         }).join('\n');
 
-        // If not last chunk, add "and X more..." at the end
-        if (i + chunk.length < eligibleCharacters.length) {
-          const moreCount = eligibleCharacters.length - (i + chunk.length);
-          description += `\n\nAnd ${moreCount} more...`;
-        }
+        const textDisplay = new TextDisplayBuilder()
+          .setContent(
+            `# Eligible Characters for Death Rolls in Year ${nextYear}\n` +
+            content + `\n\n` +
+            `-# (Showing ${i + 1}-${i + chunk.length} of ${eligibleCharacters.length})`
+          )
 
-        const embed = new EmbedBuilder()
-          .setTitle(`Eligible Characters for Death Rolls in Year ${nextYear} (Showing ${i + 1}-${i + chunk.length} of ${eligibleCharacters.length})`)
-          .setDescription(description)
-          .setColor(COLORS.BLUE);
-
-        embeds.push(embed);
+        dyingCharactersTextDisplays.push(textDisplay);
       }
 
-      // Make an embed with the death roll chances wrt. age
+      // Make a textdisplay with the death roll chances wrt. age
       const deathRollChancesDescription =
-        `**Death Roll Chances by Age:**\n` +
         `**Age 4:** 1-5 (1 PvE death)\n` +
         `**Age 5:** 1-25 (2 PvE deaths)\n` +
         `**Age 6:** 1-50 (3 PvE deaths)\n` +
         `**Age 7:** 1-75 (Guaranteed death)\n` +
         `**Age 8 or older:** 1-90 (Guaranteed death)\n\n` +
         `If a character accumulates more than 3 PvE deaths, they die.`;
-      const deathRollChancesEmbed = new EmbedBuilder()
-        .setTitle('Death Roll Chances')
-        .setDescription(deathRollChancesDescription)
-        .setColor(COLORS.BLUE);
+      const deathRollChancesTextDisplay = new TextDisplayBuilder()
+        .setContent(
+          `# Death Roll Chances\n` +
+          deathRollChancesDescription
+        );
 
-      // Make a start embed
-      const startEmbed = new EmbedBuilder()
-        .setTitle('Ready to start')
-        .setDescription('Please press Start when you are ready to start the death rolls.\n\nIf you do not interact with the buttons for 5 minutes, the rolls will stop.')
-        .setColor(COLORS.BLUE);
+      // Make a textdisplay with instructions and a start button
+      const startTextDisplay = new TextDisplayBuilder()
+        .setContent(
+          `# Ready to start\n` +
+          `Please press Start when you are ready to start the death rolls.\n` +
+          `If you do not interact with the buttons for 5 minutes, the rolls will stop.`
+        );
 
-      // Make continue button
-      const saveAndContinueButton = new ButtonBuilder()
-        .setCustomId('save_and_continue_death_rolls')
-        .setLabel('Save and Continue')
-        .setStyle(ButtonStyle.Primary);
+      // Make action row with start and cancel buttons
+      const startActionRow = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('start_death_rolls')
+            .setLabel('Start')
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId('cancel_death_rolls')
+            .setLabel('Cancel')
+            .setStyle(ButtonStyle.Danger)
+        );
 
-      const saveAndContinueRow = new ActionRowBuilder()
-        .addComponents(saveAndContinueButton);
+      // Make action row with roll and skip buttons
+      const rollActionRow = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('roll_death_rolls')
+            .setLabel('Roll')
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId('skip_death_rolls')
+            .setLabel('Skip')
+            .setStyle(ButtonStyle.Secondary)
+        );
 
-      // Make roll button
-      const rollButton = new ButtonBuilder()
-        .setCustomId('roll_death_rolls')
-        .setLabel('Roll')
-        .setStyle(ButtonStyle.Primary);
+      // Make action row with save and continue button
+      const saveAndContinueActionRow = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('save_and_continue_death_rolls')
+            .setLabel('Save and Continue')
+            .setStyle(ButtonStyle.Primary)
+        );
 
-      const skipButton = new ButtonBuilder()
-        .setCustomId('skip_death_rolls')
-        .setLabel('Skip')
-        .setStyle(ButtonStyle.Secondary);
+      // Make separator component for splitting textdisplays
+      const separator = new SeparatorBuilder();
 
-      const rollRow = new ActionRowBuilder()
-        .addComponents(rollButton, skipButton);
+      // Create container with all components to send the initial message
+      const container = new ContainerBuilder()
+        .addTextDisplayComponents(dyingCharactersTextDisplays[0])
+        .addSeparatorComponents(separator)
+        .addTextDisplayComponents(deathRollChancesTextDisplay);
 
-      // Make a button to start the rolls
-      const startButton = new ButtonBuilder()
-        .setCustomId('start_death_rolls')
-        .setLabel('Start')
-        .setStyle(ButtonStyle.Primary);
-
-      // Make a cancel button
-      const cancelButton = new ButtonBuilder()
-        .setCustomId('cancel_death_rolls')
-        .setLabel('Cancel')
-        .setStyle(ButtonStyle.Danger);
-
-      const startRow = new ActionRowBuilder()
-        .addComponents(startButton, cancelButton);
+      const startContainer = new ContainerBuilder()
+        .addTextDisplayComponents(startTextDisplay)
+        .addActionRowComponents(startActionRow);
 
       const startMessage = await interaction.editReply({
-        embeds: [embeds[0], deathRollChancesEmbed, startEmbed],
-        components: [startRow],
+        components: [container, startContainer],
+        flags: MessageFlags.IsComponentsV2,
         withResponse: true
       });
 
@@ -757,23 +781,32 @@ module.exports = {
         if (startInteraction.customId === 'cancel_death_rolls') {
           // Handle cancellation
           console.log('Death rolls cancelled by user.');
-          await startMessage.edit({ content: 'Death rolls have been cancelled.', components: [], embeds: [] });
-          return;
+          const cancellationTextDisplay = new TextDisplayBuilder()
+            .setContent(
+              `# Death Rolls Cancelled\n` +
+              `Death rolls have been cancelled. No characters have been affected.`
+            );
+
+          const cancellationContainer = new ContainerBuilder()
+            .addTextDisplayComponents(cancellationTextDisplay);
+
+          return startMessage.edit({ components: [cancellationContainer] });
         }
 
         if (startInteraction.customId === 'start_death_rolls') {
           if (skipInteractions && shouldLog) {
-            // Make embed saying that death rolls are being processed without
+            // Make container saying that death rolls are being processed without
             // interactions, and that results will be logged so it will take some time
-            const processingEmbed = new EmbedBuilder()
-              .setTitle('Processing Death Rolls')
-              .setDescription('Death rolls are being processed without interactions. This may take some time. Results will be logged when complete.')
-              .setColor(COLORS.BLUE);
+            const processingContainer = new ContainerBuilder()
+              .addTextDisplayComponents(
+                new TextDisplayBuilder()
+                  .setContent(
+                    `# Processing Death Rolls\n` +
+                    `Death rolls are being processed without interactions. This may take some time. Results will be logged when complete.`
+                  )
+              );
 
-            await startMessage.edit({
-              embeds: [processingEmbed],
-              components: [],
-            });
+            await startMessage.edit({ components: [processingContainer] });
           }
 
           // For each character, calculate death roll and show the embed that the character is in
@@ -785,27 +818,32 @@ module.exports = {
               continue;
             }
 
-            const currentCharactersEmbed = embeds[Math.floor(index / chunkSize)];
+            const currentDyingCharactersTextDisplay = dyingCharactersTextDisplays[Math.floor(index / chunkSize)];
 
-            // Make embed for the current character with their name and their age
+            // Make textdisplay for the current character with their name and their age
             const age = nextYear - character.yearOfMaturity;
-            const player = await Players.findOne({ where: { characterId: character.id } });
+            const player = await character.getPlayer();
             const description =
-              `
-              Name: ${inlineCode(character.name)}
-              Age: ${inlineCode(age)}
-              PvE Deaths: ${inlineCode(character.pveDeaths)}
-              Played by: ${player ? userMention(player.id) : inlineCode('None')}
-              `;
-            const characterEmbed = new EmbedBuilder()
-              .setTitle('Death Roll for ' + character.name)
-              .setDescription(description)
-              .setColor(COLORS.BLUE);
+              `**Name:** ${character.name}\n` +
+              `**Age:** ${age}\n` +
+              `**PvE Deaths:** ${character.pveDeaths}\n` +
+              `**Being played by:** ${player ? userMention(player.id) : 'None'}`;
+            const characterTextDisplay = new TextDisplayBuilder()
+              .setContent(
+                `# Death Roll for ${inlineCode(character.name)}\n` +
+                description
+              );
 
-            // Add the character embed and change the button to roll
+            // Replace the first textdisplay in the container with the current one
+            container.spliceComponents(0, 1, currentDyingCharactersTextDisplay);
+
+            // Add the roll buttons as new components
+            const rollContainer = new ContainerBuilder()
+              .addTextDisplayComponents(characterTextDisplay)
+              .addActionRowComponents(rollActionRow);
+
             const rollMessage = await startMessage.edit({
-              embeds: [currentCharactersEmbed, deathRollChancesEmbed, characterEmbed],
-              components: [rollRow],
+              components: [container, rollContainer],
               withResponse: true
             });
 
@@ -826,15 +864,22 @@ module.exports = {
               if (rollInteraction.customId === 'roll_death_rolls') {
                 const { resultDescription, color, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath } = rollDeathAndGetResult(character, nextYear);
 
-                const resultEmbed = new EmbedBuilder()
-                  .setTitle('Result of Death Roll')
-                  .setDescription(resultDescription)
-                  .setColor(color);
+                const resultText = (
+                  `# Result for ${inlineCode(character.name)}\n` +
+                  resultDescription
+                )
+                const resultTextDisplay = new TextDisplayBuilder()
+                  .setContent(resultText);
+
+                const resultContainer = new ContainerBuilder()
+                  .addTextDisplayComponents(resultTextDisplay)
+                  .addActionRowComponents(saveAndContinueActionRow)
+                  .setAccentColor(color);
+
 
                 // Show the result and the continue button
                 const resultMessage = await rollMessage.edit({
-                  embeds: [currentCharactersEmbed, deathRollChancesEmbed, resultEmbed],
-                  components: [saveAndContinueRow],
+                  components: [container, resultContainer],
                   withResponse: true
                 });
 
@@ -849,11 +894,14 @@ module.exports = {
 
                   if (saveAndContinueInteraction.customId === 'save_and_continue_death_rolls') {
                     // Update the message to say saving...
-                    const savingEmbed = new EmbedBuilder()
-                      .setTitle('Result of Death Roll')
-                      .setDescription(resultDescription + '\n\n' + italic('Saving result to database...'))
-                      .setColor(color);
-                    await resultMessage.edit({ embeds: [currentCharactersEmbed, deathRollChancesEmbed, savingEmbed] });
+                    const resultSavingTextDisplay = new TextDisplayBuilder()
+                      .setContent(
+                        resultText + '\n\n' +
+                        italic('Saving result to database...')
+                      );
+
+                    resultContainer.spliceComponents(0, 1, resultSavingTextDisplay);
+                    await resultMessage.edit({ components: [container, resultContainer] });
 
                     // Save the result to the database
                     await saveDeathRollResultToDatabase(character, interactionUser, nextYear, roll, deathsFromRoll, status, dayOfDeath, monthOfDeath, yearOfDeath, diedCharacters, lost1PveLife, lost2PveLives, lost3PveLives, shouldLog);
@@ -861,108 +909,102 @@ module.exports = {
                 }
                 catch (error) {
                   if (error.code === 'InteractionCollectorError') {
-                    return resultMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+                    return resultMessage.edit({ components: [TIMEOUT_CONTAINER] })
                   }
                   console.log(error);
-                  return resultMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+                  return resultMessage.edit({ components: [CANCEL_CONTAINER] })
                 }
               }
             }
             catch (error) {
               if (error.code === 'InteractionCollectorError') {
-                return rollMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+                return rollMessage.edit({ components: [TIMEOUT_CONTAINER] })
               }
               console.log(error);
-              return rollMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+              return rollMessage.edit({ components: [CANCEL_CONTAINER] })
             }
           }
         }
       }
       catch (error) {
         if (error.code === 'InteractionCollectorError') {
-          return startMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+          return startMessage.edit({ components: [TIMEOUT_CONTAINER] });
         }
         console.log(error);
-        return startMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+        return startMessage.edit({ components: [CANCEL_CONTAINER] });
       }
 
       // Print the number of characters that lost lives or died
       console.log(`Death rolls complete. ${diedCharacters.length} characters died, ${lost3PveLives.length} lost 3 PvE lives, ${lost2PveLives.length} lost 2 PvE lives, ${lost1PveLife.length} lost 1 PvE life.`);
 
       // Summarize results
-      // Make embeds for each category, these categories being:
+      // Make messages for each category, these categories being:
       // - Died
       // - Lost 3 PvE lives
       // - Lost 2 PvE lives
       // - Lost 1 PvE life
-      const summaryEmbeds = [];
+      const summaryMessages = [];
 
       if (diedCharacters.length > 0) {
         const diedCharactersList = diedCharacters.map(({ character, player, dayOfDeath, monthOfDeath, yearOfDeath }) => `${inlineCode(character.name)} | ${inlineCode(`${dayOfDeath} ${monthOfDeath} ${yearOfDeath}`)} (${spoiler(player ? userMention(player.id) : 'None')})`);
-        const diedCharactersEmbeds = makeDeathRollsSummaryEmbeds(diedCharactersList, 'Characters that will die in Year ' + nextYear, COLORS.RED);
-        summaryEmbeds.push(...diedCharactersEmbeds);
+        const diedCharactersMessages = makeDeathRollsSummaryMessages(diedCharactersList, 'Characters that will die in Year ' + nextYear, COLORS.RED);
+        summaryMessages.push(...diedCharactersMessages);
       }
 
       if (lost3PveLives.length > 0) {
         const lost3PveLivesList = lost3PveLives.map(({ character, player }) => `${inlineCode(character.name)} (${spoiler(player ? userMention(player.id) : 'None')})`);
-        const lost3PveLivesEmbeds = makeDeathRollsSummaryEmbeds(lost3PveLivesList, 'Characters that have lost 3 PvE lives', COLORS.ORANGE);
-        summaryEmbeds.push(...lost3PveLivesEmbeds);
+        const lost3PveLivesMessages = makeDeathRollsSummaryMessages(lost3PveLivesList, 'Characters that have lost 3 PvE lives', COLORS.ORANGE);
+        summaryMessages.push(...lost3PveLivesMessages);
       }
 
       if (lost2PveLives.length > 0) {
         const lost2PveLivesList = lost2PveLives.map(({ character, player }) => `${inlineCode(character.name)} (${spoiler(player ? userMention(player.id) : 'None')})`);
-        const lost2PveLivesEmbeds = makeDeathRollsSummaryEmbeds(lost2PveLivesList, 'Characters that have lost 2 PvE lives', COLORS.YELLOW);
-        summaryEmbeds.push(...lost2PveLivesEmbeds);
+        const lost2PveLivesMessages = makeDeathRollsSummaryMessages(lost2PveLivesList, 'Characters that have lost 2 PvE lives', COLORS.YELLOW);
+        summaryMessages.push(...lost2PveLivesMessages);
       }
 
       if (lost1PveLife.length > 0) {
         const lost1PveLifeList = lost1PveLife.map(({ character, player }) => `${inlineCode(character.name)} (${spoiler(player ? userMention(player.id) : 'None')})`);
-        const lost1PveLifeEmbeds = makeDeathRollsSummaryEmbeds(lost1PveLifeList, 'Characters that have lost 1 PvE life', COLORS.LIGHT_YELLOW);
-        summaryEmbeds.push(...lost1PveLifeEmbeds);
+        const lost1PveLifeMessages = makeDeathRollsSummaryMessages(lost1PveLifeList, 'Characters that have lost 1 PvE life', COLORS.LIGHT_YELLOW);
+        summaryMessages.push(...lost1PveLifeMessages);
       }
-
-      const MAX_EMBEDS = 10;
-      const MAX_EMBEDS_LENGTH_TOTAL = 6000;
 
       const summaryMessageURLs = [];
 
-      // Send the summary embeds if any
-      if (summaryEmbeds.length > 0) {
-        let currentMessageEmbeds = [];
-        let currentMessageEmbedsTotalLength = 0;
+      // Send the summary messages in the graveyard channel if any
+      if (summaryMessages.length > 0) {
+        const graveyardChannel = await interaction.client.channels.fetch(channels.graveyard);
+        // const graveyardChannel = await interaction.client.channels.fetch('1465003174418055168'); // DEV Test
 
-        // If too many embeds, or embeds exceed Discord's limit, split into multiple messages
-        for (const embed of summaryEmbeds) {
-          if (currentMessageEmbeds.length >= MAX_EMBEDS || currentMessageEmbedsTotalLength + embed.length > MAX_EMBEDS_LENGTH_TOTAL) {
-            // Send current message
-            const sentMessage = await channel.send({ embeds: currentMessageEmbeds });
-            summaryMessageURLs.push(sentMessage.url);
-            // Start new message
-            currentMessageEmbeds = [embed];
-            currentMessageEmbedsTotalLength = embed.length;
-          } else {
-            currentMessageEmbeds.push(embed);
-            currentMessageEmbedsTotalLength += embed.length;
-          }
-        }
-
-        if (currentMessageEmbeds.length > 0) {
-          const sentMessage = await channel.send({ embeds: currentMessageEmbeds });
+        for (const message of summaryMessages) {
+          // Send each message and save the URL
+          const sentMessage = await graveyardChannel.send(message);
           summaryMessageURLs.push(sentMessage.url);
         }
 
-        // Make an embed for the original message with link to the summary messages
-        const summaryEmbed = new EmbedBuilder()
-          .setColor(COLORS.GREEN)
-          .setTitle('Death Rolls Summary')
-          .setDescription(
-            'See the summary messages here:\n\n' +
-            summaryMessageURLs.map((url, index) => `**Summary Message ${index + 1}:** ${url}`).join('\n')
+
+        // Edit the original message to include links to the summary messages in the graveyard channel
+        const summaryContainer = new ContainerBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder()
+              .setContent(
+                `# Death Rolls Summary\n` +
+                `The death rolls have been completed. See the summary messages in the graveyard channel for details:\n\n` +
+                summaryMessageURLs.map((url, index) => `**Summary Message ${index + 1}:** ${url}`).join('\n')
+              )
           );
 
-        return startMessage.edit({ components: [], embeds: [summaryEmbed] });
+        return startMessage.edit({ components: [summaryContainer] });
       } else {
-        return startMessage.edit({ content: 'Finished death rolls. No characters lost PvE lives or died.', components: [], embeds: [] });
+        const noDeathsContainer = new ContainerBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder()
+              .setContent(
+                `# Death Rolls Summary\n` +
+                `No characters lost PvE lives or died in Year ${nextYear}.`
+              )
+          );
+        return startMessage.edit({ components: [noDeathsContainer] });
       }
     }
   }

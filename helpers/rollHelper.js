@@ -1,6 +1,6 @@
 const { Players, DeathRollDeaths, Characters, Worlds } = require('../dbObjects.js');
 const { ageToFertilityModifier, changeCharacterInDatabase, postInLogChannel } = require('../misc.js');
-const { inlineCode, bold, italic, userMention, EmbedBuilder } = require('discord.js');
+const { inlineCode, bold, italic, userMention, EmbedBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { COLORS } = require('../misc.js');
 
 const MAX_EMBED_DESCRIPTION_LENGTH = 3000;
@@ -286,40 +286,56 @@ async function saveDeathRollResultToDatabase(character, interactionUser, nextYea
   return;
 }
 
-function makeDeathRollsSummaryEmbeds(linesList, embedTitle, embedColor) {
-  // Whenever a description is too long, split into multiple embeds
-  // A description is too long if it exceeds 4096 characters
-  let currentDescriptionLength = 0;
-  const currentDescriptionLines = [];
-  const embeds = [];
+function makeDeathRollsSummaryMessages(linesList, messageTitle, containerColor) {
+  // Whenever a message is too long, split it into multiple messages
+  // A message is too long if it exceeds 4000 characters
+  let currentMessageLength = messageTitle.length + 1; // +1 for the newline after the title
+  const currentMessageLines = [];
+  const messages = [];
 
   for (const line of linesList) {
-    if (currentDescriptionLength + line.length + 1 > MAX_EMBED_DESCRIPTION_LENGTH) {
-      // Create an embed with the current description and start a new one
-      const embed = new EmbedBuilder()
-        .setTitle(embedTitle)
-        .setDescription(currentDescriptionLines.join('\n'))
-        .setColor(embedColor);
-      embeds.push(embed);
-      currentDescriptionLines.length = 0;
-      currentDescriptionLines.push(line);
-      currentDescriptionLength = line.length + 1; // +1 for the newline
+    if (currentMessageLength + line.length + 1 > 4000) { // +1 for the newline
+      // Create a message with the current message lines and start a new one
+      const container = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder()
+            .setContent(
+              `# ${messageTitle}\n` +
+              currentMessageLines.join('\n')
+            )
+        )
+        .setAccentColor(containerColor);
+
+      const message = { components: [container], flags: MessageFlags.IsComponentsV2 }
+
+      messages.push(message);
+      currentMessageLines.length = 0; // Clear the current message lines
+      currentMessageLines.push(line);
+      currentMessageLength = messageTitle.length + 1 + line.length + 1; // +1 for the newline
     } else {
-      currentDescriptionLines.push(line);
-      currentDescriptionLength += line.length + 1; // +1 for the newline
+      currentMessageLines.push(line);
+      currentMessageLength += line.length + 1; // +1 for the newline
     }
   }
 
-  // Add the last embed if there's any remaining description
-  if (currentDescriptionLines.length > 0) {
-    const embed = new EmbedBuilder()
-      .setTitle(embedTitle)
-      .setDescription(currentDescriptionLines.join('\n'))
-      .setColor(embedColor);
-    embeds.push(embed);
+  // Add the last message if there's any remaining content
+  if (currentMessageLines.length > 0) {
+    const container = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder()
+          .setContent(
+            `# ${messageTitle}\n` +
+            currentMessageLines.join('\n')
+          )
+      )
+      .setAccentColor(containerColor);
+
+    const message = { components: [container], flags: MessageFlags.IsComponentsV2 }
+
+    messages.push(message);
   }
 
-  return embeds;
+  return messages;
 }
 
 // Build an embed that shows the roll chance thresholds for relationships and bastards
@@ -368,7 +384,7 @@ module.exports = {
   calculateDeathRoll,
   rollDeathAndGetResult,
   saveDeathRollResultToDatabase,
-  makeDeathRollsSummaryEmbeds,
+  makeDeathRollsSummaryMessages,
   buildOffspringChanceEmbed,
   getFertilityModifier
 };
