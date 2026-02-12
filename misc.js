@@ -751,7 +751,24 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
       const vassalSteelbearers = await vassalEntry.getSteelbearers();
       if (vassalSteelbearers.length >= 2) {
         notAssignedEmbed
-          .setDescription('Both vassal steelbearer slots for the chosen vassal region are already filled.');
+          .setDescription('There are no slots available for a Vassal steelbearer for this region.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+    }
+    else if (type === 'Liege') {
+      // Make sure that the region is a vassal
+      const vassalRecord = await region.getVassalRecord();
+      if (!vassalRecord) {
+        notAssignedEmbed
+          .setDescription(inlineCode(region.name) + ' does not have a liege region and cannot have a Liege steelbearer assigned.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+
+      // Make sure that the vassal record has less than 2 steelbearers assigned
+      const vassalSteelbearers = await vassalRecord.getSteelbearers();
+      if (vassalSteelbearers.length >= 2) {
+        notAssignedEmbed
+          .setDescription('There are no slots available for a Liege steelbearer for this region.');
         return { steelbearer: null, embed: notAssignedEmbed };
       }
     }
@@ -806,6 +823,17 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
         steelbearerId: steelbearer.id,
         vassalId: vassalId
       });
+    }
+
+    // If it was a liege steelbearer, additionally create a record in the VassalSteelbearers table
+    if (type === 'Liege') {
+      const vassalRecord = await region.getVassalRecord();
+      if (vassalRecord) {
+        await VassalSteelbearers.create({
+          steelbearerId: steelbearer.id,
+          vassalId: vassalRecord.id
+        });
+      }
     }
 
     // Sync roles of member if applicable

@@ -50,6 +50,7 @@ module.exports = {
               { name: 'General-purpose', value: 'General-purpose' },
               { name: 'Duchy', value: 'Duchy' },
               { name: 'Vassal', value: 'Vassal' },
+              { name: 'Liege', value: 'Liege' }
             )
         )
         .addStringOption(option =>
@@ -81,7 +82,7 @@ module.exports = {
         limit: 25
       });
 
-      choices = characters.map(character => ({ name: character.name, value: character.id }));
+      const choices = characters.map(character => ({ name: character.name, value: character.id }));
       await interaction.respond(choices);
     }
 
@@ -99,7 +100,7 @@ module.exports = {
           limit: 25
         });
 
-        choices = characters.map(character => ({ name: character.name, value: character.id }));
+        const choices = characters.map(character => ({ name: character.name, value: character.id }));
         await interaction.respond(choices);
       }
       else if (focusedOption.name === 'duchy') {
@@ -120,7 +121,7 @@ module.exports = {
           limit: 25
         });
 
-        choices = duchies.map(duchy => ({ name: duchy.name, value: duchy.id }));
+        const choices = duchies.map(duchy => ({ name: duchy.name, value: duchy.id }));
         await interaction.respond(choices);
       }
       else if (focusedOption.name === 'vassal') {
@@ -144,10 +145,11 @@ module.exports = {
           limit: 25
         });
 
-        choices = vassals.map(vassal => ({ name: vassal.vassalRegion.name, value: vassal.id }));
-        if (choices.length === 0) {
-          choices = [{ name: 'No vassal regions found', value: 'none' }];
+        if (vassals.length === 0) {
+          return interaction.respond([]);
         }
+
+        const choices = vassals.map(vassal => ({ name: vassal.vassalRegion.name, value: vassal.id }));
 
         await interaction.respond(choices);
       }

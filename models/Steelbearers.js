@@ -40,6 +40,22 @@ module.exports = (sequelize, DataTypes) => {
             extraText = `\nvassal: \`${vassalRegion ? vassalRegion.name : 'Unknown'}\` (\`${vassalRegion ? vassalRegion.id : 'Unknown'}\`)`;
           }
         }
+        else if (this.type === 'Liege') {
+          const vassalSteelbearer = await this.getVassalSteelbearer();
+          if (!vassalSteelbearer) {
+            extraText = `\nliege: \`Unknown\``;
+          }
+          else {
+            const vassal = await vassalSteelbearer.getVassal();
+            if (!vassal) {
+              extraText = `\nliege: \`Unknown\``;
+            }
+            else {
+              const liegeRegion = await vassal.getLiegeRegion();
+              extraText = `\nliege: \`${liegeRegion ? liegeRegion.name : 'Unknown'}\` (\`${liegeRegion ? liegeRegion.id : 'Unknown'}\`)`;
+            }
+          }
+        }
 
         return (
           `id: \`${this.id}\`\n\n` +
@@ -72,6 +88,22 @@ module.exports = (sequelize, DataTypes) => {
             extraText = `\n**Vassal:** ${vassalRegion ? vassalRegion.name : 'Unknown'}`;
           }
         }
+        else if (this.type === 'Liege') {
+          const vassalSteelbearer = await this.getVassalSteelbearer();
+          if (!vassalSteelbearer) {
+            extraText = `\n**Liege:** Unknown`;
+          }
+          else {
+            const vassal = await vassalSteelbearer.getVassal();
+            if (!vassal) {
+              extraText = `\n**Liege:** Unknown`;
+            }
+            else {
+              const liegeRegion = await vassal.getLiegeRegion();
+              extraText = `\n**Liege:** ${liegeRegion ? liegeRegion.name : 'Unknown'}`;
+            }
+          }
+        }
 
         return (
           `**Character:** ${character.name}\n` +
@@ -89,16 +121,30 @@ module.exports = (sequelize, DataTypes) => {
       async get() {
         if (this.type === 'Duchy') {
           const duchy = await sequelize.models.duchies.findOne({ where: { steelbearerId: this.id } });
-          return duchy.name;
+          return `Duchy | ${duchy ? duchy.name : 'Unknown'}`;
         }
         else if (this.type === 'Vassal') {
           const vassalSteelbearer = await this.getVassalSteelbearer();
           if (!vassalSteelbearer) {
-            return 'Unknown Vassal';
+            return 'Vassal | Unknown';
           }
           const vassal = await vassalSteelbearer.getVassal();
           const vassalRegion = await vassal.getVassalRegion();
-          return `${vassalRegion.name} Vassal`;
+          return `Vassal | ${vassalRegion.name}`;
+        }
+        else if (this.type === 'Liege') {
+          const vassalSteelbearer = await this.getVassalSteelbearer();
+          if (!vassalSteelbearer) {
+            return 'Liege | Unknown';
+          }
+          const vassal = await vassalSteelbearer.getVassal();
+          if (!vassal) {
+            return 'Liege | Unknown';
+          }
+          else {
+            const liegeRegion = await vassal.getLiegeRegion();
+            return `Liege | ${liegeRegion.name}`;
+          }
         }
         else {
           return this.type;
