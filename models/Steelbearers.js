@@ -23,14 +23,30 @@ module.exports = (sequelize, DataTypes) => {
       async get() {
         const character = await this.getCharacter();
         const region = await this.getRegion();
-        const duchy = this.type === 'Duchy' ? await sequelize.models.duchies.findOne({ where: { steelbearerId: this.id } }) : null;
+
+        let extraText = ''
+        if (this.type === 'Duchy') {
+          const duchy = await sequelize.models.duchies.findOne({ where: { steelbearerId: this.id } });
+          extraText = `\nduchy: \`${duchy ? duchy.name : 'Unknown'}\` (\`${duchy ? duchy.id : 'Unknown'}\`)`;
+        }
+        else if (this.type === 'Vassal') {
+          const vassalSteelbearer = await this.getVassalSteelbearer();
+          if (!vassalSteelbearer) {
+            extraText = `\nvassal: \`Unknown\``;
+          }
+          else {
+            const vassal = await vassalSteelbearer.getVassal();
+            const vassalRegion = await vassal.getVassalRegion();
+            extraText = `\nvassal: \`${vassalRegion ? vassalRegion.name : 'Unknown'}\` (\`${vassalRegion ? vassalRegion.id : 'Unknown'}\`)`;
+          }
+        }
 
         return (
           `id: \`${this.id}\`\n\n` +
           `character: \`${character.name}\` (\`${this.characterId}\`)\n` +
           `region: \`${region.name}\` (\`${this.regionId}\`)\n` +
           `type: \`${this.type}\`` +
-          (this.type === 'Duchy' ? `\nduchy: \`${duchy ? duchy.name : 'Unknown'}\` (\`${duchy ? duchy.id : 'Unknown'}\`)` : '')
+          extraText
         );
       }
     },
@@ -39,13 +55,29 @@ module.exports = (sequelize, DataTypes) => {
       async get() {
         const character = await this.getCharacter();
         const region = await this.getRegion();
-        const duchy = this.type === 'Duchy' ? await sequelize.models.duchies.findOne({ where: { steelbearerId: this.id } }) : null;
+
+        let extraText = '';
+        if (this.type === 'Duchy') {
+          const duchy = await sequelize.models.duchies.findOne({ where: { steelbearerId: this.id } });
+          extraText = `\n**Duchy:** ${duchy ? duchy.name : 'Unknown'}`;
+        }
+        else if (this.type === 'Vassal') {
+          const vassalSteelbearer = await this.getVassalSteelbearer();
+          if (!vassalSteelbearer) {
+            extraText = `\n**Vassal:** Unknown`;
+          }
+          else {
+            const vassal = await vassalSteelbearer.getVassal();
+            const vassalRegion = await vassal.getVassalRegion();
+            extraText = `\n**Vassal:** ${vassalRegion ? vassalRegion.name : 'Unknown'}`;
+          }
+        }
 
         return (
           `**Character:** ${character.name}\n` +
           `**Region:** ${region.name}\n` +
           `**Type:** ${this.type}` +
-          (this.type === 'Duchy' ? `\n**Duchy:** ${duchy ? duchy.name : 'Unknown'}` : '')
+          extraText
         );
       },
       set(value) {
@@ -58,6 +90,15 @@ module.exports = (sequelize, DataTypes) => {
         if (this.type === 'Duchy') {
           const duchy = await sequelize.models.duchies.findOne({ where: { steelbearerId: this.id } });
           return duchy.name;
+        }
+        else if (this.type === 'Vassal') {
+          const vassalSteelbearer = await this.getVassalSteelbearer();
+          if (!vassalSteelbearer) {
+            return 'Unknown Vassal';
+          }
+          const vassal = await vassalSteelbearer.getVassal();
+          const vassalRegion = await vassal.getVassalRegion();
+          return `${vassalRegion.name} Vassal`;
         }
         else {
           return this.type;

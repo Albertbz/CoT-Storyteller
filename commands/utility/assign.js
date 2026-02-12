@@ -59,6 +59,13 @@ module.exports = {
             .setRequired(false)
             .setAutocomplete(true)
         )
+        .addStringOption(option =>
+          option
+            .setName('vassal')
+            .setDescription('The vassal region to assign the steelbearer to (if type is Vassal).')
+            .setRequired(false)
+            .setAutocomplete(true)
+        )
     )
 
   ,
@@ -116,6 +123,34 @@ module.exports = {
         choices = duchies.map(duchy => ({ name: duchy.name, value: duchy.id }));
         await interaction.respond(choices);
       }
+      else if (focusedOption.name === 'vassal') {
+        const focusedValue = focusedOption.value;
+
+        // Get vassal regions from the region that the character belongs to
+        const characterId = interaction.options.getString('character');
+        const character = await Characters.findByPk(characterId);
+        const region = await Regions.findByPk(character.regionId);
+        if (!region) {
+          return interaction.respond([]);
+        }
+        const vassals = await region.getVassals({
+          where: {
+            liegeId: region.id
+          },
+          include: [
+            { model: Regions, as: 'vassalRegion', where: { name: { [Op.startsWith]: focusedValue } } }
+          ],
+          attributes: ['id'],
+          limit: 25
+        });
+
+        choices = vassals.map(vassal => ({ name: vassal.vassalRegion.name, value: vassal.id }));
+        if (choices.length === 0) {
+          choices = [{ name: 'No vassal regions found', value: 'none' }];
+        }
+
+        await interaction.respond(choices);
+      }
     }
 
   },
@@ -145,15 +180,15 @@ module.exports = {
 
     else if (subcommand === 'steelbearer') {
       const characterId = interaction.options.getString('character');
-      const regionId = interaction.options.getString('region');
       const type = interaction.options.getString('type');
       const duchyId = interaction.options.getString('duchy');
+      const vassalId = interaction.options.getString('vassal');
 
       try {
         const character = await Characters.findByPk(characterId);
 
         // Assign steelbearer to region
-        const { steelbearer, embed: steelbearerAssignedEmbed } = await assignSteelbearerToRegion(interaction.user, character, type, duchyId);
+        const { steelbearer, embed: steelbearerAssignedEmbed } = await assignSteelbearerToRegion(interaction.user, character, type, duchyId, vassalId);
 
         return interaction.editReply({ embeds: [steelbearerAssignedEmbed], flags: MessageFlags.Ephemeral });
       }

@@ -24,6 +24,7 @@ require('./models/PlayableChildren.js')(sequelize, Sequelize.DataTypes);
 require('./models/Deceased.js')(sequelize, Sequelize.DataTypes);
 require('./models/DeathRollDeaths.js')(sequelize, Sequelize.DataTypes);
 require('./models/Steelbearers.js')(sequelize, Sequelize.DataTypes);
+require('./models/VassalSteelbearers.js')(sequelize, Sequelize.DataTypes);
 
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 

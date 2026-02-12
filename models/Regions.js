@@ -54,12 +54,12 @@ module.exports = (sequelize, DataTypes) => {
         for (const steelbearer of steelbearers) {
           // Get name and type
           const character = await steelbearer.getCharacter();
-          let steelbearerInfo = `${character.name}: ${steelbearer.type}`;
+          let steelbearerInfo = `${character.name}: ${await steelbearer.fullType}`;
           // Check if steelbearer is associated with a duchy
-          const duchy = await sequelize.models.duchies.findOne({ where: { steelbearerId: steelbearer.id } });
-          if (duchy) {
-            steelbearerInfo += ` (${duchy.name})`;
-          }
+          // const duchy = await sequelize.models.duchies.findOne({ where: { steelbearerId: steelbearer.id } });
+          // if (duchy) {
+          //   steelbearerInfo += ` (${duchy.name})`;
+          // }
           steelbearerInfoList.push(steelbearerInfo);
         }
         const steelbearerInfo = steelbearerInfoList.length > 0 ? '\n- ' + steelbearerInfoList.join('\n- ') : 'None';

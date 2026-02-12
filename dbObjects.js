@@ -16,6 +16,7 @@ const Regions = require('./models/Regions.js')(sequelize, Sequelize.DataTypes);
 const Duchies = require('./models/Duchies.js')(sequelize, Sequelize.DataTypes);
 const Vassals = require('./models/Vassals.js')(sequelize, Sequelize.DataTypes);
 const Steelbearers = require('./models/Steelbearers.js')(sequelize, Sequelize.DataTypes);
+const VassalSteelbearers = require('./models/VassalSteelbearers.js')(sequelize, Sequelize.DataTypes);
 const SocialClasses = require('./models/SocialClasses.js')(sequelize, Sequelize.DataTypes);
 const Characters = require('./models/Characters.js')(sequelize, Sequelize.DataTypes);
 const Players = require('./models/Players.js')(sequelize, Sequelize.DataTypes);
@@ -28,15 +29,22 @@ Regions.belongsTo(Houses, { foreignKey: 'rulingHouseId', as: 'rulingHouse' });
 Regions.belongsTo(Recruitments, { foreignKey: 'recruitmentId', as: 'recruitment' });
 Regions.hasMany(Duchies, { foreignKey: 'regionId', as: 'duchies' });
 Regions.hasMany(Steelbearers, { foreignKey: 'regionId', as: 'steelbearers' });
+Regions.hasMany(Vassals, { foreignKey: 'liegeId', as: 'vassals' });
 
 Duchies.belongsTo(Regions, { foreignKey: 'regionId', as: 'region' });
 Duchies.belongsTo(Steelbearers, { foreignKey: 'steelbearerId', as: 'steelbearer' });
 
 Vassals.belongsTo(Regions, { foreignKey: 'vassalId', as: 'vassalRegion' });
 Vassals.belongsTo(Regions, { foreignKey: 'liegeId', as: 'liegeRegion' });
+Vassals.hasMany(VassalSteelbearers, { foreignKey: 'vassalId', as: 'steelbearers' });
 
 Steelbearers.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 Steelbearers.belongsTo(Regions, { foreignKey: 'regionId', as: 'region' });
+Steelbearers.hasOne(VassalSteelbearers, { foreignKey: 'steelbearerId', as: 'vassalSteelbearer' });
+
+VassalSteelbearers.belongsTo(Vassals, { foreignKey: 'vassalId', as: 'vassal' });
+VassalSteelbearers.belongsTo(Steelbearers, { foreignKey: 'steelbearerId', as: 'steelbearer' });
+
 
 // Add hook to update roles when steelbearer is destroyed
 Steelbearers.addHook('afterDestroy', async (steelbearer, options) => {
@@ -69,6 +77,14 @@ Steelbearers.addHook('afterDestroy', async (steelbearer, options) => {
       await duchy.update({ steelbearerId: null });
     }
   }
+
+  // If vassal steelbearer, remove entry from VassalSteelbearers
+  if (steelbearer.type === 'Vassal') {
+    const vassalSteelbearer = await sequelize.models.vassalsteelbearers.findOne({ where: { steelbearerId: steelbearer.id } });
+    if (vassalSteelbearer) {
+      await vassalSteelbearer.destroy();
+    }
+  }
 });
 
 Characters.belongsTo(Regions, { foreignKey: 'regionId', as: 'region' });
@@ -93,4 +109,4 @@ PlayableChildren.belongsTo(Characters, { foreignKey: 'characterId', as: 'charact
 Players.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 
 
-module.exports = { Players, Characters, Houses, Recruitments, Regions, Duchies, Vassals, Steelbearers, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths };
+module.exports = { Players, Characters, Houses, Recruitments, Regions, Duchies, Vassals, Steelbearers, VassalSteelbearers, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths };

@@ -1,5 +1,5 @@
 const { EmbedBuilder, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
 const { roles, channels, guilds } = require('./configs/ids.json');
 const { Op } = require('sequelize');
 
@@ -634,7 +634,7 @@ async function unassignCharacterFromPlayer(storyteller, player) {
   }
 }
 
-async function assignSteelbearerToRegion(storyteller, character, type, duchyId = null) {
+async function assignSteelbearerToRegion(storyteller, character, type, duchyId = null, vassalId = null) {
   // storyteller is required
   if (!storyteller) {
     throw new Error('storyteller is required');
@@ -732,17 +732,26 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
         return { steelbearer: null, embed: notAssignedEmbed };
       }
 
-      // Make sure that there are at most 2 times as many vassal steelbearers as there are vassal regions
-      const vassalSteelbearers = await Steelbearers.findAll({
-        where: {
-          regionId: region.id,
-          type: 'Vassal'
-        }
-      });
-
-      if (vassalSteelbearers.length >= 2 * vassals.length) {
+      // Check whether the vassal is provided
+      if (!vassalId) {
         notAssignedEmbed
-          .setDescription('Region already has the maximum number of vassal steelbearers assigned.');
+          .setDescription('Vassal region must be provided when assigning a Vassal steelbearer.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+
+      // Check whether the vassal entry exists
+      const vassalEntry = await Vassals.findByPk(vassalId);
+      if (!vassalEntry) {
+        notAssignedEmbed
+          .setDescription('Vassal entry not found in database.');
+        return { steelbearer: null, embed: notAssignedEmbed };
+      }
+
+      // Make sure that less than 2 steelbearers are already assigned for the vassal
+      const vassalSteelbearers = await vassalEntry.getSteelbearers();
+      if (vassalSteelbearers.length >= 2) {
+        notAssignedEmbed
+          .setDescription('Both vassal steelbearer slots for the chosen vassal region are already filled.');
         return { steelbearer: null, embed: notAssignedEmbed };
       }
     }
@@ -789,6 +798,14 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
       if (duchy.length > 0) {
         await duchy[0].update({ steelbearerId: steelbearer.id });
       }
+    }
+
+    // If it was a vassal steelbearer, additionally create a record in the VassalSteelbearers table
+    if (type === 'Vassal') {
+      await VassalSteelbearers.create({
+        steelbearerId: steelbearer.id,
+        vassalId: vassalId
+      });
     }
 
     // Sync roles of member if applicable
@@ -870,6 +887,12 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
         }
       }
       await existingSteelbearer.destroy();
+      if (existingSteelbearer.type === 'Vassal') {
+        const vassalSteelbearers = await VassalSteelbearers.findAll({ where: { steelbearerId: existingSteelbearer.id } });
+        for (const vassalSteelbearer of vassalSteelbearers) {
+          await vassalSteelbearer.destroy();
+        }
+      }
     }
 
     // Remove relationships if applicable

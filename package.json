@@ -19,5 +19,8 @@
     "google-spreadsheet": "^5.0.2",
     "sequelize": "^6.37.7",
     "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "sequelize-cli": "^6.6.5"
   }
 }
