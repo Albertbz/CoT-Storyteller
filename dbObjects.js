@@ -79,8 +79,8 @@ Steelbearers.addHook('afterDestroy', async (steelbearer, options) => {
     }
   }
 
-  // If vassal steelbearer, remove entry from VassalSteelbearers
-  if (steelbearer.type === 'Vassal') {
+  // If vassal or liege steelbearer, remove entry from VassalSteelbearers
+  if (steelbearer.type === 'Vassal' || steelbearer.type === 'Liege') {
     const vassalSteelbearer = await sequelize.models.vassalsteelbearers.findOne({ where: { steelbearerId: steelbearer.id } });
     if (vassalSteelbearer) {
       await vassalSteelbearer.destroy();
