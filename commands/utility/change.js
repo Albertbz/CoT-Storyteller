@@ -159,6 +159,7 @@ module.exports = {
             .setName('role1_new')
             .setDescription('The first role that the region is in need of.')
             .addChoices(
+              { name: 'None', value: 'None' },
               { name: 'Smiths', value: 'Smiths' },
               { name: 'Builders', value: 'Builders' },
               { name: 'Cooks', value: 'Cooks' },
@@ -179,6 +180,7 @@ module.exports = {
             .setName('role2_new')
             .setDescription('The second role that the region is in need of.')
             .addChoices(
+              { name: 'None', value: 'None' },
               { name: 'Smiths', value: 'Smiths' },
               { name: 'Builders', value: 'Builders' },
               { name: 'Cooks', value: 'Cooks' },
@@ -199,6 +201,7 @@ module.exports = {
             .setName('role3_new')
             .setDescription('The third role that the region is in need of.')
             .addChoices(
+              { name: 'None', value: 'None' },
               { name: 'Smiths', value: 'Smiths' },
               { name: 'Builders', value: 'Builders' },
               { name: 'Cooks', value: 'Cooks' },

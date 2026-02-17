@@ -1998,7 +1998,9 @@ async function createRecruitmentPostMessage() {
     const regionText = region.name;
     const houseText = `${houseEmoji.toString()}${bold('House ' + house.name)}${houseEmoji.toString()} | Population: ${await region.population}`;
     const recruitment = await region.getRecruitment();
-    let rolesText = 'Need: ' + recruitment.role1 + ', ' + recruitment.role2 + ', ' + recruitment.role3;
+    const validRoles = [recruitment.role1, recruitment.role2, recruitment.role3].filter(role => role && role !== 'None');
+    const formatter = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' });
+    let rolesText = validRoles.length > 0 ? `Looking for ${formatter.format(validRoles)}.` : 'Not looking for any specific roles.';
 
     let stateText = '';
     switch (recruitment.state) {
