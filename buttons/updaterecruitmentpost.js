@@ -19,7 +19,7 @@ module.exports = {
     await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 
     // Update the recruitment post message
-    const updatedRecruitmentMessage = await updateRecruitmentPost(interaction);
+    const updatedRecruitmentMessage = await updateRecruitmentPost();
 
     // After updating the recruitment post, edit the message with the result
     return interaction.editReply(updatedRecruitmentMessage);

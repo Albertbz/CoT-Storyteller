@@ -1976,11 +1976,11 @@ async function syncMemberRolesWithCharacter(player, character) {
  * Creates the message to be used for the recruitment post based on the current
  * states and recruitment needs of the regions as specified by the database.
  */
-async function createRecruitmentPostMessage(guild) {
+async function createRecruitmentPostMessage() {
   // Create the predefined parts of the message to be posted
   const lastUpdatedText = '-# Last updated: ' + time(new Date(), TimestampStyles.LongDate);
   const descriptionText = italic('For new players joining, please prioritize the houses in need in order to ensure fun for everyone.');
-  const overviewLink = '## ' + hyperlink('Detailed Roster Overview', '<https://docs.google.com/spreadsheets/d/1GSWM4WNu6Af_83PK0b3oVwRAQo1oloxe45FKgnSM9jA/edit?usp=sharing>');
+  const overviewLink = '## ' + hyperlink('Overview of all Elstrand Citizens', '<https://docs.google.com/spreadsheets/d/1GSWM4WNu6Af_83PK0b3oVwRAQo1oloxe45FKgnSM9jA/edit?usp=sharing>');
 
   // Get all regions with their recruitment info, excluding Wanderer
   const regions = await Regions.findAll({
@@ -1989,7 +1989,8 @@ async function createRecruitmentPostMessage(guild) {
     }
   });
 
-  const guildEmojis = await guild.emojis.fetch();
+  const cotGuild = await client.guilds.fetch(guilds.cot);
+  const guildEmojis = await cotGuild.emojis.fetch();
   let housesText = ''
   for (const region of regions) {
     const house = await region.getRulingHouse();
@@ -2053,15 +2054,78 @@ async function createRecruitmentPostMessage(guild) {
   return { components: [container], flags: MessageFlags.IsComponentsV2, files: [attachment], attachments: [] };
 }
 
+async function updateRecruitmentStatesForRegions() {
+  // Get all regions except Wanderer
+  const regions = await Regions.findAll({
+    where: {
+      name: { [Op.ne]: 'Wanderer' }
+    }
+  });
+
+  // Get the smallest and largest populations across all regions to use as reference
+  let smallestPopulation = 0;
+  let largestPopulation = 0;
+  for (const region of regions) {
+    const population = await region.population;
+    if (population < smallestPopulation || smallestPopulation === 0) {
+      smallestPopulation = population;
+    }
+    if (population > largestPopulation) {
+      largestPopulation = population;
+    }
+  }
+
+  const populationDifference = largestPopulation - smallestPopulation;
+  let fullThreshold, almostFullThreshold, urgentThreshold;
+
+  if (populationDifference >= 10) {
+    fullThreshold = largestPopulation - (populationDifference * 0.15);
+    almostFullThreshold = largestPopulation - (populationDifference * 0.40);
+    urgentThreshold = smallestPopulation + (populationDifference * 0.15);
+  }
+  else if (populationDifference >= 8) {
+    fullThreshold = Infinity; // No full state if population difference is less than 10
+    almostFullThreshold = largestPopulation - 2; // Only the region with the largest population can be almost full if population difference is less than 10
+    urgentThreshold = smallestPopulation;
+  }
+
+  // Update the recruitment state for each region based on its population compared
+  // to the smallest and largest populations using thresholds calculated from
+  // the population difference
+  for (const region of regions) {
+    let newState = 'Open';
+
+    const regionPopulation = await region.population;
+
+    if (regionPopulation >= fullThreshold) {
+      newState = 'Full';
+    }
+    else if (regionPopulation >= almostFullThreshold) {
+      newState = 'Almost Full';
+    }
+    else if (regionPopulation <= urgentThreshold) {
+      newState = 'Urgent';
+    }
+
+    const recruitment = await region.getRecruitment();
+    await recruitment.update({ state: newState });
+  }
+}
+
 /**
  * Updates the recruitment post with the current states and needs of the regions
  * as specified by their sizes and recruitment roles.
  */
-async function updateRecruitmentPost(interaction) {
+async function updateRecruitmentPost() {
+  /**
+   * Update the recruitment states for all regions
+   */
+  await updateRecruitmentStatesForRegions();
+
   /**
    * Create the message to be posted
    */
-  const recruitmentPostMessage = await createRecruitmentPostMessage(interaction.guild);
+  const recruitmentPostMessage = await createRecruitmentPostMessage();
 
   /**
    * Get the previous message and update it, or post a new one if it doesn't exist/can't be found
@@ -2111,8 +2175,13 @@ async function updateRecruitmentPost(interaction) {
     )
   }
 
-  return { components: [returnContainer], flags: MessageFlags.IsComponentsV2 };
+  await postInLogChannel(
+    'Recruitment Post Updated',
+    `The recruitment post has been updated with the latest region populations and recruitment needs.`,
+    COLORS.GREEN
+  )
 
+  return { components: [returnContainer], flags: MessageFlags.IsComponentsV2 };
 }
 
 async function postInLogChannel(title, description, color) {

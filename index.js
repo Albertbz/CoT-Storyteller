@@ -4,6 +4,8 @@ const path = require('node:path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const { token } = require('./configs/config.json');
 const { syncSpreadsheetsToDatabase } = require('./spreadsheetSync.js');
+const { updateRecruitmentPost } = require('./misc.js');
+const cron = require('node-cron');
 
 // Create a new client instance
 global.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent] });
@@ -113,6 +115,22 @@ for (const file of stringSelectMenuFiles) {
   }
 }
 
+/**
+ * Daily update of recruitment post
+ */
+cron.schedule('0 0 * * *', async () => {
+  console.log('Starting scheduled recruitment post update...');
+  try {
+    await updateRecruitmentPost();
+    console.log('Recruitment post updated.');
+  }
+  catch (error) {
+    console.error('Error during scheduled recruitment post update:', error);
+  }
+}, {
+  scheduled: true,
+  timezone: 'Etc/UTC'
+});
 
 
 /**
@@ -120,34 +138,32 @@ for (const file of stringSelectMenuFiles) {
  */
 // Make function to check whether database was changed
 const dbPath = './database.sqlite';
-
 function getDatabaseLastModifiedTime() {
   const stats = fs.statSync(dbPath);
   return stats.mtime;
 }
 
-// Every hour on the hour, sync the spreadsheets with the database
-setInterval(async () => {
-  try {
-    const now = new Date();
-    if (now.getMinutes() === 0) {
-      // Check whether the database was modified in the last hour, and only
-      // sync if it was
-      const lastModifiedTime = getDatabaseLastModifiedTime();
-      const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
-      if (lastModifiedTime < oneHourAgo) {
-        return;
-      }
+cron.schedule('0 * * * *', async () => {
+  const lastModifiedTime = getDatabaseLastModifiedTime();
+  const now = new Date();
+  const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
+  if (lastModifiedTime < oneHourAgo) {
+    console.log('Database has not been modified in the last hour. Skipping spreadsheet sync.');
+    return;
+  }
 
-      console.log('Starting hourly spreadsheet sync...');
-      await syncSpreadsheetsToDatabase();
-      console.log('Hourly spreadsheet sync complete.');
-    }
+  console.log('Starting scheduled spreadsheet sync...');
+  try {
+    await syncSpreadsheetsToDatabase();
+    console.log('Scheduled spreadsheet sync complete.');
   }
   catch (error) {
-    console.error('Error during hourly spreadsheet sync:', error);
+    console.error('Error during scheduled spreadsheet sync:', error);
   }
-}, 60 * 1000); // Check every minute
+}, {
+  scheduled: true,
+  timezone: 'Etc/UTC'
+});
 
 // Log in to Discord with the client's token
 client.login(token);
