@@ -31,6 +31,7 @@ Regions.hasMany(Duchies, { foreignKey: 'regionId', as: 'duchies' });
 Regions.hasMany(Steelbearers, { foreignKey: 'regionId', as: 'steelbearers' });
 Regions.hasMany(Vassals, { foreignKey: 'liegeId', as: 'vassals' });
 Regions.hasOne(Vassals, { foreignKey: 'vassalId', as: 'vassalRecord' });
+Regions.hasMany(Characters, { foreignKey: 'regionId', as: 'characters' });
 
 Duchies.belongsTo(Regions, { foreignKey: 'regionId', as: 'region' });
 Duchies.belongsTo(Steelbearers, { foreignKey: 'steelbearerId', as: 'steelbearer' });

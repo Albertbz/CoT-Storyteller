@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Deceased, Duchies } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter, changeDuchyInDatabase, changeDeceasedInDatabase } = require('../../misc.js');
@@ -153,6 +153,66 @@ module.exports = {
           option
             .setName('roleid_new')
             .setDescription('The new role ID of the region. This should technically never change.')
+        )
+        .addStringOption(option =>
+          option
+            .setName('role1_new')
+            .setDescription('The first role that the region is in need of.')
+            .addChoices(
+              { name: 'Smiths', value: 'Smiths' },
+              { name: 'Builders', value: 'Builders' },
+              { name: 'Cooks', value: 'Cooks' },
+              { name: 'Lumberjacks', value: 'Lumberjacks' },
+              { name: 'Soldiers', value: 'Soldiers' },
+              { name: 'Potters', value: 'Potters' },
+              { name: 'Miners', value: 'Miners' },
+              { name: 'Carpenters', value: 'Carpenters' },
+              { name: 'Tailors', value: 'Tailors' },
+              { name: 'Healears', value: 'Healers' },
+              { name: 'Farmers', value: 'Farmers' },
+              { name: 'Hunters', value: 'Hunters' },
+              { name: 'Clockmakers', value: 'Clockmakers' }
+            )
+        )
+        .addStringOption(option =>
+          option
+            .setName('role2_new')
+            .setDescription('The second role that the region is in need of.')
+            .addChoices(
+              { name: 'Smiths', value: 'Smiths' },
+              { name: 'Builders', value: 'Builders' },
+              { name: 'Cooks', value: 'Cooks' },
+              { name: 'Lumberjacks', value: 'Lumberjacks' },
+              { name: 'Soldiers', value: 'Soldiers' },
+              { name: 'Potters', value: 'Potters' },
+              { name: 'Miners', value: 'Miners' },
+              { name: 'Carpenters', value: 'Carpenters' },
+              { name: 'Tailors', value: 'Tailors' },
+              { name: 'Healears', value: 'Healers' },
+              { name: 'Farmers', value: 'Farmers' },
+              { name: 'Hunters', value: 'Hunters' },
+              { name: 'Clockmakers', value: 'Clockmakers' }
+            )
+        )
+        .addStringOption(option =>
+          option
+            .setName('role3_new')
+            .setDescription('The third role that the region is in need of.')
+            .addChoices(
+              { name: 'Smiths', value: 'Smiths' },
+              { name: 'Builders', value: 'Builders' },
+              { name: 'Cooks', value: 'Cooks' },
+              { name: 'Lumberjacks', value: 'Lumberjacks' },
+              { name: 'Soldiers', value: 'Soldiers' },
+              { name: 'Potters', value: 'Potters' },
+              { name: 'Miners', value: 'Miners' },
+              { name: 'Carpenters', value: 'Carpenters' },
+              { name: 'Tailors', value: 'Tailors' },
+              { name: 'Healears', value: 'Healers' },
+              { name: 'Farmers', value: 'Farmers' },
+              { name: 'Hunters', value: 'Hunters' },
+              { name: 'Clockmakers', value: 'Clockmakers' }
+            )
         )
     )
     .addSubcommand(subcommand =>
@@ -1081,6 +1141,9 @@ module.exports = {
       const regionId = interaction.options.getString('name');
       const newRulingHouseId = interaction.options.getString('rulinghouse_new');
       const newRoleId = interaction.options.getString('roleid_new');
+      const newRole1 = interaction.options.getString('role1_new');
+      const newRole2 = interaction.options.getString('role2_new');
+      const newRole3 = interaction.options.getString('role3_new');
 
       const region = await Regions.findByPk(regionId);
 
@@ -1091,9 +1154,36 @@ module.exports = {
       try {
         const { region: updatedRegion, embed: regionChangedEmbed } = await changeRegionInDatabase(interaction.user, region, {
           newRoleId: newRoleId,
-          newRulingHouseId: newRulingHouseId
+          newRulingHouseId: newRulingHouseId,
+          newRole1: newRole1,
+          newRole2: newRole2,
+          newRole3: newRole3
         });
-        return interaction.editReply({ embeds: [regionChangedEmbed], flags: MessageFlags.Ephemeral });
+
+        await interaction.editReply({ embeds: [regionChangedEmbed], flags: MessageFlags.Ephemeral });
+
+        // If any of the roles were changed, send additional message asking if
+        // would like for the recruitment post to be updated
+        if (newRole1 || newRole2 || newRole3) {
+          const container = new ContainerBuilder()
+            .addTextDisplayComponents(
+              new TextDisplayBuilder()
+                .setContent('# Update recruitment post?\nWould you like for the recruitment post to be updated with the new roles?\nIf you do not want this, then just dismiss this message.')
+            )
+            .addActionRowComponents(
+              new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setCustomId('update-recruitment-post-button')
+                  .setLabel('Yes')
+                  .setStyle(ButtonStyle.Success)
+              )
+            )
+          return interaction.followUp({
+            components: [container],
+            flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2]
+          });
+        }
+        return;
       }
       catch (error) {
         console.log(error);

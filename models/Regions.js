@@ -67,7 +67,7 @@ module.exports = (sequelize, DataTypes) => {
         return (
           `**Name:** ${this.name}\n` +
           `**Ruling House:** ${rulingHouse ? rulingHouse.name : 'None'}\n` +
-          // `**Role ID:** ${this.roleId}\n` +
+          `**Population:** ${await this.population}\n` +
           `**Duchies:** ${duchyNames}\n` +
           `**Liege Region:** ${liegeRegion ? liegeRegion.name : 'None'}\n` +
           `**Vassal Regions:** ${vassalRegionNames}\n\n` +
@@ -78,6 +78,19 @@ module.exports = (sequelize, DataTypes) => {
       },
       set(value) {
         throw new Error('Do not try to set the `formattedInfo` value!');
+      }
+    },
+    population: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        // Get all characters in the region that are currently being played
+        // by a player (i.e. there exists a Player entry with their characterId)
+        const charactersInRegion = await this.getCharacters();
+        const playerCount = await sequelize.models.players.count({ where: { characterId: charactersInRegion.map(c => c.id) } });
+        return playerCount;
+      },
+      set(value) {
+        throw new Error('Do not try to set the `population` value!');
       }
     }
   });

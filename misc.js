@@ -1,4 +1,4 @@
-const { EmbedBuilder, userMention, inlineCode } = require('discord.js');
+const { EmbedBuilder, userMention, inlineCode, MessageFlags, ContainerBuilder, TextDisplayBuilder, hyperlink, time, bold, italic, strikethrough, TimestampStyles, AttachmentBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
 const { roles, channels, guilds } = require('./configs/ids.json');
 const { Op } = require('sequelize');
@@ -1324,7 +1324,7 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
 }
 
 
-async function changeRegionInDatabase(storyteller, region, { newRoleId = null, newRulingHouseId = null } = {}) {
+async function changeRegionInDatabase(storyteller, region, { newRoleId = null, newRulingHouseId = null, newRole1 = null, newRole2 = null, newRole3 = null } = {}) {
   const regionNotChangedEmbed = new EmbedBuilder()
     .setTitle('Region Not Changed')
     .setColor(COLORS.RED);
@@ -1335,28 +1335,39 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
     return { region: null, embed: regionNotChangedEmbed };
   }
 
-  let newValues = {};
-  let oldValues = {};
+  let newRegionValues = {};
+  let oldRegionValues = {};
 
   // Save all old and new values for the values that are changing
-  if (newRoleId !== null && newRoleId !== region.roleId) newValues.roleId = newRoleId; oldValues.roleId = region.roleId;
-  if (newRulingHouseId !== null && newRulingHouseId !== region.rulingHouseId) newValues.rulingHouseId = newRulingHouseId; oldValues.rulingHouseId = region.rulingHouseId;
+  if (newRoleId !== null && newRoleId !== region.roleId) newRegionValues.roleId = newRoleId; oldRegionValues.roleId = region.roleId;
+  if (newRulingHouseId !== null && newRulingHouseId !== region.rulingHouseId) newRegionValues.rulingHouseId = newRulingHouseId; oldRegionValues.rulingHouseId = region.rulingHouseId;
+
+  // Get recruitment entry for the region to check if recruitment roles are changing
+  const recruitment = await region.getRecruitment();
+  let newRecruitmentValues = {};
+  let oldRecruitmentValues = {};
+  if (recruitment) {
+    if (newRole1 !== null && newRole1 !== recruitment.role1) newRecruitmentValues.role1 = newRole1; oldRecruitmentValues.role1 = recruitment.role1;
+    if (newRole2 !== null && newRole2 !== recruitment.role2) newRecruitmentValues.role2 = newRole2; oldRecruitmentValues.role2 = recruitment.role2;
+    if (newRole3 !== null && newRole3 !== recruitment.role3) newRecruitmentValues.role3 = newRole3; oldRecruitmentValues.role3 = recruitment.role3;
+  }
 
   // Check if anything is actually changing
-  if (Object.keys(newValues).length === 0) {
+  if (Object.keys(newRegionValues).length === 0 && Object.keys(newRecruitmentValues).length === 0) {
     regionNotChangedEmbed
       .setDescription('No changes provided.');
     return { region: null, embed: regionNotChangedEmbed };
   }
 
   // All checks passed, proceed with update
-  await region.update(newValues);
+  if (Object.keys(newRegionValues).length > 0) await region.update(newRegionValues);
+  if (Object.keys(newRecruitmentValues).length > 0) await recruitment.update(newRecruitmentValues);
 
   // Post in log channel
   const logInfoChanges = [];
   const formattedInfoChanges = [];
-  for (const [key, newValue] of Object.entries(newValues)) {
-    const oldValue = oldValues[key];
+  for (const [key, newValue] of Object.entries(newRegionValues)) {
+    const oldValue = oldRegionValues[key];
 
     switch (key) {
       case 'roleId': {
@@ -1369,6 +1380,27 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
         const newHouse = await Houses.findByPk(newValue);
         logInfoChanges.push({ key: 'rulingHouse', oldValue: oldHouse ? `${inlineCode(oldHouse.name)} (${inlineCode(oldHouse.id)})` : '`-`', newValue: newHouse ? `${inlineCode(newHouse.name)} (${inlineCode(newHouse.id)})` : '`-`' });
         formattedInfoChanges.push({ key: '**Ruling House**', oldValue: oldHouse ? oldHouse.name : '-', newValue: newHouse ? newHouse.name : '-' });
+        break;
+      }
+    }
+  }
+  for (const [key, newValue] of Object.entries(newRecruitmentValues)) {
+    const oldValue = oldRecruitmentValues[key];
+
+    switch (key) {
+      case 'role1': {
+        logInfoChanges.push({ key: 'role1', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Recruitment Role 1**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'role2': {
+        logInfoChanges.push({ key: 'role2', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Recruitment Role 2**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'role3': {
+        logInfoChanges.push({ key: 'role3', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Recruitment Role 3**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
         break;
       }
     }
@@ -1393,7 +1425,7 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
 
   // If ruling house changed, update all characters in the region that are
   // currently being played to have the new ruling house
-  if (newValues.rulingHouseId) {
+  if (newRegionValues.rulingHouseId) {
     const playersInRegion = await Players.findAll({
       include: [{
         model: Characters, as: 'character',
@@ -1406,7 +1438,7 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
     for (const player of playersInRegion) {
       const character = await player.getCharacter();
       if (character) {
-        await character.update({ houseId: newValues.rulingHouseId });
+        await character.update({ houseId: newRegionValues.rulingHouseId });
         updatedCharacters.push(character);
       }
     }
@@ -1415,7 +1447,7 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
       'Region Ruling House Changed - Characters Updated',
       `**Changed by: ${userMention(storyteller.id)}**\n\n` +
       `Region: ${inlineCode(region.name)} (${inlineCode(region.id)})\n\n` +
-      `Ruling House changed to: ${inlineCode(newValues.rulingHouseId)}\n\n` +
+      `Ruling House changed to: ${inlineCode(newRegionValues.rulingHouseId)}\n\n` +
       `The following characters had their house updated to the new ruling house:\n` +
       updatedCharacters.map(char => `${inlineCode(char.name)} (${inlineCode(char.id)})`).join('\n'),
       COLORS.ORANGE
@@ -1940,6 +1972,149 @@ async function syncMemberRolesWithCharacter(player, character) {
   return true;
 }
 
+/**
+ * Creates the message to be used for the recruitment post based on the current
+ * states and recruitment needs of the regions as specified by the database.
+ */
+async function createRecruitmentPostMessage(guild) {
+  // Create the predefined parts of the message to be posted
+  const lastUpdatedText = '-# Last updated: ' + time(new Date(), TimestampStyles.LongDate);
+  const descriptionText = italic('For new players joining, please prioritize the houses in need in order to ensure fun for everyone.');
+  const overviewLink = '## ' + hyperlink('Detailed Roster Overview', '<https://docs.google.com/spreadsheets/d/1GSWM4WNu6Af_83PK0b3oVwRAQo1oloxe45FKgnSM9jA/edit?usp=sharing>');
+
+  // Get all regions with their recruitment info, excluding Wanderer
+  const regions = await Regions.findAll({
+    where: {
+      name: { [Op.ne]: 'Wanderer' }
+    }
+  });
+
+  const guildEmojis = await guild.emojis.fetch();
+  let housesText = ''
+  for (const region of regions) {
+    const house = await region.getRulingHouse();
+    const houseEmoji = guildEmojis.find(emoji => emoji.name === house.emojiName);
+    const regionText = region.name;
+    const houseText = `${houseEmoji.toString()}${bold('House ' + house.name)}${houseEmoji.toString()} | Population: ${await region.population}`;
+    const recruitment = await region.getRecruitment();
+    let rolesText = 'Need: ' + recruitment.role1 + ', ' + recruitment.role2 + ', ' + recruitment.role3;
+
+    let stateText = '';
+    switch (recruitment.state) {
+      case 'Full':
+        stateText = 'Closed Recruitment (:red_circle: - Full)';
+        rolesText = strikethrough(rolesText);
+        break;
+      case 'Almost Full':
+        stateText = 'Open Recruitment (:yellow_circle: - Almost Full)';
+        break;
+      case 'Open':
+        stateText = 'Open Recruitment (:green_circle: - Players Needed)';
+        break;
+      case 'Urgent':
+        stateText = 'Open Recruitment (:blue_circle: - Players Urgently Needed)';
+        break;
+    }
+
+    housesText +=
+      '## ' + regionText + '\n' +
+      houseText + '\n' +
+      stateText + '\n' +
+      rolesText + '\n'
+  };
+
+  const fullMessageText =
+    lastUpdatedText + '\n' +
+    housesText + '\n' +
+    descriptionText + '\n\n' +
+    overviewLink
+
+
+  // Create image attachment for thumbnail
+  const fileName = 'houseRecruitmentInfo.png';
+  const attachment = new AttachmentBuilder()
+    .setFile('./images/' + fileName)
+    .setName(fileName);
+
+  const container = new ContainerBuilder()
+    .addMediaGalleryComponents(
+      new MediaGalleryBuilder()
+        .addItems(
+          new MediaGalleryItemBuilder()
+            .setURL('attachment://' + fileName)
+        )
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder()
+        .setContent(fullMessageText)
+    )
+
+
+  return { components: [container], flags: MessageFlags.IsComponentsV2, files: [attachment], attachments: [] };
+}
+
+/**
+ * Updates the recruitment post with the current states and needs of the regions
+ * as specified by their sizes and recruitment roles.
+ */
+async function updateRecruitmentPost(interaction) {
+  /**
+   * Create the message to be posted
+   */
+  const recruitmentPostMessage = await createRecruitmentPostMessage(interaction.guild);
+
+  /**
+   * Get the previous message and update it, or post a new one if it doesn't exist/can't be found
+   */
+  // Check whether the recruitment post exists already
+  const houseInfoForumChannel = await client.channels.fetch(channels.housesInfo);
+
+  let recruitmentPost;
+  // Get all active threads in the channel and check for one with the name 'House Recruitment'
+  const activeThreads = await houseInfoForumChannel.threads.fetchActive();
+  recruitmentPost = activeThreads.threads.find((thread) => thread.name === 'House Recruitment');
+
+  // If not found in active threads, check in archived threads
+  if (!recruitmentPost) {
+    const archivedThreads = await houseInfoForumChannel.threads.fetchArchived();
+    recruitmentPost = archivedThreads.threads.find((thread) => thread.name === 'House Recruitment');
+  }
+
+  let returnContainer = new ContainerBuilder();
+
+  if (recruitmentPost) {
+    // If found recruitment post, simply update the starter message
+    const starterMessage = await recruitmentPost.fetchStarterMessage();
+    if (starterMessage) {
+      await starterMessage.edit(recruitmentPostMessage);
+    }
+
+    await recruitmentPost.pin();
+
+    returnContainer.addTextDisplayComponents(
+      new TextDisplayBuilder()
+        .setContent(`# Updated recruitment post\nThe recruitment post was found and has been updated successfully.\n\n${recruitmentPost.url}`)
+    )
+  }
+  else {
+    // If no recruitment post found, create a new thread with the message
+    const newRecruitmentPost = await houseInfoForumChannel.threads.create({
+      name: 'House Recruitment',
+      message: recruitmentPostMessage
+    });
+
+    await newRecruitmentPost.pin()
+
+    returnContainer.addTextDisplayComponents(
+      new TextDisplayBuilder()
+        .setContent(`# Created recruitment post\nNo existing recruitment post was found, so a new one has been created successfully.\n\n${newRecruitmentPost.url}`)
+    )
+  }
+
+  return { components: [returnContainer], flags: MessageFlags.IsComponentsV2 };
+
+}
+
 async function postInLogChannel(title, description, color) {
   const logEmbed = new EmbedBuilder()
     .setTitle(title)
@@ -1979,5 +2154,6 @@ module.exports = {
   changeRelationshipInDatabase,
   assignSteelbearerToRegion,
   syncMemberRolesWithCharacter,
+  updateRecruitmentPost,
   COLORS
 }; 
