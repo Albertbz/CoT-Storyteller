@@ -1067,7 +1067,7 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
     }
   }
 
-  // If changing region, make sure steelbearer is removed
+  // If changing region, do some checks and update house if not provided
   if (newValues.regionId) {
     // Check whether character is steelbearer by looking at steelbearers
     const steelbearerRecord = await Steelbearers.findOne({ where: { characterId: character.id } });
@@ -1075,6 +1075,17 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
       characterNotChangedEmbed
         .setDescription('Character is a Steelbearer and cannot change regions. Remove the Steelbearer status first.');
       return { character: null, embed: characterNotChangedEmbed };
+    }
+
+    // If houseId not provided, set to ruling house of new region, if wanderer
+    // set to null
+    if (!newValues.houseId) {
+      const newRegion = await Regions.findByPk(newValues.regionId);
+      const rulingHouse = await newRegion.getRulingHouse();
+      // If ruling house is different from current house, set to be updated
+      if (rulingHouse && rulingHouse.id !== character.houseId) {
+        newValues.houseId = rulingHouse.id;
+      }
     }
   }
 
