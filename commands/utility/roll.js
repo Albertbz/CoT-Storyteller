@@ -301,6 +301,7 @@ module.exports = {
                       houseId: houseId,
                       socialClassName: relationship.inheritedTitle === 'Noble' ? 'Noble' : 'Notable',
                       yearOfMaturity: world.currentYear + 3,
+                      yearOfCreation: world.currentYear + 1,
                       parent1Id: relationship.bearingCharacter.id,
                       parent2Id: relationship.conceivingCharacter.id,
                     });
@@ -508,6 +509,7 @@ module.exports = {
                       houseId: houseId,
                       socialClassName: 'Notable',
                       yearOfMaturity: world.currentYear + 3,
+                      yearOfCreation: world.currentYear + 1,
                       parent1Id: character.id
                     });
                     childCharacter = result.character;

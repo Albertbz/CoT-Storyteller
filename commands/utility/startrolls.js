@@ -398,6 +398,7 @@ module.exports = {
                         houseId: houseId,
                         socialClassName: offspringResult.relationship ? (offspringResult.relationship.inheritedTitle === 'Noble' ? 'Noble' : 'Notable') : 'Notable',
                         yearOfMaturity: world.currentYear + 3,
+                        yearOfCreation: world.currentYear + 1,
                         parent1Id: offspringResult.relationship ? offspringResult.relationship.bearingCharacter.id : bearingCharacter.id,
                         parent2Id: offspringResult.relationship ? offspringResult.relationship.conceivingCharacter.id : null,
                       })
@@ -545,6 +546,7 @@ module.exports = {
                           regionId: regionId,
                           socialClassName: 'Notable',
                           yearOfMaturity: world.currentYear + 3,
+                          yearOfCreation: world.currentYear + 1,
                           parent1Id: character.id
                         });
 

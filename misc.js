@@ -68,7 +68,7 @@ async function addPlayerToDatabase(storyteller, { id, ign, timezone = null } = {
   }
 }
 
-async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = undefined, regionId = null, houseId = null, socialClassName = 'Commoner', yearOfMaturity = null, parent1Id = null, parent2Id = null } = {}) {
+async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = undefined, regionId = null, houseId = null, socialClassName = 'Commoner', yearOfMaturity = null, parent1Id = null, parent2Id = null, yearOfCreation = null } = {}) {
   const characterNotCreatedEmbed = new EmbedBuilder()
     .setTitle('Character Not Created')
     .setColor(COLORS.RED);
@@ -82,6 +82,8 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
 
   // If yearOfMaturity is null (not provided), set it to current year
   yearOfMaturity = yearOfMaturity === null ? world.currentYear : yearOfMaturity;
+  // If yearOfCreation is null (not provided), set it to yearOfMaturity
+  yearOfCreation = yearOfCreation === null ? yearOfMaturity : yearOfCreation;
 
   // Make sure that regionId is valid if one is provided
   if (regionId) {
@@ -135,7 +137,7 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
       houseId: houseId,
       socialClassName: socialClassName,
       yearOfMaturity: yearOfMaturity,
-      yearOfCreation: yearOfMaturity,
+      yearOfCreation: yearOfCreation,
       parent1Id: parent1Id,
       parent2Id: parent2Id
     })
