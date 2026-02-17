@@ -1243,6 +1243,10 @@ module.exports = {
 
       const playableChild = await PlayableChildren.findByPk(playableChildId);
 
+      if (!playableChild) {
+        return interaction.editReply({ content: 'The specified playable child does not exist in the database.', flags: MessageFlags.Ephemeral });
+      }
+
       const embeds = [];
       try {
         const character = await playableChild.getCharacter();
