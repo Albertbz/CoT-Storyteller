@@ -68,6 +68,7 @@ module.exports = {
 
     const region = await Regions.findByPk(regionId);
 
+    // Ask the user to confirm the character creation details before proceeding
     return askForConfirmation(
       interaction,
       `Review Character Creation`,

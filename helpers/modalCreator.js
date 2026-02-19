@@ -121,107 +121,107 @@ async function characterCreateModal({ characterName = null, regionId = null, not
   return modal;
 }
 
-async function finalDeathModal({ deathDay = null, deathMonth = null, deathYear = null, deathCause = null, deathNote = null } = {}){
+async function finalDeathModal({ deathDay = null, deathMonth = null, deathYear = null, deathCause = null, deathNote = null } = {}) {
+  const modal = new ModalBuilder()
+    .setCustomId('character-death-modal')
+    .setTitle('Register Character Final Death');
 
-const modal = new ModalBuilder()
-  .setCustomId('character-death-modal')
-  .setTitle('Register Character Final Death');
-
-// Day Input
-const dayInput = new TextInputBuilder()
-  .setCustomId('death-day-input')
-  .setStyle(TextInputStyle.Short)
-  .setPlaceholder('e.g., 15')
-  .setRequired(true)
-  .setMaxLength(2);
+  // Day Input
+  const dayInput = new TextInputBuilder()
+    .setCustomId('death-day-input')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('e.g., 15')
+    .setRequired(true)
+    .setMaxLength(2);
 
   if (deathDay) {
     dayInput.setValue(deathDay);
   }
 
-const dayLabel = new LabelBuilder()
-  .setLabel('Day of Death')
-  .setDescription('Enter the in-game day your character died (1-24).')
-  .setTextInputComponent(dayInput);
+  const dayLabel = new LabelBuilder()
+    .setLabel('Day of Death')
+    .setDescription('Enter the in-game day your character died (1-24).')
+    .setTextInputComponent(dayInput);
 
-// Month Input
-const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  // Month Input
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-const options = months.map((month) => {
-  const option = new StringSelectMenuOptionBuilder()
-    .setLabel(month)
-    .setValue(month);
-    if (deathMonth){
+  const options = months.map((month) => {
+    const option = new StringSelectMenuOptionBuilder()
+      .setLabel(month)
+      .setValue(month);
+    if (deathMonth) {
       if (month === deathMonth) {
         option.setDefault(true);
       }
     }
-  return option;
-});
+    return option;
+  });
 
-const monthInput = new StringSelectMenuBuilder()
-  .setCustomId('death-month-select')
-  .setPlaceholder('Select month of death')
-  .setRequired(true)
-  .addOptions(options);
+  const monthInput = new StringSelectMenuBuilder()
+    .setCustomId('death-month-select')
+    .setPlaceholder('Select month of death')
+    .setRequired(true)
+    .addOptions(options);
 
-const monthLabel = new LabelBuilder()
-  .setLabel('Month of Death')
-  .setDescription('Choose the in-game month your character died.')
-  .setStringSelectMenuComponent(monthInput);
+  const monthLabel = new LabelBuilder()
+    .setLabel('Month of Death')
+    .setDescription('Choose the in-game month your character died.')
+    .setStringSelectMenuComponent(monthInput);
 
-// Year Input, To be prefilled once date API added
-const yearInput = new TextInputBuilder()
-  .setCustomId('death-year-input')
-  .setStyle(TextInputStyle.Short)
-  .setPlaceholder('e.g., 28')
-  .setRequired(true)
-  .setMaxLength(2);
+  // Year Input, To be prefilled once date API added
+  const yearInput = new TextInputBuilder()
+    .setCustomId('death-year-input')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('e.g., 28')
+    .setRequired(true)
+    .setMaxLength(2);
 
   if (deathYear) {
     yearInput.setValue(deathYear);
   }
 
-const yearLabel = new LabelBuilder()
-  .setLabel('Year of Death')
-  .setDescription('Enter the in-game year your character died.')
-  .setTextInputComponent(yearInput);
+  const yearLabel = new LabelBuilder()
+    .setLabel('Year of Death')
+    .setDescription('Enter the in-game year your character died.')
+    .setTextInputComponent(yearInput);
 
-// Death Cause
-const causeInput = new TextInputBuilder()
-  .setCustomId('death-cause-input')
-  .setStyle(TextInputStyle.Short)
-  .setPlaceholder('e.g., old age, execution, fall damage, bear attack')
-  .setRequired(true)
-  .setMaxLength(30);
+  // Death Cause
+  const causeInput = new TextInputBuilder()
+    .setCustomId('death-cause-input')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('e.g., old age, execution, fall damage, bear attack')
+    .setRequired(true)
+    .setMaxLength(30);
 
   if (deathCause) {
     causeInput.setValue(deathCause);
   }
 
-const causeLabel = new LabelBuilder()
-  .setLabel('Cause of Death')
-  .setDescription('Note the cause of the death, i.e. how your character died.')
-  .setTextInputComponent(causeInput);
+  const causeLabel = new LabelBuilder()
+    .setLabel('Cause of Death')
+    .setDescription('Note the cause of the death, i.e. how your character died.')
+    .setTextInputComponent(causeInput);
 
-// Death Final Note
-const noteInput = new TextInputBuilder()
-  .setCustomId('death-note-input')
-  .setStyle(TextInputStyle.Paragraph)
-  .setRequired(true)
-  .setMaxLength(250);
+  // Death Final Note
+  const noteInput = new TextInputBuilder()
+    .setCustomId('death-note-input')
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true)
+    .setMaxLength(250);
 
   if (deathNote) {
     noteInput.setValue(deathNote);
   }
 
-const noteLabel = new LabelBuilder()
-  .setLabel('Final note')
-  .setDescription('Your final note. This is not allowed to reveal any IC information. Max 250 characters.')
-  .setTextInputComponent(noteInput);
+  const noteLabel = new LabelBuilder()
+    .setLabel('Final note')
+    .setDescription('Your final note. This is not allowed to reveal any IC information. Max 250 characters.')
+    .setTextInputComponent(noteInput);
 
-modal.addLabelComponents(dayLabel, monthLabel, yearLabel, causeLabel, noteLabel);
+  modal.addLabelComponents(dayLabel, monthLabel, yearLabel, causeLabel, noteLabel);
 
+  return modal;
 }
 
 module.exports = {
