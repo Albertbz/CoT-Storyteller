@@ -124,7 +124,12 @@ async function syncSpreadsheetsToDatabase() {
 
   await playableChildrenSheet.loadCells();
 
-  for (const [i, playableChild] of playableChildren.entries()) {
+  // Sort playable children by year of maturity, increasing
+  const sortedPlayableChildren = playableChildren.sort((childA, childB) => {
+    return childA.character.yearOfMaturity - childB.character.yearOfMaturity;
+  });
+
+  for (const [i, playableChild] of sortedPlayableChildren.entries()) {
     const nameCell = playableChildrenSheet.getCell(i + 1, 0)
     const yearOfMaturityCell = playableChildrenSheet.getCell(i + 1, 1)
     const ageCell = playableChildrenSheet.getCell(i + 1, 2)
@@ -160,7 +165,9 @@ async function syncSpreadsheetsToDatabase() {
     commentsCell.value = playableChild.comments;
 
     const parentNames = []
-    parentNames.push(playableChild.character.parent1.name)
+    if (playableChild.character.parent1 !== null) {
+      parentNames.push(playableChild.character.parent1.name)
+    }
 
     if (playableChild.character.parent2 !== null) {
       parentNames.push(playableChild.character.parent2.name);

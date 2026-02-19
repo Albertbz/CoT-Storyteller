@@ -463,7 +463,7 @@ async function addPlayableChildToDatabase(storyteller, { characterId, legitimacy
       .setDescription((await playableChild.formattedInfo))
       .setColor(COLORS.GREEN);
 
-    return { playableChild, playableChildCreatedEmbed };
+    return { playableChild, embed: playableChildCreatedEmbed };
   }
   catch (error) {
     console.log(error);

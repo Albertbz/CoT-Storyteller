@@ -1,8 +1,8 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Relationships } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Relationships, Worlds, PlayableChildren, Deceased } = require('../../dbObjects.js');
 const { roles } = require('../../configs/ids.json');
-const { Op } = require('sequelize');
-const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase, addVassalToDatabase } = require('../../misc.js')
+const { Op, Sequelize } = require('sequelize');
+const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase, addVassalToDatabase, addPlayableChildToDatabase } = require('../../misc.js')
 
 
 module.exports = {
@@ -194,11 +194,77 @@ module.exports = {
             .setAutocomplete(true)
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('child')
+        .setDescription('Make a character into a playable child.')
+        .addStringOption(option =>
+          option
+            .setName('character')
+            .setDescription('The character to make into a playable child.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('legitimacy')
+            .setDescription('The legitimacy of the child.')
+            .setRequired(true)
+            .addChoices(
+              { name: 'Illegitimate', value: 'Illegitimate' },
+              { name: 'Legitimate', value: 'Legitimate' },
+              { name: 'Legitimised', value: 'Legitimised' }
+            )
+        )
+        .addUserOption(option =>
+          option
+            .setName('contact1')
+            .setDescription('The first contact of the child.')
+            .setRequired(true)
+        )
+        .addUserOption(option =>
+          option
+            .setName('contact2')
+            .setDescription('The second contact of the child.')
+        )
+    )
   ,
   async autocomplete(interaction) {
     let choices;
 
+    const subcommand = interaction.options.getSubcommand();
     const focusedOption = interaction.options.getFocused(true);
+
+    if (subcommand === 'child') {
+      const focusedValue = interaction.options.getFocused();
+
+      const world = await Worlds.findOne({ where: { name: "Elstrand" } });
+
+      // Get all characters that are less than 4 years old, are not already a
+      // playable child (exists in the PlayableChildren table), are not dead 
+      // (exists in the Deceased table), and are not currently being played by
+      // someone else (), and whose name starts with the focused value
+      const characters = await Characters.findAll({
+        where: {
+          name: { [Op.startsWith]: focusedValue },
+          yearOfMaturity: { [Op.gt]: world.currentYear - 4 },
+          id: {
+            [Op.notIn]: Sequelize.literal(`(
+              SELECT "characterId" FROM "PlayableChildren"
+              UNION
+              SELECT "characterId" FROM "Deceaseds"
+              UNION
+              SELECT "characterId" FROM "Players" WHERE "characterId" IS NOT NULL
+            )`)
+          }
+        },
+        attributes: ['name', 'id'],
+        limit: 25
+      });
+
+      choices = characters.map(character => ({ name: character.name, value: character.id }));
+    }
+
 
     // Autocomplete for regions, check which option is being autocompleted
     if (focusedOption.name === 'region') {
@@ -411,6 +477,27 @@ module.exports = {
       try {
         const { vassal, embed: vassalCreatedEmbed } = await addVassalToDatabase(interaction.user, givenValues);
         return interaction.editReply({ embeds: [vassalCreatedEmbed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
+      }
+    }
+    else if (subcommand === 'child') {
+      const characterId = interaction.options.getString('character');
+      const legitimacy = interaction.options.getString('legitimacy');
+      const contact1User = interaction.options.getUser('contact1');
+      const contact2User = interaction.options.getUser('contact2');
+
+      let givenValues = {};
+      if (characterId) givenValues.characterId = characterId;
+      if (legitimacy) givenValues.legitimacy = legitimacy;
+      if (contact1User) givenValues.contact1Snowflake = contact1User.id;
+      if (contact2User) givenValues.contact2Snowflake = contact2User.id;
+
+      try {
+        const { playableChild, embed: playableChildCreatedEmbed } = await addPlayableChildToDatabase(interaction.user, givenValues);
+        return interaction.editReply({ embeds: [playableChildCreatedEmbed], flags: MessageFlags.Ephemeral });
       }
       catch (error) {
         console.log(error);
