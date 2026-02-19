@@ -1,4 +1,4 @@
-const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
+const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextDisplayBuilder, inlineCode } = require('discord.js');
 const { Regions, Houses } = require('../dbObjects.js');
 const { guilds } = require('../configs/ids.json');
 
@@ -224,6 +224,53 @@ async function finalDeathModal({ deathDay = null, deathMonth = null, deathYear =
   return modal;
 }
 
+async function characterSurnameModal(character, { surnameValue = null } = {}) {
+  const modal = new ModalBuilder()
+    .setCustomId('character-change-surname-modal')
+    .setTitle('Change Surname of Character')
+
+  /**
+   * Create a textdisplay to have the name of the character and some 
+   * information, and then also the input that is prefilled with the
+   * current surname (if any)
+   */
+  const separator = character.name.indexOf(' ');
+  const currentSurname = separator !== -1 ? character.name.substring(separator + 1) : '';
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing the surname of your character, **${inlineCode(character.name)}**, ` +
+      (currentSurname === '' ? `who does not have a surname yet.\n` : `whose current surname is **${inlineCode(currentSurname)}**.\n`) +
+      `Please do not choose a surname that already exists, unless your character is part of said family.`
+    )
+
+  const surnameInput = new TextInputBuilder()
+    .setCustomId('character-surname-input')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('Enter new surname for your character')
+    .setMaxLength(50);
+
+  if (surnameValue) {
+    surnameInput.setValue(surnameValue);
+  }
+  else if (currentSurname !== '') {
+    surnameInput.setValue(currentSurname);
+  }
+
+  const surnameLabel = new LabelBuilder()
+    .setLabel('What is the new surname of your character?')
+    .setDescription('Numbers, usernames, and references to real-life are not allowed.')
+    .setTextInputComponent(surnameInput);
+
+  modal.addTextDisplayComponents(textDisplay);
+  modal.addLabelComponents(surnameLabel);
+
+  return modal;
+}
+
 module.exports = {
-  characterCreateModal, finalDeathModal
+  characterCreateModal,
+  finalDeathModal,
+  characterSurnameModal
 }
