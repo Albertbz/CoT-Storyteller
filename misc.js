@@ -889,7 +889,7 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
   }
 
   // Check whether character is not commoner while not a wanderer
-  if (character.socialClassName === 'Commoner' && !(await Regions.findByPk(character.regionId)).name === 'Wanderer') {
+  if (character.socialClassName === 'Commoner' && (await Regions.findByPk(character.regionId)).name !== 'Wanderer') {
     deceasedNotCreatedEmbed
       .setDescription('Character is a Commoner and cannot be marked as deceased.');
     return { deceased: null, embed: deceasedNotCreatedEmbed };
