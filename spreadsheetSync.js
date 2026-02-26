@@ -33,6 +33,13 @@ async function syncSpreadsheetsToDatabase() {
     }
   });
 
+  // Quickfix remove playable children whose characters have been deleted
+  for (const playableChild of playableChildren) {
+    if (playableChild.character === null) {
+      await playableChild.destroy();
+    }
+  }
+
   const activePlayers = await Players.findAll({
     where: { isActive: true },
     include: { model: Characters, as: 'character' }
