@@ -1,6 +1,6 @@
 const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextDisplayBuilder, inlineCode } = require('discord.js');
 const { Regions, Houses } = require('../dbObjects.js');
-const { guilds } = require('../configs/ids.json');
+const { guildId } = require('../configs/config.json');
 
 /**
  * Creates a character creation modal with optional pre-filled values.
@@ -48,8 +48,8 @@ async function characterCreateModal({ characterName = null, regionId = null, not
     .setRequired(true)
 
   // Get current regions and their ruling houses, as well as their emojis
-  const cotGuild = await client.guilds.fetch(guilds.cot);
-  const guildEmojis = await cotGuild.emojis.fetch();
+  const guild = await client.guilds.fetch(guildId);
+  const guildEmojis = await guild.emojis.fetch();
   const regions = await Regions.findAll({ include: { model: Houses, as: 'rulingHouse' } });
   const regionOptions = regions.map(region => {
     const selectMenuOption = new StringSelectMenuOptionBuilder()

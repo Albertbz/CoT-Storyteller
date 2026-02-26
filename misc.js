@@ -1,6 +1,7 @@
 const { EmbedBuilder, userMention, inlineCode, MessageFlags, ContainerBuilder, TextDisplayBuilder, hyperlink, time, bold, italic, strikethrough, TimestampStyles, AttachmentBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
-const { roles, channels, guilds } = require('./configs/ids.json');
+const { roles, channels } = require('./configs/ids.json');
+const { guildId } = require('./configs/config.json');
 const { Op } = require('sequelize');
 
 const COLORS = {
@@ -482,7 +483,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     .setColor(COLORS.RED);
 
   try {
-    const guild = await client.guilds.fetch(guilds.cot);
+    const guild = await client.guilds.fetch(guildId);
     const member = await guild.members.fetch(playerId);
 
     const character = await Characters.findByPk(characterId);
@@ -960,7 +961,7 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
   // Remove roles of member if specified
   if (removeRoles && playedById) {
     if (player) {
-      const guild = await client.guilds.fetch(guilds.cot);
+      const guild = await client.guilds.fetch(guildId);
       try {
         const member = await guild.members.fetch(player.id);
         if (member) {
@@ -1856,7 +1857,7 @@ async function changeDeceasedInDatabase(storyteller, deceased, { newYearOfDeath 
 
 // Syncs a Discord member's roles based on their character's region and social class
 async function syncMemberRolesWithCharacter(player, character) {
-  const guild = await client.guilds.fetch(guilds.cot);
+  const guild = await client.guilds.fetch(guildId);
   let member = null;
   try {
     member = await guild.members.fetch(player.id);
@@ -1991,8 +1992,8 @@ async function createRecruitmentPostMessage() {
     }
   });
 
-  const cotGuild = await client.guilds.fetch(guilds.cot);
-  const guildEmojis = await cotGuild.emojis.fetch();
+  const guild = await client.guilds.fetch(guildId);
+  const guildEmojis = await guild.emojis.fetch();
   let housesText = ''
   for (const region of regions) {
     const house = await region.getRulingHouse();

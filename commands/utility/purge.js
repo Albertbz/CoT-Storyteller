@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, roleMention, EmbedBuilder, inlineCode, bold, ButtonBuilder, ActionRowBuilder } = require('discord.js');
-const { roles, channels } = require('../../configs/ids.json');
+const { roles } = require('../../configs/ids.json');
 const { postInLogChannel, addDeceasedToDatabase } = require('../../misc.js');
 const { Players, Characters, Deceased, Worlds } = require('../../dbObjects.js');
 

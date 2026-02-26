@@ -976,7 +976,6 @@ module.exports = {
       // Send the summary messages in the graveyard channel if any
       if (summaryMessages.length > 0) {
         const graveyardChannel = await interaction.client.channels.fetch(channels.graveyard);
-        // const graveyardChannel = await interaction.client.channels.fetch('1465003174418055168'); // DEV Test
 
         for (const message of summaryMessages) {
           // Send each message and save the URL

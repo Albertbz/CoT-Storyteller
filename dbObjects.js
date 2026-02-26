@@ -1,5 +1,6 @@
 const Sequelize = require('sequelize');
-const { guilds, roles } = require('./configs/ids.json');
+const { roles } = require('./configs/ids.json');
+const { guildId } = require('./configs/config.json');
 
 const sequelize = new Sequelize('database', 'user', 'password', {
   host: 'localhost',
@@ -64,7 +65,7 @@ Steelbearers.addHook('afterDestroy', async (steelbearer, options) => {
     if (character) {
       const player = await sequelize.models.players.findOne({ where: { characterId: character.id } });
       if (player) {
-        const guild = await client.guilds.fetch(guilds.cot);
+        const guild = await client.guilds.fetch(guildId);
         if (guild) {
           try {
             const member = await guild.members.fetch(player.id);
