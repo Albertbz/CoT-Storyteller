@@ -48,6 +48,14 @@ VassalSteelbearers.belongsTo(Vassals, { foreignKey: 'vassalId', as: 'vassal' });
 VassalSteelbearers.belongsTo(Steelbearers, { foreignKey: 'steelbearerId', as: 'steelbearer' });
 
 
+// Add hook to remove playable child entry when character deleted (if they are also a playable child)
+Characters.addHook('afterDestroy', async (character, options) => {
+  const playableChild = await sequelize.models.playablechildren.findOne({ where: { characterId: character.id } });
+  if (playableChild) {
+    await playableChild.destroy();
+  }
+});
+
 // Add hook to update roles when steelbearer is destroyed
 Steelbearers.addHook('afterDestroy', async (steelbearer, options) => {
   const region = await sequelize.models.regions.findOne({ where: { id: steelbearer.regionId } });
