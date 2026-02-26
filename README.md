@@ -2,6 +2,8 @@
 
 A Discord bot for managing storyteller spreadsheets, character data, and player information for a roleplay community.
 
+**Note: The bot is currently tailor-made for the Chronicles of Time server, and as such requires a decent amount of tweaking to work with other servers. Some values are hardcoded.**
+
 ## Overview
 
 CoT-Storyteller is a comprehensive Discord bot that handles character creation, player management, relationships, offspring rolls, death rolls, and region/house management for a storytelling/roleplay server. The bot maintains a SQLite database synchronized with Google Sheets and provides slash commands for storytellers to manage game data.
