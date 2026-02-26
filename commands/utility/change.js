@@ -115,6 +115,18 @@ module.exports = {
               { name: 'No', value: 'No' }
             )
         )
+        .addStringOption(option =>
+          option
+            .setName('parent1_new')
+            .setDescription('The new first parent.')
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('parent2_new')
+            .setDescription('The new second parent.')
+            .setAutocomplete(true)
+        )
         .addBooleanOption(option =>
           option
             .setName('forcechange')
@@ -470,7 +482,7 @@ module.exports = {
     if (subcommand === 'character') {
       const focusedOption = interaction.options.getFocused(true);
 
-      if (focusedOption.name === 'name') {
+      if (focusedOption.name === 'name' || focusedOption.name === 'parent1_new' || focusedOption.name === 'parent2_new') {
         const focusedValue = interaction.options.getFocused();
 
         const characters = await Characters.findAll({
@@ -802,6 +814,8 @@ module.exports = {
       const newRole = interaction.options.getString('role_new');
       const newComments = interaction.options.getString('comments_new');
       const newIsRollingForBastards = interaction.options.getString('rollingforbastards_new') === null ? null : (interaction.options.getString('rollingforbastards_new') === 'Yes' ? true : false);
+      const newParent1Id = interaction.options.getString('parent1_new');
+      const newParent2Id = interaction.options.getString('parent2_new');
       const forceChange = interaction.options.getBoolean('forcechange') || false;
 
       const character = await Characters.findByPk(characterId);
@@ -819,6 +833,8 @@ module.exports = {
           newRole: newRole,
           newComments: newComments,
           newIsRollingForBastards: newIsRollingForBastards,
+          newParent1Id: newParent1Id,
+          newParent2Id: newParent2Id,
           forceChange: forceChange
         })
 
