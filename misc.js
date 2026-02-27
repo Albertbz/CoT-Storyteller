@@ -1,5 +1,5 @@
 const { EmbedBuilder, userMention, inlineCode, MessageFlags, ContainerBuilder, TextDisplayBuilder, hyperlink, time, bold, italic, strikethrough, TimestampStyles, AttachmentBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts } = require('./dbObjects.js');
 const { roles, channels, guilds } = require('./configs/ids.json');
 const { Op } = require('sequelize');
 
@@ -2205,6 +2205,26 @@ function ageToFertilityModifier(age) {
   if (age < 5) return 1;
 }
 
+async function addDeathPostToDatabase({ characterId, note } = {}) {
+
+  let post = null;
+  try {
+    post = await DeathPosts.create({
+      characterId: characterId,
+      note: note,
+      posted: false,
+      scheduledPostTime: Date(now() + (2 * 60 * 60 * 1000)), // adds 2 hours
+      createdTime: Date(now())
+    });
+  }
+  catch (error) {
+    console.log(error);
+    postdNotCreatedEmbed
+      .setDescription('An error occurred while trying to create death post: ' + error.message);
+    return { postAdded: null };
+  }
+}
+
 module.exports = {
   addPlayerToDatabase,
   addCharacterToDatabase,
@@ -2228,5 +2248,6 @@ module.exports = {
   assignSteelbearerToRegion,
   syncMemberRolesWithCharacter,
   updateRecruitmentPost,
+  addDeathPostToDatabase,
   COLORS
 }; 
