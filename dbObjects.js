@@ -24,6 +24,7 @@ const Relationships = require('./models/Relationships.js')(sequelize, Sequelize.
 const PlayableChildren = require('./models/PlayableChildren.js')(sequelize, Sequelize.DataTypes);
 const Deceased = require('./models/Deceased.js')(sequelize, Sequelize.DataTypes);
 const DeathRollDeaths = require('./models/DeathRollDeaths.js')(sequelize, Sequelize.DataTypes);
+const DeathPosts = require('./models/DeathPosts.js')(sequelize, Sequelize.DataTypes);
 
 Regions.belongsTo(Houses, { foreignKey: 'rulingHouseId', as: 'rulingHouse' });
 Regions.belongsTo(Recruitments, { foreignKey: 'recruitmentId', as: 'recruitment' });
@@ -109,6 +110,8 @@ DeathRollDeaths.belongsTo(Characters, { foreignKey: 'characterId', as: 'characte
 PlayableChildren.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 
 Players.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
+
+DeathPosts.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 
 
 module.exports = { Players, Characters, Houses, Recruitments, Regions, Duchies, Vassals, Steelbearers, VassalSteelbearers, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths };
