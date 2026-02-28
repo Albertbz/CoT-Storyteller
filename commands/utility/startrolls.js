@@ -160,7 +160,6 @@ module.exports = {
       const interactionUser = interaction.user;
       const collectorFilter = i => {
         try {
-          console.log(`Collector received interaction from user ID: ${i.user.id} (${i.user.username}), expected user ID: ${interactionUser.id} (${interactionUser.username})`);
           return i.user.id === interactionUser.id;
         }
         catch (error) {

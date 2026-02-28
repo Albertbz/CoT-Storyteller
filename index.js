@@ -116,6 +116,28 @@ for (const file of stringSelectMenuFiles) {
 }
 
 /**
+ * Load user select menus
+ */
+// Create a new collection for user select menus
+client.userSelectMenus = new Collection();
+
+// Read user select menu files from the userselectmenus directory
+const userSelectMenusPath = path.join(__dirname, 'userselectmenus');
+const userSelectMenuFiles = fs.readdirSync(userSelectMenusPath).filter(file => file.endsWith('.js'));
+
+// Loop through user select menu files and set them in the collection
+for (const file of userSelectMenuFiles) {
+  const filePath = path.join(userSelectMenusPath, file);
+  const userSelectMenu = require(filePath);
+  // Set a new item in the Collection with the key as the user select menu customId and the value as the exported module
+  if ('customId' in userSelectMenu && 'execute' in userSelectMenu) {
+    client.userSelectMenus.set(userSelectMenu.customId, userSelectMenu);
+  } else {
+    console.log(`[WARNING] The user select menu at ${filePath} is missing a required "customId" or "execute" property.`);
+  }
+}
+
+/**
  * Daily update of recruitment post
  */
 cron.schedule('0 0 * * *', async () => {
@@ -125,7 +147,7 @@ cron.schedule('0 0 * * *', async () => {
     console.log('Recruitment post updated.');
   }
   catch (error) {
-    console.error('Error during scheduled recruitment post update:', error);
+    console.error('Error during scheduled recruitment post update:', error.message);
   }
 }, {
   scheduled: true,
@@ -158,7 +180,7 @@ cron.schedule('0 * * * *', async () => {
     console.log('Scheduled spreadsheet sync complete.');
   }
   catch (error) {
-    console.error('Error during scheduled spreadsheet sync:', error);
+    console.error('Error during scheduled spreadsheet sync:', error.message);
   }
 }, {
   scheduled: true,

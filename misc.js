@@ -188,7 +188,7 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
   // Check whether committed is false but inheritedTitle is 'Noble'
   if (!isCommitted && inheritedTitle === 'Noble') {
     relationshipNotCreatedEmbed
-      .setDescription('A committed relationship cannot have an inherited title of Noble.');
+      .setDescription('An uncommitted relationship cannot have an inherited title of Noble.');
     return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
 
