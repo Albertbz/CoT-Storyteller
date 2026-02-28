@@ -64,7 +64,7 @@ async function createManageCharacterContainer(character) {
             .setEmoji('🎲'),
           new ButtonBuilder()
             .setCustomId('character-intercharacter-rolls-button')
-            .setLabel('Change Intercharacter Rolls')
+            .setLabel('Manage Intercharacter Rolls')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('👥')
         )
