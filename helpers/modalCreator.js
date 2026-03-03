@@ -271,7 +271,7 @@ async function characterSurnameModal(character, { surnameValue = null } = {}) {
 }
 
 
-async function intercharacterRollCreateModal(userCharacter, selectedCharacter, { committed = null, inheritedTitle = null } = {}) {
+async function intercharacterRollCreateModal(userCharacter, selectedCharacter, { bearingCharacterPrev = null, committed = null, inheritedTitle = null } = {}) {
   const modal = new ModalBuilder()
     .setCustomId('intercharacter-roll-create-modal')
     .setTitle('Create Intercharacter Roll');
@@ -314,56 +314,76 @@ async function intercharacterRollCreateModal(userCharacter, selectedCharacter, {
     }
   }
 
-  if (bearingCharacter !== null && conceivingCharacter !== null) {
-    // If no choice is to be made because one or both of the characters are already
-    // in another intercharacter roll as a bearing or conceiving partner, as such
-    // forcing which character is the bearing partner and which is the conceiving
-    // partner, create a text display to inform the user of this
-    const textDisplay = new TextDisplayBuilder()
-      .setContent(
-        `You are creating an intercharacter roll between **${inlineCode(bearingCharacter.name)}** and **${inlineCode(conceivingCharacter.name)}**.\n` +
-        `**${inlineCode(bearingCharacter.name)}** will be the bearing partner and **${inlineCode(conceivingCharacter.name)}** will be the conceiving partner, as one or both of them are already in another intercharacter roll as that type of partner.`
-      )
-    modal.addTextDisplayComponents(textDisplay);
+  const canInheritNobleTitles = (userCharacter.socialClassName === 'Noble' || selectedCharacter.socialClassName === 'Noble' || userCharacter.socialClassName === 'Ruler' || selectedCharacter.socialClassName === 'Ruler');
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `## You are creating an intercharacter roll between **${userCharacter.name}** and **${selectedCharacter.name}**.\n` +
+      (bearingCharacter && conceivingCharacter ? `**${bearingCharacter.name}** will be the bearing partner and **${conceivingCharacter.name}** will be the conceiving partner, as one or both of them are already in another intercharacter roll as that type of partner.\n\n` : `Please specify which character will be the bearing partner.\n`) +
+      `Please${bearingCharacter && conceivingCharacter ? ' ' : ' also '}specify whether the characters are married to each other or not${canInheritNobleTitles ? ', and if they are married, whether any children born from this intercharacter roll will inherit noble titles or not.' : '.'}`
+    )
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  const userCharacterBearingOption = new StringSelectMenuOptionBuilder()
+    .setLabel(`${userCharacter.name}`)
+    .setValue(`${userCharacter.id}:${selectedCharacter.id}`)
+    .setDefault(false);
+
+  const selectedCharacterBearingOption = new StringSelectMenuOptionBuilder()
+    .setLabel(`${selectedCharacter.name}`)
+    .setValue(`${selectedCharacter.id}:${userCharacter.id}`)
+    .setDefault(false);
+
+  const bearingOptions = [];
+  if (bearingCharacter && conceivingCharacter) {
+    if (bearingCharacter.id === userCharacter.id) {
+      userCharacterBearingOption.setDefault(true);
+      bearingOptions.push(userCharacterBearingOption);
+    }
+    else {
+      selectedCharacterBearingOption.setDefault(true);
+      bearingOptions.push(selectedCharacterBearingOption);
+    }
   }
   else {
-    // Otherwise, if both characters are not already in another intercharacter 
-    // roll as a bearing or conceiving partner, create a select menu to specify 
-    // which character is the bearing partner and which is the conceiving partner
-    const bearingSelectMenu = new StringSelectMenuBuilder()
-      .setCustomId('intercharacter-roll-bearing-select')
-      .setPlaceholder('Select the bearing partner')
-      .setRequired(true)
-      .addOptions(
-        new StringSelectMenuOptionBuilder()
-          .setLabel(`${userCharacter.name} (Your Character)`)
-          .setValue(userCharacter.id),
-        new StringSelectMenuOptionBuilder()
-          .setLabel(`${selectedCharacter.name} (Selected Character)`)
-          .setValue(selectedCharacter.id)
-      );
-
-    const bearingLabel = new LabelBuilder()
-      .setLabel('Which character will be the bearing partner?')
-      .setDescription('The other character will automatically be the conceiving partner.')
-      .setStringSelectMenuComponent(bearingSelectMenu);
-
-    modal.addLabelComponents(bearingLabel);
+    if (bearingCharacterPrev && bearingCharacterPrev.id === userCharacter.id) {
+      userCharacterBearingOption.setDefault(true);
+    }
+    else if (bearingCharacterPrev && bearingCharacterPrev.id === selectedCharacter.id) {
+      selectedCharacterBearingOption.setDefault(true);
+    }
+    bearingOptions.push(userCharacterBearingOption, selectedCharacterBearingOption);
   }
+
+  const bearingSelectMenu = new StringSelectMenuBuilder()
+    .setCustomId('intercharacter-roll-bearing-select')
+    .setPlaceholder('Select the bearing partner')
+    .setRequired(true)
+    .setOptions(...bearingOptions);
+
+  const bearingLabel = new LabelBuilder()
+    .setLabel('Which character will be the bearing partner?')
+    .setDescription('The other character will automatically be the conceiving partner.')
+    .setStringSelectMenuComponent(bearingSelectMenu);
+
+  modal.addLabelComponents(bearingLabel);
 
   // Then, create a select menu to specify whether the characters are married or
   // not, with a simple "Married" or "Not Married" option
   const marriedSelectMenu = new StringSelectMenuBuilder()
-    .setCustomId('intercharacter-roll-married-select')
+    .setCustomId('intercharacter-roll-committed-select')
     .setPlaceholder('Select whether the characters are married or not')
     .setRequired(true)
     .addOptions(
       new StringSelectMenuOptionBuilder()
         .setLabel('Married')
-        .setValue('married'),
+        .setValue('true')
+        .setDefault(committed === true ? true : false),
       new StringSelectMenuOptionBuilder()
         .setLabel('Not Married')
-        .setValue('not_married')
+        .setValue('false')
+        .setDefault(committed === false ? true : false)
     );
 
   const marriedLabel = new LabelBuilder()
@@ -376,18 +396,20 @@ async function intercharacterRollCreateModal(userCharacter, selectedCharacter, {
   // Finally, if either character is noble, create a select menu to specify
   // whether any children born from this intercharacter roll will inherit noble 
   // titles or not, with a simple "Inherit Titles" or "Do Not Inherit Titles" option
-  if (userCharacter.socialClassName === 'Noble' || selectedCharacter.socialClassName === 'Noble' || userCharacter.socialClassName === 'Ruler' || selectedCharacter.socialClassName === 'Ruler') {
+  if (canInheritNobleTitles) {
     const inheritTitlesSelectMenu = new StringSelectMenuBuilder()
       .setCustomId('intercharacter-roll-inherit-titles-select')
       .setPlaceholder('Select whether any children will inherit noble titles')
-      .setRequired(true)
+      .setRequired(false)
       .addOptions(
         new StringSelectMenuOptionBuilder()
-          .setLabel('Inherit Titles')
-          .setValue('inherit_titles'),
+          .setLabel('Will Inherit Noble Titles')
+          .setValue('true')
+          .setDefault(inheritedTitle === true ? true : false),
         new StringSelectMenuOptionBuilder()
-          .setLabel('Do Not Inherit Titles')
-          .setValue('do_not_inherit_titles')
+          .setLabel('Will Not Inherit Noble Titles')
+          .setValue('false')
+          .setDefault(inheritedTitle === false ? true : false)
       );
 
     const inheritTitlesLabel = new LabelBuilder()
