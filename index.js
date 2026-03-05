@@ -147,7 +147,7 @@ cron.schedule('0 0 * * *', async () => {
     console.log('Recruitment post updated.');
   }
   catch (error) {
-    console.error('Error during scheduled recruitment post update:', error.message);
+    console.error('Error during scheduled recruitment post update:', error);
   }
 }, {
   scheduled: true,
@@ -180,7 +180,7 @@ cron.schedule('0 * * * *', async () => {
     console.log('Scheduled spreadsheet sync complete.');
   }
   catch (error) {
-    console.error('Error during scheduled spreadsheet sync:', error.message);
+    console.error('Error during scheduled spreadsheet sync:', error);
   }
 }, {
   scheduled: true,

@@ -427,6 +427,11 @@ async function syncSpreadsheetsToDatabase() {
   }
   await deceasedSheet.loadCells();
   for (const [i, deceased] of sortedDeceaseds.entries()) {
+    if (deceased.character === null) {
+      await deceased.destroy();
+      continue;
+    }
+
     const nameCell = deceasedSheet.getCell(i + 1, 0);
     const affiliationCell = deceasedSheet.getCell(i + 1, 1);
     const dateOfDeathCell = deceasedSheet.getCell(i + 1, 2);
