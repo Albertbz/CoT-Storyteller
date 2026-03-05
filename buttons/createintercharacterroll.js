@@ -2,7 +2,7 @@ const { ActionRowBuilder, StringSelectMenuBuilder, UserSelectMenuBuilder, Messag
 const { Players } = require("../dbObjects");
 
 module.exports = {
-  customId: 'create-intercharacter-roll-button',
+  customId: 'intercharacter-roll-create-button',
   async execute(interaction) {
     // Defer the update to allow time to process
     await interaction.deferUpdate();

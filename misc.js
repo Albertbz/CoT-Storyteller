@@ -1681,7 +1681,7 @@ async function changePlayableChildInDatabase(storyteller, playableChild, { newCo
   return { playableChild, embed: playableChildChangedEmbed }
 }
 
-async function changeRelationshipInDatabase(storyteller, relationship, { newIsCommitted = null, newInheritedTitle = null } = {}) {
+async function changeRelationshipInDatabase(storyteller, relationship, { newIsCommitted = null, newInheritedTitle = null, newBearingCharacterId = null, newConceivingCharacterId = null } = {}) {
   const relationshipNotChangedEmbed = new EmbedBuilder()
     .setTitle('Relationship Not Changed')
     .setColor(COLORS.RED);
@@ -1698,6 +1698,8 @@ async function changeRelationshipInDatabase(storyteller, relationship, { newIsCo
   // Save all old and new values for the values that are changing
   if (newIsCommitted !== null && newIsCommitted !== relationship.isCommitted) newValues.isCommitted = newIsCommitted; oldValues.isCommitted = relationship.isCommitted;
   if (newInheritedTitle !== null && newInheritedTitle !== relationship.inheritedTitle) newValues.inheritedTitle = newInheritedTitle; oldValues.inheritedTitle = relationship.inheritedTitle;
+  if (newBearingCharacterId !== null && newBearingCharacterId !== relationship.bearingCharacterId) newValues.bearingCharacterId = newBearingCharacterId; oldValues.bearingCharacterId = relationship.bearingCharacterId;
+  if (newConceivingCharacterId !== null && newConceivingCharacterId !== relationship.conceivingCharacterId) newValues.conceivingCharacterId = newConceivingCharacterId; oldValues.conceivingCharacterId = relationship.conceivingCharacterId;
 
   // Check if anything is actually changing
   if (Object.keys(newValues).length === 0) {
@@ -1718,6 +1720,58 @@ async function changeRelationshipInDatabase(storyteller, relationship, { newIsCo
     }
   }
 
+  // If changing bearing or conceiving character, make sure that it is just a swap
+  // and not an actual change to a different character. Also make sure that if it
+  // is a swap, it is still a valid swap (look at other existing relationships)
+  if (newValues.bearingCharacterId || newValues.conceivingCharacterId) {
+    const newBearingIdIsConceivingCharacterId = newValues.bearingCharacterId && newValues.bearingCharacterId === relationship.conceivingCharacterId;
+    const newConceivingIdIsBearingCharacterId = newValues.conceivingCharacterId && newValues.conceivingCharacterId === relationship.bearingCharacterId;
+
+    if (!newBearingIdIsConceivingCharacterId && !newConceivingIdIsBearingCharacterId) {
+      relationshipNotChangedEmbed
+        .setDescription('You can only swap the bearing and conceiving characters in a relationship, not change them to completely different characters.');
+      return { relationship: null, embed: relationshipNotChangedEmbed };
+    }
+    else {
+      // It's a swap, so set the new values accordingly
+      newValues.bearingCharacterId = relationship.conceivingCharacterId;
+      newValues.conceivingCharacterId = relationship.bearingCharacterId;
+    }
+
+    // Check if the swap would result in a character being both bearing and conceiving in different relationships, which is not allowed
+    const bearingCharacterIdToCheck = newValues.bearingCharacterId ? newValues.bearingCharacterId : relationship.bearingCharacterId;
+    const conceivingCharacterIdToCheck = newValues.conceivingCharacterId ? newValues.conceivingCharacterId : relationship.conceivingCharacterId;
+
+    const bearingCharacterAsConceiving = await Relationships.findOne({
+      where: {
+        conceivingCharacterId: bearingCharacterIdToCheck,
+        id: { [Op.not]: relationship.id }
+      }
+    });
+
+    const conceivingCharacterAsBearing = await Relationships.findOne({
+      where: {
+        bearingCharacterId: conceivingCharacterIdToCheck,
+        id: { [Op.not]: relationship.id }
+      }
+    });
+
+    if (bearingCharacterAsConceiving || conceivingCharacterAsBearing) {
+      relationshipNotChangedEmbed
+        .setDescription('The swap would result in a character being both a bearing and conceiving character in different relationships, which is not allowed.');
+      return { relationship: null, embed: relationshipNotChangedEmbed };
+    }
+
+  }
+
+  // If setting retalionship to uncommitted, make sure to also set inherited title to None if it is not already
+  if (newValues.isCommitted !== undefined && !newValues.isCommitted) {
+    const inheritedTitleToCheck = newValues.inheritedTitle !== undefined ? newValues.inheritedTitle : relationship.inheritedTitle;
+    if (inheritedTitleToCheck && inheritedTitleToCheck !== 'None') {
+      newValues.inheritedTitle = 'None';
+    }
+  }
+
   // All checks passed, proceed with update
   await relationship.update(newValues);
 
@@ -1728,6 +1782,20 @@ async function changeRelationshipInDatabase(storyteller, relationship, { newIsCo
     const oldValue = oldValues[key];
 
     switch (key) {
+      case 'bearingCharacterId': {
+        const oldBearingCharacter = await Characters.findByPk(oldValue);
+        const newBearingCharacter = await Characters.findByPk(newValue);
+        logInfoChanges.push({ key: 'bearingCharacter', oldValue: oldBearingCharacter ? `${inlineCode(oldBearingCharacter.name)} (${inlineCode(oldBearingCharacter.id)})` : '`-`', newValue: newBearingCharacter ? `${inlineCode(newBearingCharacter.name)} (${inlineCode(newBearingCharacter.id)})` : '`-`' });
+        formattedInfoChanges.push({ key: '**Bearing Character**', oldValue: oldBearingCharacter ? oldBearingCharacter.name : '-', newValue: newBearingCharacter ? newBearingCharacter.name : '-' });
+        break;
+      }
+      case 'conceivingCharacterId': {
+        const oldConceivingCharacter = await Characters.findByPk(oldValue);
+        const newConceivingCharacter = await Characters.findByPk(newValue);
+        logInfoChanges.push({ key: 'conceivingCharacter', oldValue: oldConceivingCharacter ? `${inlineCode(oldConceivingCharacter.name)} (${inlineCode(oldConceivingCharacter.id)})` : '`-`', newValue: newConceivingCharacter ? `${inlineCode(newConceivingCharacter.name)} (${inlineCode(newConceivingCharacter.id)})` : '`-`' });
+        formattedInfoChanges.push({ key: '**Conceiving Character**', oldValue: oldConceivingCharacter ? oldConceivingCharacter.name : '-', newValue: newConceivingCharacter ? newConceivingCharacter.name : '-' });
+        break;
+      }
       case 'isCommitted': {
         logInfoChanges.push({ key: 'isCommitted', oldValue: inlineCode(oldValue ? 'Yes' : 'No'), newValue: inlineCode(newValue ? 'Yes' : 'No') });
         formattedInfoChanges.push({ key: '**Committed**', oldValue: oldValue ? 'Yes' : 'No', newValue: newValue ? 'Yes' : 'No' });

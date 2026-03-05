@@ -79,8 +79,11 @@ module.exports = {
       }
     }
     else if (interaction.isModalSubmit()) {
+      // Get the base customId by splitting on colons
+      const baseCustomId = interaction.customId.split(':')[0];
+
       // Check whether a modal handler exists for this customId
-      const modalHandler = interaction.client.modals.get(interaction.customId);
+      const modalHandler = interaction.client.modals.get(baseCustomId);
 
       // If not, ignore modal and return
       if (!modalHandler) return;

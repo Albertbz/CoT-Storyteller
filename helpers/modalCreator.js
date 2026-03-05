@@ -271,7 +271,7 @@ async function characterSurnameModal(character, { surnameValue = null } = {}) {
 }
 
 
-async function intercharacterRollCreateModal(userCharacter, selectedCharacter, { bearingCharacterPrev = null, committed = null, inheritedTitle = null } = {}) {
+async function intercharacterRollCreateModal(character1, character2, { bearingCharacterPrev = null, committed = null, inheritedTitle = null } = {}) {
   const modal = new ModalBuilder()
     .setCustomId('intercharacter-roll-create-modal')
     .setTitle('Create Intercharacter Roll');
@@ -285,92 +285,145 @@ async function intercharacterRollCreateModal(userCharacter, selectedCharacter, {
   let bearingCharacter = null;
   let conceivingCharacter = null;
   // Check if there is a choice to be made about which character is bearing and which is conceiving
-  const existsRollWithUserBearingOrSelectedConceiving = await Relationships.findOne({
+  const existsRollWithCharacter1BearingOrCharacter2Conceiving = await Relationships.findOne({
     where: {
       [Op.or]: [
-        { bearingCharacterId: userCharacter.id },
-        { conceivingCharacterId: selectedCharacter.id }
+        { bearingCharacterId: character1.id },
+        { conceivingCharacterId: character2.id }
       ]
     }
   })
 
-  if (existsRollWithUserBearingOrSelectedConceiving) {
-    bearingCharacter = userCharacter;
-    conceivingCharacter = selectedCharacter;
+  if (existsRollWithCharacter1BearingOrCharacter2Conceiving) {
+    bearingCharacter = character1;
+    conceivingCharacter = character2;
   }
   else {
-    const existsRollWithUserConceivingOrSelectedBearing = await Relationships.findOne({
+    const existsRollWithCharacter2ConceivingOrCharacter1Bearing = await Relationships.findOne({
       where: {
         [Op.or]: [
-          { conceivingCharacterId: userCharacter.id },
-          { bearingCharacterId: selectedCharacter.id }
+          { conceivingCharacterId: character1.id },
+          { bearingCharacterId: character2.id }
         ]
       }
     })
 
-    if (existsRollWithUserConceivingOrSelectedBearing) {
-      bearingCharacter = selectedCharacter;
-      conceivingCharacter = userCharacter;
+    if (existsRollWithCharacter2ConceivingOrCharacter1Bearing) {
+      bearingCharacter = character2;
+      conceivingCharacter = character1;
     }
   }
 
-  const canInheritNobleTitles = (userCharacter.socialClassName === 'Noble' || selectedCharacter.socialClassName === 'Noble' || userCharacter.socialClassName === 'Ruler' || selectedCharacter.socialClassName === 'Ruler');
+  const canInheritNobleTitles = (character1.socialClassName === 'Noble' || character2.socialClassName === 'Noble' || character1.socialClassName === 'Ruler' || character2.socialClassName === 'Ruler');
 
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `## You are creating an intercharacter roll between **${userCharacter.name}** and **${selectedCharacter.name}**.\n` +
+      `## You are creating an intercharacter roll between **${character1.name}** and **${character2.name}**.\n` +
       (bearingCharacter && conceivingCharacter ? `**${bearingCharacter.name}** will be the bearing partner and **${conceivingCharacter.name}** will be the conceiving partner, as one or both of them are already in another intercharacter roll as that type of partner.\n\n` : `Please specify which character will be the bearing partner.\n`) +
       `Please${bearingCharacter && conceivingCharacter ? ' ' : ' also '}specify whether the characters are married to each other or not${canInheritNobleTitles ? ', and if they are married, whether any children born from this intercharacter roll will inherit noble titles or not.' : '.'}`
     )
 
   modal.addTextDisplayComponents(textDisplay);
 
-  const userCharacterBearingOption = new StringSelectMenuOptionBuilder()
-    .setLabel(`${userCharacter.name}`)
-    .setValue(`${userCharacter.id}:${selectedCharacter.id}`)
-    .setDefault(false);
-
-  const selectedCharacterBearingOption = new StringSelectMenuOptionBuilder()
-    .setLabel(`${selectedCharacter.name}`)
-    .setValue(`${selectedCharacter.id}:${userCharacter.id}`)
-    .setDefault(false);
-
-  const bearingOptions = [];
-  if (bearingCharacter && conceivingCharacter) {
-    if (bearingCharacter.id === userCharacter.id) {
-      userCharacterBearingOption.setDefault(true);
-      bearingOptions.push(userCharacterBearingOption);
-    }
-    else {
-      selectedCharacterBearingOption.setDefault(true);
-      bearingOptions.push(selectedCharacterBearingOption);
-    }
+  if (!bearingCharacter && bearingCharacterPrev) {
+    bearingCharacter = bearingCharacterPrev;
   }
-  else {
-    if (bearingCharacterPrev && bearingCharacterPrev.id === userCharacter.id) {
-      userCharacterBearingOption.setDefault(true);
-    }
-    else if (bearingCharacterPrev && bearingCharacterPrev.id === selectedCharacter.id) {
-      selectedCharacterBearingOption.setDefault(true);
-    }
-    bearingOptions.push(userCharacterBearingOption, selectedCharacterBearingOption);
+
+  const { bearingLabel, marriedLabel, inheritTitlesLabel } = await getIntercharacterRollLabels(character1, character2, { bearingCharacter, committed, inheritedTitle });
+
+  modal.addLabelComponents(bearingLabel, marriedLabel);
+
+  if (inheritTitlesLabel) {
+    modal.addLabelComponents(inheritTitlesLabel);
   }
+
+  return modal;
+}
+
+async function intercharacterRollEditModal(roll) {
+  const modal = new ModalBuilder()
+    .setCustomId(`intercharacter-roll-edit-modal:${roll.id}`)
+    .setTitle('Edit Intercharacter Roll');
+
+  // Add a text display that explains which intercharacter roll is being edited, 
+  // and what the current settings of that roll are
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `## You are editing the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}**.\n` +
+      `Please change any of the values you want to change, and leave any values you do not want to change the same as they currently are.`
+    )
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  const { bearingLabel, marriedLabel, inheritTitlesLabel } = await getIntercharacterRollLabels(roll.bearingCharacter, roll.conceivingCharacter, { bearingCharacter: roll.bearingCharacter, committed: roll.isCommitted, inheritedTitle: roll.inheritedTitle !== 'None', ignoreNumRolls: 1 });
+
+  modal.addLabelComponents(bearingLabel, marriedLabel);
+
+  if (inheritTitlesLabel) {
+    modal.addLabelComponents(inheritTitlesLabel);
+  }
+
+  return modal;
+}
+
+async function getIntercharacterRollLabels(character1, character2, { bearingCharacter = null, committed = null, inheritedTitle = null, ignoreNumRolls = 0 } = {}) {
+  // Create the input and label for choosing the bearing character, which can
+  // be prefilled if there is already a bearing character 
+  const character1BearingOption = new StringSelectMenuOptionBuilder()
+    .setLabel(`${character1.name}`)
+    .setValue(`${character1.id}:${character2.id}`)
+    .setDefault(bearingCharacter && bearingCharacter.id === character1.id ? true : false);
+
+  const character2BearingOption = new StringSelectMenuOptionBuilder()
+    .setLabel(`${character2.name}`)
+    .setValue(`${character2.id}:${character1.id}`)
+    .setDefault(bearingCharacter && bearingCharacter.id === character2.id ? true : false);
 
   const bearingSelectMenu = new StringSelectMenuBuilder()
     .setCustomId('intercharacter-roll-bearing-select')
     .setPlaceholder('Select the bearing partner')
     .setRequired(true)
-    .setOptions(...bearingOptions);
+
+  // If one of the characters is already the bearing or conceiving partner in
+  // another roll, then there is no choice to be made about who is the bearing
+  // and who is the conceiving character, so we only add the option for the
+  // character that can be the bearing character. Otherwise, we add options for
+  // both characters to be the bearing character
+  const existingRollsWithCharacter1BearingOrCharacter2ConceivingCount = await Relationships.count({
+    where: {
+      [Op.or]: [
+        { bearingCharacterId: character1.id },
+        { conceivingCharacterId: character2.id }
+      ]
+    }
+  });
+
+  const existingRollsWithCharacter1ConceivingOrCharacter2BearingCount = await Relationships.count({
+    where: {
+      [Op.or]: [
+        { conceivingCharacterId: character1.id },
+        { bearingCharacterId: character2.id }
+      ]
+    }
+  });
+
+  if (existingRollsWithCharacter1BearingOrCharacter2ConceivingCount - ignoreNumRolls > 0 && existingRollsWithCharacter1ConceivingOrCharacter2BearingCount === 0) {
+    bearingSelectMenu.addOptions(character1BearingOption);
+  }
+  else if (existingRollsWithCharacter1BearingOrCharacter2ConceivingCount === 0 && existingRollsWithCharacter1ConceivingOrCharacter2BearingCount - ignoreNumRolls > 0) {
+    bearingSelectMenu.addOptions(character2BearingOption);
+  }
+  else {
+    bearingSelectMenu.addOptions(character1BearingOption, character2BearingOption);
+  }
 
   const bearingLabel = new LabelBuilder()
-    .setLabel('Which character will be the bearing partner?')
+    .setLabel('Which character is the bearing partner?')
     .setDescription('The other character will automatically be the conceiving partner.')
     .setStringSelectMenuComponent(bearingSelectMenu);
 
-  modal.addLabelComponents(bearingLabel);
-
-  // Then, create a select menu to specify whether the characters are married or
-  // not, with a simple "Married" or "Not Married" option
+  // Create the input and label for whether the characters are married or not,
+  // potentially prefilled with whether they are currently married or not
   const marriedSelectMenu = new StringSelectMenuBuilder()
     .setCustomId('intercharacter-roll-committed-select')
     .setPlaceholder('Select whether the characters are married or not')
@@ -391,12 +444,11 @@ async function intercharacterRollCreateModal(userCharacter, selectedCharacter, {
     .setDescription('This will affect the legitimacy of any children born from this intercharacter roll.')
     .setStringSelectMenuComponent(marriedSelectMenu);
 
-  modal.addLabelComponents(marriedLabel);
-
-  // Finally, if either character is noble, create a select menu to specify
-  // whether any children born from this intercharacter roll will inherit noble 
-  // titles or not, with a simple "Inherit Titles" or "Do Not Inherit Titles" option
-  if (canInheritNobleTitles) {
+  // Create the input and label for whether any children born from this roll will
+  // inherit noble titles or not, which only applies if either character is noble,
+  // and which can be prefilled with the current value if it is already set
+  let inheritTitlesLabel = null;
+  if (character1.socialClassName === 'Noble' || character2.socialClassName === 'Noble' || character1.socialClassName === 'Ruler' || character2.socialClassName === 'Ruler') {
     const inheritTitlesSelectMenu = new StringSelectMenuBuilder()
       .setCustomId('intercharacter-roll-inherit-titles-select')
       .setPlaceholder('Select whether any children will inherit noble titles')
@@ -412,20 +464,19 @@ async function intercharacterRollCreateModal(userCharacter, selectedCharacter, {
           .setDefault(inheritedTitle === false ? true : false)
       );
 
-    const inheritTitlesLabel = new LabelBuilder()
+    inheritTitlesLabel = new LabelBuilder()
       .setLabel('Will any children born inherit noble titles?')
       .setDescription('This only makes a difference for intercharacter rolls between married characters.')
       .setStringSelectMenuComponent(inheritTitlesSelectMenu);
-
-    modal.addLabelComponents(inheritTitlesLabel);
   }
 
-  return modal;
+  return { bearingLabel, marriedLabel, inheritTitlesLabel };
 }
 
 module.exports = {
   characterCreateModal,
   finalDeathModal,
   characterSurnameModal,
-  intercharacterRollCreateModal
+  intercharacterRollCreateModal,
+  intercharacterRollEditModal
 }

@@ -1,6 +1,6 @@
 const { MessageFlags, ContainerBuilder, ButtonStyle, ButtonBuilder, userMention } = require("discord.js");
 const { askForConfirmation } = require("../helpers/confirmations");
-const { Characters, Relationships } = require("../dbObjects");
+const { Characters } = require("../dbObjects");
 const { addRelationshipToDatabase } = require("../misc");
 const { intercharacterRollCreateModal } = require("../helpers/modalCreator");
 
@@ -66,8 +66,8 @@ async function intercharacterRollCreateConfirm(interaction, bearingCharacter, co
     );
 
   // Send the confirmation message to the other player's DMs
-  const otherUser = await interaction.client.users.fetch(otherPlayer.id);
-  // const otherUser = await interaction.client.users.fetch('249586641402986497'); // TEMPORARY - FETCH ALBERT FOR TESTING
+  // const otherUser = await interaction.client.users.fetch(otherPlayer.id);
+  const otherUser = await interaction.client.users.fetch('249586641402986497'); // TEMPORARY - FETCH ALBERT FOR TESTING
   let response = null;
   try {
     response = await otherUser.send({

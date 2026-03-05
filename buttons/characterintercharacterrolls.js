@@ -1,5 +1,5 @@
-const { TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ContainerBuilder, MessageFlags } = require("discord.js");
-const { Players, Relationships } = require("../dbObjects");
+const { TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ContainerBuilder, MessageFlags, StringSelectMenuOptionBuilder } = require("discord.js");
+const { Players, Relationships, Characters } = require("../dbObjects");
 const { Op } = require("sequelize");
 
 module.exports = {
@@ -29,41 +29,68 @@ module.exports = {
           { bearingCharacterId: character.id },
           { conceivingCharacterId: character.id }
         ]
-      }
+      },
+      include: [
+        { model: Characters, as: 'bearingCharacter' },
+        { model: Characters, as: 'conceivingCharacter' }
+      ]
     });
 
-    // Create the text display component that explains what intercharacter rolls are
+    const container = new ContainerBuilder();
+
+    // Create the text display component that explains what intercharacter rolls 
+    // are and add it to the container
     const icRollsInfoTextDisplay = new TextDisplayBuilder()
       .setContent("# Manage Intercharacter Rolls\nIntercharacter rolls are rolls that involve two characters in a relationship. These rolls can result in legitimate or illegitimate children, depending on if the two characters are married or not. In the case of legitimate children, they can also inherit noble titles from their parents.");
+    container.addTextDisplayComponents(icRollsInfoTextDisplay);
 
-    // Create the text display component with the current intercharacter rolls that the character is rolling in (shorthand)
-    let intercharacterRollsContent = "Your character is currently not rolling in any intercharacter rolls.";
-    if (intercharacterRolls.length > 0) {
-      intercharacterRollsContent = "Your character is currently rolling in the following intercharacter rolls:\n";
-      const intercharacterRollsTextList = [];
-      for (const roll of intercharacterRolls) {
-        const bearingCharacter = await roll.getBearingCharacter();
-        const conceivingCharacter = await roll.getConceivingCharacter();
-        intercharacterRollsTextList.push(`- ${bearingCharacter.name} x ${conceivingCharacter.name}`);
-      }
-      intercharacterRollsContent += intercharacterRollsTextList.join('\n');
+    // Add a separator
+    container.addSeparatorComponents((separator) => separator);
+
+
+    // Create either a text display component with the fact that the character
+    // is not currently rolling in any intercharacter rolls, or a text display
+    // component saying that the character is currently part of some rolls, and
+    // that to edit them, they should choose them in the select menu below, and
+    // add it to the container
+    if (intercharacterRolls.length === 0) {
+      const notRollingTextDisplay = new TextDisplayBuilder()
+        .setContent("Your character is currently not rolling in any intercharacter rolls.");
+      container.addTextDisplayComponents(notRollingTextDisplay);
+    } else {
+      const rollingTextDisplay = new TextDisplayBuilder()
+        .setContent("Your character is currently rolling in some intercharacter rolls. To edit them, please select the roll you want to edit in the select menu below.");
+
+      container.addTextDisplayComponents(rollingTextDisplay);
+
+      // Create the select menu to edit existing intercharacter rolls and add it to the container
+      const editSelectMenu = new StringSelectMenuBuilder()
+        .setCustomId('intercharacter-roll-edit-select')
+        .setPlaceholder('Select an intercharacter roll to edit')
+        .addOptions(
+          intercharacterRolls.map(roll => {
+            const otherCharacter = roll.bearingCharacter.id === character.id ? roll.conceivingCharacter : roll.bearingCharacter;
+            const option = new StringSelectMenuOptionBuilder()
+              .setLabel(`Roll with ${otherCharacter.name}`)
+              .setValue(roll.id)
+              .setDescription(
+                `Bearing: ${roll.bearingCharacter.name} | ${roll.isCommitted ? `Committed` : `Not Committed`} | ${roll.inheritedTitle !== 'None' ? `Inherited Title: ${roll.inheritedTitle}` : `No Inherited Title`}`
+              )
+            return option;
+          })
+        )
+
+      const editSelectMenuActionRow = new ActionRowBuilder()
+        .setComponents(editSelectMenu);
+
+      container.addActionRowComponents(editSelectMenuActionRow);
     }
 
-    const intercharacterRollsTextDisplay = new TextDisplayBuilder()
-      .setContent(intercharacterRollsContent);
-
     // Create the button to create a new intercharacter roll
-    const createIntercharacterRollButton = new ButtonBuilder()
-      .setCustomId('create-intercharacter-roll-button')
+    const createButton = new ButtonBuilder()
+      .setCustomId('intercharacter-roll-create-button')
       .setLabel('Create Roll')
       .setEmoji('❤️')
-      .setStyle(ButtonStyle.Secondary);
-
-    // Create the button to edit existing intercharacter rolls (if any exist)
-    const editIntercharacterRollsButton = new ButtonBuilder()
-      .setCustomId('edit-intercharacter-rolls-button')
-      .setLabel('Edit Rolls')
-      .setEmoji('✏️')
       .setStyle(ButtonStyle.Secondary);
 
     // Create the button to cancel and return to the character manager
@@ -72,22 +99,11 @@ module.exports = {
       .setLabel('Cancel')
       .setStyle(ButtonStyle.Danger);
 
-    // Create the action row for the buttons, conditionally adding the edit button if intercharacter rolls exist
-    const buttons = [createIntercharacterRollButton];
-    if (intercharacterRolls.length > 0) {
-      buttons.push(editIntercharacterRollsButton);
-    }
-    buttons.push(cancelButton);
-
+    // Create the action row for the buttons
     const actionRow = new ActionRowBuilder()
-      .setComponents(buttons);
+      .setComponents(createButton, cancelButton);
 
-    // Create the container that will hold all the components
-    const container = new ContainerBuilder()
-      .addTextDisplayComponents(icRollsInfoTextDisplay)
-      .addSeparatorComponents((separator) => separator)
-      .addTextDisplayComponents(intercharacterRollsTextDisplay)
-      .addActionRowComponents(actionRow);
+    container.addActionRowComponents(actionRow);
 
     // Respond with the container
     await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
