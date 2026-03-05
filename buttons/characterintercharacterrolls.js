@@ -59,7 +59,7 @@ module.exports = {
       container.addTextDisplayComponents(notRollingTextDisplay);
     } else {
       const rollingTextDisplay = new TextDisplayBuilder()
-        .setContent("Your character is currently rolling in some intercharacter rolls. To edit them, please select the roll you want to edit in the select menu below.");
+        .setContent("Your character is currently rolling in one or more intercharacter rolls. To edit an intercharacter, please select the roll you want to edit in the select menu below. To create a new intercharacter roll, click the 'Create Roll' button, and to delete an intercharacter roll, click the 'Delete Roll' button.");
 
       container.addTextDisplayComponents(rollingTextDisplay);
 
@@ -93,6 +93,13 @@ module.exports = {
       .setEmoji('❤️')
       .setStyle(ButtonStyle.Secondary);
 
+    // Delete button that only shows if there are existing intercharacter rolls
+    const deleteButton = new ButtonBuilder()
+      .setCustomId('intercharacter-roll-delete-button')
+      .setLabel('Delete Roll')
+      .setEmoji('🗑️')
+      .setStyle(ButtonStyle.Secondary);
+
     // Create the button to cancel and return to the character manager
     const cancelButton = new ButtonBuilder()
       .setCustomId('character-manager-return-button')
@@ -101,7 +108,13 @@ module.exports = {
 
     // Create the action row for the buttons
     const actionRow = new ActionRowBuilder()
-      .setComponents(createButton, cancelButton);
+      .addComponents(createButton)
+
+    if (intercharacterRolls.length > 0) {
+      actionRow.addComponents(deleteButton);
+    }
+
+    actionRow.addComponents(cancelButton);
 
     container.addActionRowComponents(actionRow);
 

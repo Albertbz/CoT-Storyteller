@@ -2257,6 +2257,31 @@ async function updateRecruitmentPost() {
   return { components: [returnContainer], flags: MessageFlags.IsComponentsV2 };
 }
 
+async function removeRelationshipFromDatabase(storyteller, relationship) {
+  const relationshipNotRemovedEmbed = new EmbedBuilder()
+    .setTitle('Relationship Not Removed')
+    .setColor(COLORS.RED);
+
+  if (!relationship) {
+    const relationshipNotRemovedEmbed = new EmbedBuilder()
+      .setTitle('Relationship Not Removed')
+      .setDescription('Relationship does not exist in the database.')
+      .setColor(COLORS.RED);
+    return { relationship: null, embed: relationshipNotRemovedEmbed };
+  }
+
+  const relationshipLogInfo = await relationship.logInfo;
+
+  await relationship.destroy();
+
+  await postInLogChannel(
+    'Relationship Removed',
+    `**Removed by: ${userMention(storyteller.id)}**\n\n` +
+    `${relationshipLogInfo}`,
+    COLORS.RED
+  );
+}
+
 async function postInLogChannel(title, description, color) {
   const logEmbed = new EmbedBuilder()
     .setTitle(title)
@@ -2297,5 +2322,6 @@ module.exports = {
   assignSteelbearerToRegion,
   syncMemberRolesWithCharacter,
   updateRecruitmentPost,
+  removeRelationshipFromDatabase,
   COLORS
 }; 

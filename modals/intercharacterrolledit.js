@@ -52,6 +52,11 @@ async function intercharacterRollEditConfirm(interaction, roll, newBearingCharac
   const bearingCharacterPlayer = await (await updatedRelationship.getBearingCharacter()).getPlayer();
   const conceivingCharacterPlayer = await (await updatedRelationship.getConceivingCharacter()).getPlayer();
 
+  if (!bearingCharacterPlayer || !conceivingCharacterPlayer) {
+    // If either character does not have a player (for example if they are a playable child), skip this step
+    return;
+  }
+
   const otherPlayer = bearingCharacterPlayer.id === interaction.user.id ? conceivingCharacterPlayer : bearingCharacterPlayer;
   // const otherUser = await interaction.client.users.fetch(otherPlayer.id);
   const otherUser = await interaction.client.users.fetch('249586641402986497'); // TEMPORARY HARDCODED USER ID FOR TESTING - REPLACE WITH OTHER PLAYER ID WHEN DONE TESTING
@@ -75,7 +80,7 @@ async function intercharacterRollEditConfirm(interaction, roll, newBearingCharac
   }
   catch (error) {
     console.error(`Could not send intercharacter roll edit notification to other player: ${error}`);
-    await interaction.followUp({ content: 'There was an error sending a DM to the other player for confirmation. This may be because they have DMs disabled. However, the intercharacter roll has been updated.', flags: [MessageFlags.Ephemeral] });
+    await interaction.followUp({ content: 'There was an error sending a notification about the edit to the other player. This may be because they have DMs disabled. However, the intercharacter roll has been updated.', flags: [MessageFlags.Ephemeral] });
   }
 
   return;
@@ -112,8 +117,19 @@ module.exports = {
     });
 
     if (!roll) {
-      return interaction.reply({ content: 'The intercharacter roll you are trying to edit does not exist. Please try again.', flags: [MessageFlags.Ephemeral] });
+      return interaction.followUp({ content: 'The intercharacter roll you are trying to edit does not exist. Please try again.', flags: [MessageFlags.Ephemeral] });
     }
+
+    // Check if anything is actually changing, and if not, return a message saying so
+    if (
+      roll.bearingCharacterId === bearingCharacterId &&
+      roll.conceivingCharacterId === conceivingCharacterId &&
+      roll.isCommitted === committed &&
+      roll.inheritedTitle === inheritedTitle
+    ) {
+      return interaction.followUp({ content: 'No changes were provided to the intercharacter roll. Please make some changes before submitting.', flags: [MessageFlags.Ephemeral] });
+    }
+
 
     // Ask for confirmation
     return askForConfirmation(
