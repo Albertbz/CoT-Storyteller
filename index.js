@@ -115,6 +115,13 @@ for (const file of stringSelectMenuFiles) {
   }
 }
 
+client.once('ready', async () => {
+  // Check death posts that may have passed post time while bot was offline
+  await checkDeathPosts(client);
+});
+
+
+
 /**
  * Daily update of recruitment post
  */
