@@ -111,7 +111,7 @@ PlayableChildren.belongsTo(Characters, { foreignKey: 'characterId', as: 'charact
 
 Players.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 
-DeathPosts.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
+DeathPosts.belongsTo(Deceased, { foreignKey: 'characterId', as: 'character' });
 
 
 module.exports = { Players, Characters, Houses, Recruitments, Regions, Duchies, Vassals, Steelbearers, VassalSteelbearers, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths };

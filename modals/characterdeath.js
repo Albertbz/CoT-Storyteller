@@ -68,7 +68,7 @@ async function finalDeathConfirm(interaction, day, month, year, cause, note) {
     await interaction.followUp({ content: 'There was an error marking your character as deceased. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
     return;
   }
-  const { postAdded } = await addDeathPostToDatabase( { characterId: character.id, note: postNote });
+  const { postAdded, embed: postAddedEmbed } = await addDeathPostToDatabase( { characterId: character.id, note: postNote });
   if (!postAdded) {
     await interaction.followUp({ content: 'There was an error adding your Graveyard post. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
     return;

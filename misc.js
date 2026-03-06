@@ -2212,16 +2212,20 @@ async function addDeathPostToDatabase({ characterId, note } = {}) {
     post = await DeathPosts.create({
       characterId: characterId,
       note: note,
-      posted: false,
       scheduledPostTime: Date(now() + (2 * 60 * 60 * 1000)), // adds 2 hours
-      createdTime: Date(now())
     });
+
+  await postInLogChannel(
+    'Death Post Created',
+    `Death Post for ${characterId} created. Scheduled to be posted at ${Date(now() + (2 * 60 * 60 * 1000))} `,
+    COLORS.GREEN
+  )
   }
   catch (error) {
     console.log(error);
-    postdNotCreatedEmbed
+    postNotCreatedEmbed
       .setDescription('An error occurred while trying to create death post: ' + error.message);
-    return { postAdded: null };
+    return { postAdded: null, embed: postNotCreatedEmbed };
   }
 }
 

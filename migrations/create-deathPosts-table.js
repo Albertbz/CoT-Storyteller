@@ -14,7 +14,7 @@ module.exports = {
                 type: Sequelize.UUID,
                 allowNull: false,
                 references: {
-                    model: 'players',
+                    model: 'deceased',
                     key: 'id'
                 },
                 onDelete: 'CASCADE'
@@ -23,20 +23,10 @@ module.exports = {
                 type: Sequelize.TEXT,
                 allowNull: false
             },
-            posted: {
-                type: Sequelize.BOOLEAN,
-                allowNull: false,
-                defaultValue: false
-            },
             scheduledPostTime: {
-                type: Sequelize.DATE,
+                type: Sequelize.TIME,
                 allowNull: false
             },
-            createdAt: {
-                allowNull: false,
-                type: Sequelize.DATE,
-                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
-              },
         });
     },
 
