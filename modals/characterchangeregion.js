@@ -49,7 +49,7 @@ async function changeHouseConfirm(interaction, character, regionId) {
   await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 
   // Update the character's region in the database
-  const { character: updatedCharacter, embed } = await changeCharacterInDatabase(interaction.user.id, character, true, { newRegionId: regionId });
+  const { character: updatedCharacter, embed } = await changeCharacterInDatabase(interaction.user, character, true, { newRegionId: regionId });
   if (!updatedCharacter) {
     await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
     return;
