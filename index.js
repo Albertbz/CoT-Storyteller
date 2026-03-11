@@ -180,6 +180,10 @@ cron.schedule('0 * * * *', async () => {
     console.log('Scheduled spreadsheet sync complete.');
   }
   catch (error) {
+    if (error.message.includes('TimeoutError')) {
+      console.log('Spreadsheet sync timed out.');
+      return;
+    }
     console.error('Error during scheduled spreadsheet sync:', error);
   }
 }, {

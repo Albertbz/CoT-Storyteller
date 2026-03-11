@@ -621,10 +621,12 @@ module.exports = {
 
         choices = children.map(child => {
           const parentNames = []
-          parentNames.push(child.character.parent1.name)
+          if (child.character.parent1) {
+            parentNames.push(child.character.parent1.name.substring(0, 30));
+          }
 
           if (child.character.parent2) {
-            parentNames.push(child.character.parent2.name.substring(0, 30))
+            parentNames.push(child.character.parent2.name.substring(0, 30));
           }
 
           return ({

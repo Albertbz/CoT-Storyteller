@@ -473,10 +473,74 @@ async function getIntercharacterRollLabels(character1, character2, { bearingChar
   return { bearingLabel, marriedLabel, inheritTitlesLabel };
 }
 
+
+async function characterChangeRegionModal(character, { regionId = null } = {}) {
+  const modal = new ModalBuilder()
+    .setCustomId('character-change-region-modal')
+    .setTitle('Change Region of Character');
+
+
+  /**
+   * Create a textdisplay to have the name of the character and some information
+   */
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing the region of your character, **${character.name}**.\n` +
+      `Changing your character's region will also change their house to the house that rules that region, and may also change their social class.`
+    )
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  /**
+   * Create a select menu to specify which region the character should be 
+   * changed to, prefilled with the character's current region
+   */
+  const guild = await client.guilds.fetch(guildId);
+  const guildEmojis = await guild.emojis.fetch();
+  const regions = await Regions.findAll({ include: { model: Houses, as: 'rulingHouse' } });
+  const regionOptions = regions.map(region => {
+    const selectMenuOption = new StringSelectMenuOptionBuilder()
+      .setLabel(region.name === 'Wanderer' ? 'None' : region.name)
+      .setValue(region.id)
+      .setDescription(`${region.name === 'Wanderer' ? 'Your character will be a wanderer' : 'House ' + region.rulingHouse.name}`);
+
+    // Find emoji for this region's ruling house
+    if (region.rulingHouse) {
+      const emoji = guildEmojis.find(e => e.name === region.rulingHouse.emojiName);
+      if (emoji) {
+        selectMenuOption.setEmoji(emoji.toString());
+      }
+    }
+
+    // If a region ID was provided and matches this region, pre-select this option
+    if (regionId && region.id === regionId) {
+      selectMenuOption.setDefault(true);
+    }
+
+    return selectMenuOption;
+  });
+
+  const regionInput = new StringSelectMenuBuilder()
+    .setCustomId('character-change-region-select')
+    .setPlaceholder('Select a new region for your character')
+    .setRequired(true)
+    .addOptions(regionOptions);
+
+  const regionLabel = new LabelBuilder()
+    .setLabel('Which region is the character to change to?')
+    .setDescription('This determines your character\'s house.')
+    .setStringSelectMenuComponent(regionInput);
+
+  modal.addLabelComponents(regionLabel);
+
+  return modal;
+}
+
 module.exports = {
   characterCreateModal,
   finalDeathModal,
   characterSurnameModal,
   intercharacterRollCreateModal,
-  intercharacterRollEditModal
+  intercharacterRollEditModal,
+  characterChangeRegionModal
 }

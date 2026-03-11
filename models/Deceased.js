@@ -1,5 +1,3 @@
-const { format } = require("sequelize/lib/utils");
-
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('deceased', {
     id: {
