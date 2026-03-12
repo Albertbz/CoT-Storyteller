@@ -4,8 +4,25 @@ const { Players, Characters } = require('../dbObjects.js');
 const { askForConfirmation } = require('../helpers/confirmations.js');
 
 async function characterPveDeathConfirm(interaction) {
+  
+ 
   // Defer the update to allow time to process
   await interaction.deferUpdate();
+
+  const player = await Players.findByPk(interaction.user.id);
+  const character = await player.getCharacter();
+
+  if ((date(now) - (date(player.createdAt))) <= 259200000) {
+    const container = new ContainerBuilder()
+      .addTextDisplayComponents((textDisplay) =>
+        textDisplay.setContent(
+          `# PvE death mitigated\n` +
+          `PvE deaths within the first 3 days of server playtime do not count towards your first character\n` +
+          `You can continue to manage your character using the Character Manager GUI above.`
+        )
+      );
+  return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  }
 
   /**
    * Notify the user of death change in progress
@@ -23,8 +40,7 @@ async function characterPveDeathConfirm(interaction) {
   /**
    * Update the character PvE death count in DB
    */
-  const player = await Players.findByPk(interaction.user.id);
-  const character = await player.getCharacter();
+  
   const addedpvedeath = character.pveDeaths + 1
   const { character: changedCharacter, embed: _ } = await changeCharacterInDatabase(interaction.user, character, true, { newPveDeaths: addedpvedeath });
   if (!changedCharacter) {
