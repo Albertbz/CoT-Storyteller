@@ -66,7 +66,9 @@ async function playerTimeCheck(interaction) {
           `You can continue to manage your character using the Character Manager GUI above.`
         )
       );
-    return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+
+    return { playerTimeCheck : true }
     }
   else {
     return { playerTimeCheck : false }
@@ -81,9 +83,8 @@ module.exports = {
     // Defer the update to allow time to process
     await interaction.deferUpdate();
     // Check player account time
-    await playerTimeCheck(interaction);
-
-    if (playerTimeCheck(interaction).playerTimeCheck === false) {
+    const check = await playerTimeCheck(interaction);
+    if (check === false) {
     // Ask for confirmation
     return askForConfirmation(
       interaction,

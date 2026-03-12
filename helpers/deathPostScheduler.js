@@ -112,10 +112,10 @@ function cancelPost(characterID) {
             console.log(`No death post found for character ${characterID}`);
             return false;
         }
-    const timeoutId = timeouts.get(characterID.toString());
+    const timeoutId = timeouts.get(deathPost.id.toString());
     if (timeoutId) {
         clearTimeout(timeoutId);
-        timeouts.delete(characterID.toString());
+        timeouts.delete(deathPost.id.toString());
         await post.destroy();
         console.log(`Cancelled and deleted death post for ${characterID}`);
     }

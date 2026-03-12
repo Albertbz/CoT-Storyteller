@@ -10,7 +10,7 @@ module.exports = {
                 unique: true,
                 defaultValue: Sequelize.UUIDV4
             },
-            deceased: {
+            deceasedId: {
                 type: Sequelize.UUID,
                 allowNull: false,
                 references: {
