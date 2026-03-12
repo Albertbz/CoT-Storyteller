@@ -8,13 +8,14 @@ module.exports = {
     // When a member leaves, then if they were playing a character, note it in
     // the storyteller log and set the character as deceased in the database.
     try {
-      const player = await Players.findByPk(member.id);
+      console.log(`Member ${member.user} has left the server.`);
+      const player = await Players.findByPk(member.user.id);
       if (player) {
         const character = await player.getCharacter();
         if (character) {
           await postInLogChannel(
             'Player Left Server',
-            `Player **${member.user.tag}** (ID: ${member.id}) has left the server.\n\n` +
+            `Player **${member.user}** (ID: ${member.user.id}) has left the server.\n\n` +
             `They were playing the character **${character.name}** (ID: ${character.id}).`,
             COLORS.RED
           );
@@ -22,7 +23,7 @@ module.exports = {
           const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
 
           // Set character as deceased
-          const { deceased, embed } = await addDeceasedToDatabase(client.application.id, false, { characterId: character.id, yearOfDeath: world.currentYear, monthOfDeath: 'January', dayOfDeath: 1, causeOfDeath: 'Left the continent', playedById: player.id })
+          const { deceased, embed } = await addDeceasedToDatabase(client.application.bot, false, { characterId: character.id, yearOfDeath: world.currentYear, monthOfDeath: 'January', dayOfDeath: 1, causeOfDeath: 'Left the continent', playedById: player.id })
           if (!deceased && character.socialClassName === 'Commoner') {
             // If character is commoner, delete them from the database
             await character.destroy();

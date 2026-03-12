@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, roleMention, EmbedBuilder, inlineCode, bold, ButtonBuilder, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, roleMention, EmbedBuilder, inlineCode, bold, ButtonBuilder, ActionRowBuilder, time, TimestampStyles, ContainerBuilder } = require('discord.js');
 const { roles } = require('../../configs/ids.json');
-const { postInLogChannel, addDeceasedToDatabase } = require('../../misc.js');
+const { postInLogChannel, addDeceasedToDatabase, changePlayerInDatabase } = require('../../misc.js');
 const { Players, Characters, Deceased, Worlds } = require('../../dbObjects.js');
 
 
@@ -57,7 +57,7 @@ module.exports = {
     const currentDate = new Date();
     const cutoffDate = new Date(currentDate);
     cutoffDate.setDate(cutoffDate.getDate() - 45);
-    messageLines.push(`Cutoff Date (45 days ago): ${inlineCode(cutoffDate.toISOString().split('T')[0])}`);
+    messageLines.push(`Cutoff Date (45 days ago): ${time(cutoffDate, TimestampStyles.FullDateShortTime)}`);
     console.log(`Cutoff Date (45 days ago): ${cutoffDate.toISOString().split('T')[0]}`);
 
     // Log number of entries in files for comparison
@@ -138,21 +138,28 @@ module.exports = {
       ]
     });
 
-    const currentlyPlayingPlayers = filteredWhitelistedPlayers.filter(player => {
+    const playersInDatabase = filteredWhitelistedPlayers.filter(player => {
       return players.some(dbPlayer => dbPlayer.ign === player.LastKnownPlayername);
     });
 
     // Make attachment of all VS usernames whose characters need to be removed from sheets
-    const characterRemovalUsernames = currentlyPlayingPlayers.map(player => player.LastKnownPlayername);
-    const characterRemovalAttachment = {
-      attachment: Buffer.from(characterRemovalUsernames.join('\n'), 'utf-8'),
-      name: 'character_removal_usernames.txt'
+    const charactersToProcess = [];
+    for (const player of playersInDatabase) {
+      const dbPlayer = players.find(dbP => dbP.ign === player.LastKnownPlayername);
+      const character = await dbPlayer.getCharacter();
+      if (character) {
+        charactersToProcess.push(`${character.name} (${character.id})`);
+      }
+    }
+    const charactersProcessedAttachment = {
+      attachment: Buffer.from(charactersToProcess.join('\n'), 'utf-8'),
+      name: 'characters_processed.txt'
     };
 
 
     // Log the currently playing players
-    messageLines.push(`Members found in database: ${inlineCode(currentlyPlayingPlayers.length)}`);
-    console.log(`Members found in database: ${currentlyPlayingPlayers.length}`);
+    messageLines.push(`Members found in database: ${inlineCode(playersInDatabase.length)}`);
+    console.log(`Members found in database: ${playersInDatabase.length}`);
 
 
     // Filter out those players from the filtered whitelist list that are in the
@@ -161,7 +168,7 @@ module.exports = {
     // to playersToUpdate list
     const affectedMembers = [];
     const playersToUpdate = [];
-    for (const player of currentlyPlayingPlayers) {
+    for (const player of playersInDatabase) {
       const dbPlayer = players.find(dbP => dbP.ign === player.LastKnownPlayername);
       if (dbPlayer) {
         affectedMembers.push({ id: dbPlayer.id, ign: player.LastKnownPlayername });
@@ -224,6 +231,8 @@ module.exports = {
       });
       if (matchingMessage) {
         const userId = matchingMessage.embeds[0].fields[0].value.split('`')[1].split('`')[0];
+        const dbPlayer = await Players.findByPk(userId);
+        await changePlayerInDatabase(interaction.user, dbPlayer, { newIgn: player.LastKnownPlayername });
         affectedMembers.push({ id: userId, ign: player.LastKnownPlayername });
       }
       else {
@@ -293,6 +302,16 @@ module.exports = {
       name: 'members_set_to_new_member.txt'
     };
 
+    const container = new ContainerBuilder()
+      .addTextDisplayComponents((textDisplay) =>
+        textDisplay.setContent(
+          `### You have been unwhitelisted from Chronicles of Time for being inactive for over 45 days.\n` +
+          `Hi! This is an automated message to let you know that you have been unwhitelisted from Chronicles of Time for being inactive for over 45 days. This means that your access to the Vintage Story server has been removed, and if you were playing a character, that character has been marked as having left the continent, and marked as dead from a technical standpoint.\n\n` +
+          `If you wish to return to the server and play again, please make a new whitelist application in <#1327943418680184835> - we would love to have you back! If you have any questions, please also feel free to reach out to a member of staff in <#1369527086015971340>.`
+        )
+      )
+
+    const message = { components: [container], flags: [MessageFlags.IsComponentsV2] };
 
     if (!dryRun) {
       // Make a button to confirm proceeding with role changes and database updates
@@ -341,8 +360,17 @@ module.exports = {
                 await memberDetail.member.roles.set([roles.newMember, roles.banned]);
               }
               else {
+                // Send a message to the member to let them know that they have been
+                // unwhitelisted
                 await memberDetail.member.roles.set([roles.newMember]);
+                try {
+                  await memberDetail.member.send(message);
+                }
+                catch (error) {
+                  console.log(`Could not send DM to ${memberDetail.member.id}. They may have DMs disabled.`);
+                }
               }
+
             }
           }
           catch (error) {
@@ -363,12 +391,10 @@ module.exports = {
             for (const player of playersToUpdate) {
               if (!player.character) continue;
 
-              const socialClassName = player.character.socialClassName;
-              if (socialClassName === 'Commoner') {
+              if (player.character.socialClassName === 'Commoner') {
                 // Delete the character
                 await player.character.destroy();
                 console.log(`Character ${player.character.name} deleted from database (Commoner).`);
-                // TODO: Consider also posting to log channel about character deletion
               }
               else {
                 // Make deceased by adding to the Deceased table and removing character link from player
@@ -407,6 +433,6 @@ module.exports = {
     // }
 
     // Edit the reply message with the final results
-    return replyMessage.edit({ content: messageLines.join('\n'), components: [], files: [whitelistRemovalAttachment, characterRemovalAttachment, newMemberAttachment] });
+    return replyMessage.edit({ content: messageLines.join('\n'), components: [], files: [whitelistRemovalAttachment, charactersProcessedAttachment, newMemberAttachment] });
   }
 }

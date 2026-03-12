@@ -439,8 +439,10 @@ async function syncSpreadsheetsToDatabase() {
     const causeOfDeathCell = deceasedSheet.getCell(i + 1, 4);
     const snowflakeCell = deceasedSheet.getCell(i + 1, 5);
 
+    const affiliation = deceased.character.region && deceased.character.region.name === 'Wanderer' ? deceased.character.region.name : deceased.character.house ? deceased.character.house.name : deceased.character.region.name;
+
     nameCell.value = deceased.character.name;
-    affiliationCell.value = deceased.character.house ? deceased.character.house.name : deceased.character.region.name;
+    affiliationCell.value = affiliation;
     dateOfDeathCell.value = deceased.dateOfDeath;
     ageOfDeathCell.value = deceased.yearOfDeath - deceased.character.yearOfMaturity;
     causeOfDeathCell.value = deceased.causeOfDeath;
