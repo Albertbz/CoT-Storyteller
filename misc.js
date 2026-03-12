@@ -2220,6 +2220,11 @@ async function updateRecruitmentPost() {
   let returnContainer = new ContainerBuilder();
 
   if (recruitmentPost) {
+    // Make sure it is unarchived if it was archived
+    if (recruitmentPost.archived) {
+      await recruitmentPost.setArchived(false);
+    }
+
     // If found recruitment post, simply update the starter message
     const starterMessage = await recruitmentPost.fetchStarterMessage();
     if (starterMessage) {
