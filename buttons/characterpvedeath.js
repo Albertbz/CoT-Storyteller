@@ -11,19 +11,6 @@ async function characterPveDeathConfirm(interaction) {
 
   const player = await Players.findByPk(interaction.user.id);
   const character = await player.getCharacter();
-
-  if ((date(now) - (date(player.createdAt))) <= 259200000) {
-    const container = new ContainerBuilder()
-      .addTextDisplayComponents((textDisplay) =>
-        textDisplay.setContent(
-          `# PvE death mitigated\n` +
-          `PvE deaths within the first 3 days of server playtime do not count towards your first character\n` +
-          `You can continue to manage your character using the Character Manager GUI above.`
-        )
-      );
-  return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
-  }
-
   /**
    * Notify the user of death change in progress
    */
@@ -65,12 +52,38 @@ async function characterPveDeathConfirm(interaction) {
   return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 }
 
+async function playerTimeCheck(interaction) {
+
+  const player = await Players.findByPk(interaction.user.id);
+  const character = await player.getCharacter();
+
+  if ((date(now) - (date(player.createdAt))) <= 259200000) {
+    const container = new ContainerBuilder()
+      .addTextDisplayComponents((textDisplay) =>
+        textDisplay.setContent(
+          `# PvE death mitigated\n` +
+          `PvE deaths within the first 3 days of server playtime do not count towards your first character\n` +
+          `You can continue to manage your character using the Character Manager GUI above.`
+        )
+      );
+    return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+  else {
+    return { playerTimeCheck : false }
+    }
+}
+  
+
+
 module.exports = {
   customId: 'character-pve-death-button',
   async execute(interaction) {
     // Defer the update to allow time to process
     await interaction.deferUpdate();
+    // Check player account time
+    await playerTimeCheck(interaction);
 
+    if (playerTimeCheck(interaction).playerTimeCheck === false) {
     // Ask for confirmation
     return askForConfirmation(
       interaction,
@@ -79,4 +92,5 @@ module.exports = {
       (interaction) => characterPveDeathConfirm(interaction)
     )
   }
+}
 }

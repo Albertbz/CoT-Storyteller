@@ -2237,7 +2237,7 @@ async function addDeathPostToDatabase({ characterId, note } = {}) {
       ))
     .setColor(COLORS.BLUE);
 
-  return { deceased, embed: deceasedCreatedEmbed };
+  return { postAdded, embed: deceasedCreatedEmbed };
 }
 
 module.exports = {
