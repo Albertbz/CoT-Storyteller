@@ -229,6 +229,11 @@ module.exports = {
               { name: 'Clockmakers', value: 'Clockmakers' }
             )
         )
+        .addChannelOption(option =>
+          option
+            .setName('generalchannel_new')
+            .setDescription('The new general channel for the region.')
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -1191,6 +1196,7 @@ module.exports = {
       const newRole1 = interaction.options.getString('role1_new');
       const newRole2 = interaction.options.getString('role2_new');
       const newRole3 = interaction.options.getString('role3_new');
+      const newGeneralChannel = interaction.options.getChannel('generalchannel_new');
 
       const region = await Regions.findByPk(regionId);
 
@@ -1204,7 +1210,8 @@ module.exports = {
           newRulingHouseId: newRulingHouseId,
           newRole1: newRole1,
           newRole2: newRole2,
-          newRole3: newRole3
+          newRole3: newRole3,
+          newGeneralChannelId: newGeneralChannel ? newGeneralChannel.id : null
         });
 
         await interaction.editReply({ embeds: [regionChangedEmbed], flags: MessageFlags.Ephemeral });

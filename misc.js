@@ -1327,7 +1327,7 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
 }
 
 
-async function changeRegionInDatabase(storyteller, region, { newRoleId = null, newRulingHouseId = null, newRole1 = null, newRole2 = null, newRole3 = null } = {}) {
+async function changeRegionInDatabase(storyteller, region, { newRoleId = null, newRulingHouseId = null, newRole1 = null, newRole2 = null, newRole3 = null, newGeneralChannelId = null } = {}) {
   const regionNotChangedEmbed = new EmbedBuilder()
     .setTitle('Region Not Changed')
     .setColor(COLORS.RED);
@@ -1344,6 +1344,7 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
   // Save all old and new values for the values that are changing
   if (newRoleId !== null && newRoleId !== region.roleId) newRegionValues.roleId = newRoleId; oldRegionValues.roleId = region.roleId;
   if (newRulingHouseId !== null && newRulingHouseId !== region.rulingHouseId) newRegionValues.rulingHouseId = newRulingHouseId; oldRegionValues.rulingHouseId = region.rulingHouseId;
+  if (newGeneralChannelId !== null && newGeneralChannelId !== region.generalChannelId) newRegionValues.generalChannelId = newGeneralChannelId; oldRegionValues.generalChannelId = region.generalChannelId;
 
   // Get recruitment entry for the region to check if recruitment roles are changing
   const recruitment = await region.getRecruitment();
@@ -1383,6 +1384,11 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
         const newHouse = await Houses.findByPk(newValue);
         logInfoChanges.push({ key: 'rulingHouse', oldValue: oldHouse ? `${inlineCode(oldHouse.name)} (${inlineCode(oldHouse.id)})` : '`-`', newValue: newHouse ? `${inlineCode(newHouse.name)} (${inlineCode(newHouse.id)})` : '`-`' });
         formattedInfoChanges.push({ key: '**Ruling House**', oldValue: oldHouse ? oldHouse.name : '-', newValue: newHouse ? newHouse.name : '-' });
+        break;
+      }
+      case 'generalChannelId': {
+        logInfoChanges.push({ key: 'generalChannel', oldValue: oldValue ? `<#${oldValue}> (${inlineCode(oldValue)})` : '`-`', newValue: newValue ? `<#${newValue}> (${inlineCode(newValue)})` : '`-`' });
+        formattedInfoChanges.push({ key: '**General Channel**', oldValue: oldValue ? `<#${oldValue}>` : '-', newValue: newValue ? `<#${newValue}>` : '-' });
         break;
       }
     }

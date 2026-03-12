@@ -22,6 +22,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.UUID,
       allowNull: true
     },
+    generalChannelId: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
     formattedInfo: {
       type: DataTypes.VIRTUAL,
       async get() {
