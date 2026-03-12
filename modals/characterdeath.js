@@ -60,10 +60,6 @@ async function finalDeathConfirm(interaction, day, month, year, cause, note) {
   const player = await Players.findByPk(interaction.user.id);
   const character = await player.getCharacter();
 
-  const postNote = (`${month} ${day}, Year ${year}\n` +
-    `${cause}\n` +
-    `${note}\n`)
-
   const { deceased, embed: deceasedCreatedEmbed } = await addDeceasedToDatabase(interaction.user, true, { characterId: character.id, yearOfDeath: year, monthOfDeath: month, dayOfDeath: day, causeOfDeath: cause, playedById: player.id });
   if (!deceased) {
     await interaction.followUp({ content: 'There was an error marking your character as deceased. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });

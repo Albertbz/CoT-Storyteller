@@ -2210,14 +2210,14 @@ async function addDeathPostToDatabase({ characterId, note } = {}) {
   let post = null;
   try {
     post = await DeathPosts.create({
-      characterId: characterId,
+      characterId: deceased.characterId,
       note: note,
       scheduledPostTime: Date(now() + (2 * 60 * 60 * 1000)), // adds 2 hours
     });
 
   await postInLogChannel(
     'Death Post Created',
-    `Death Post for ${characterId} created. Scheduled to be posted at ${Date(now() + (2 * 60 * 60 * 1000))} `,
+    `Death Post for ${characterId} created. Scheduled to be posted at ${time(new Date(now() + (2 * 60 * 60 * 1000)), TimestampStyles.LongDate) } `,
     COLORS.GREEN
   )
   }
@@ -2227,6 +2227,17 @@ async function addDeathPostToDatabase({ characterId, note } = {}) {
       .setDescription('An error occurred while trying to create death post: ' + error.message);
     return { postAdded: null, embed: postNotCreatedEmbed };
   }
+  const postCreatedEmbed = new EmbedBuilder()
+    .setTitle('Death Post Scheduled')
+    .setDescription((
+      `${deceased.characterId}\n` +
+      `${deceased.dayOfDeath} ${deceased.monthOfDeath}, Year ${deceased.yearOfDeath}/n` +
+      `${deceased.causeOfDeath}/n` +
+      `${post.note}`
+      ))
+    .setColor(COLORS.BLUE);
+
+  return { deceased, embed: deceasedCreatedEmbed };
 }
 
 module.exports = {

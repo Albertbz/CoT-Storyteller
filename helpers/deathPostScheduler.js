@@ -1,5 +1,5 @@
 const schedule = require('node-schedule');
-const { ContainerBuilder, MessageFlags } = require('discord.js');
+const { ContainerBuilder, MessageFlags, userMention } = require('discord.js');
 const { DeathPosts, Deceased } = require('../models');
 const { channels } = require('./configs/ids.json');
 const { Op } = require('sequelize');
@@ -35,7 +35,10 @@ async function sendPost(client, postId) {
             .addTextDisplayComponents((textDisplay) =>
                 textDisplay.setContent(
                     `${deceased.characterId}\n` +
-                    `${post.note}`
+                    `${deceased.dayOfDeath} ${deceased.monthOfDeath}, Year ${deceased.yearOfDeath}/n` +
+                    `${deceased.causeOfDeath}/n` +
+                    `${post.note}/n/n` +
+                    `${usermention(deceased.playedById)}`
                 )
             );
 
@@ -45,7 +48,7 @@ async function sendPost(client, postId) {
 
         await postInLogChannel(
             'Death Post Sent',
-            `Death Post for ${characterId} posted to <#${graveyard}>`,
+            `Death Post for ${characterId} posted to <#@${graveyard}>`,
             COLORS.GREEN
             )
 
@@ -77,7 +80,7 @@ async function schedulePost(client, deathPost) {
     console.log(`Scheduled death post ${deathPost.id}`);
 }
 
-async function checkDeathPosts(client) {
+async function initalizeDeathPosts(client) {
     try {
         const allPosts = await DeathPosts.findAll({
             include: [{
@@ -98,12 +101,23 @@ async function checkDeathPosts(client) {
 
 // Cancel a specific scheduled post by deceased character, not attached to anything yet. If needed, we can build this out
 function cancelPost(characterID) {
+        // Find the death post by characterId
+        const post = await DeathPosts.findOne({
+            where: {
+                characterId: characterID
+            }
+        });
+
+        if (!post) {
+            console.log(`No death post found for character ${characterID}`);
+            return false;
+        }
     const timeoutId = timeouts.get(characterID.toString());
     if (timeoutId) {
         clearTimeout(timeoutId);
         timeouts.delete(characterID.toString());
         await post.destroy();
-        console.log(`Cancelled and deleted death post for ${characterId}`);
+        console.log(`Cancelled and deleted death post for ${characterID}`);
     }
 }
 
