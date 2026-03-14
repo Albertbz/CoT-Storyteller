@@ -1,6 +1,6 @@
 const { MessageFlags } = require('discord.js');
 const { Players } = require('../dbObjects.js');
-const { getCharacterManagerContainer } = require('../helpers/managecharacter.js');
+const { getCharacterManagerContainer } = require('../helpers/containerCreator.js');
 
 module.exports = {
   customId: 'character-manager-return-button',
