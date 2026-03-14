@@ -1,6 +1,8 @@
-const { ContainerBuilder, ButtonBuilder, ButtonStyle, inlineCode } = require('discord.js');
+const { ContainerBuilder, ButtonBuilder, ButtonStyle, inlineCode, StringSelectMenuOptionBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const { PlayableChildren, Characters } = require('../dbObjects');
+const { Op } = require('sequelize');
 
-async function createManageCharacterContainer(character) {
+async function getCharacterManagerContainer(character) {
   const container = new ContainerBuilder()
 
   if (character) {
@@ -98,6 +100,69 @@ async function createManageCharacterContainer(character) {
   return container;
 }
 
+async function getOffspringManagerContainer(player) {
+  const container = new ContainerBuilder();
+
+  const offspring = await PlayableChildren.findAll({
+    where: {
+      [Op.or]: [
+        { contact1Snowflake: player.id },
+        { contact2Snowflake: player.id }
+      ]
+    },
+    include: {
+      model: Characters, as: `character`,
+      include: [
+        { model: Characters, as: `parent1` },
+        { model: Characters, as: `parent2` }
+      ]
+    }
+  })
+
+  if (offspring.length > 0) {
+    const offspringOptions = offspring.map((offspring) => {
+      const parentNames = [offspring.character.parent1, offspring.character.parent2]
+        .filter(parent => parent) // Filter out null parents
+        .map(parent => parent.name)
+        .join(' and ');
+      return new StringSelectMenuOptionBuilder()
+        .setLabel(offspring.character ? offspring.character.name : `Offspring ${offspring.id}`)
+        .setValue(offspring.id)
+        .setDescription(`${offspring.legitimacy} ${offspring.character.sex === `male` ? 'son' : 'daughter'} of ${parentNames}`)
+    });
+
+    container
+      .addTextDisplayComponents((textDisplay) =>
+        textDisplay.setContent(
+          `# Manage Offspring\n` +
+          `You are listed as a contact for the following offspring. Select the one that you would like to manage to continue.`
+        ))
+      .addActionRowComponents((actionRow) =>
+        actionRow.setComponents(
+          new ActionRowBuilder()
+            .setComponents(
+              new StringSelectMenuBuilder()
+                .setCustomId('offspring-manage-select')
+                .setPlaceholder('Select an offspring to manage')
+                .addOptions(offspringOptions)
+            )
+        )
+      );
+  }
+  else {
+    container
+      .addTextDisplayComponents((textDisplay) =>
+        textDisplay.setContent(
+          `# Manage Offspring\n` +
+          `You are not currently listed as a contact for any offspring. One of your characters must have had a child, or you must have adopted someone else's child in order to have offspring to manage.`
+        )
+      )
+  }
+
+  return container;
+}
+
 module.exports = {
-  createManageCharacterContainer
+  getCharacterManagerContainer,
+  getOffspringManagerContainer
 }

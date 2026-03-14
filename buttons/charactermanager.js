@@ -1,9 +1,9 @@
 const { MessageFlags } = require("discord.js");
 const { Players } = require("../dbObjects.js");
-const { createManageCharacterContainer } = require("../helpers/managecharacter.js");
+const { getCharacterManagerContainer } = require("../helpers/containerCreator.js");
 
 module.exports = {
-  customId: 'manage-character-button',
+  customId: 'character-manager-button',
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -18,7 +18,7 @@ module.exports = {
 
     const character = await player.getCharacter();
 
-    const container = await createManageCharacterContainer(character);
+    const container = await getCharacterManagerContainer(character);
 
     return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
