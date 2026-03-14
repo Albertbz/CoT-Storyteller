@@ -26,6 +26,9 @@ module.exports = {
 
     const formattedInfo = await offspring.formattedInfo;
 
+    const hasNobleOrRulerParent = (offspring.character.parent1 && (offspring.character.parent1.socialClassName === 'Noble' || offspring.character.parent1.socialClassName === 'Ruler')) ||
+      (offspring.character.parent2 && (offspring.character.parent2.socialClassName === 'Noble' || offspring.character.parent2.socialClassName === 'Ruler'));
+
     // Create the container for managing the selected offspring
     // First add a text display with the info about the offspring, then add
     // buttons to: change name, change region, legitimise, hide/unhide, 
@@ -56,9 +59,8 @@ module.exports = {
             .setLabel('Change Region/House')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('🏠'),
-          (offspring.character.parent1.socialClassName === 'Noble' || offspring.character.parent1.socialClassName === 'Ruler' ||
-            offspring.character.parent2.socialClassName === 'Noble' || offspring.character.parent2.socialClassName === 'Ruler') &&
-          offspring.character.legitimacy !== 'Illegitimate' &&
+          hasNobleOrRulerParent &&
+          (offspring.legitimacy !== 'Illegitimate') &&
           new ButtonBuilder()
             .setCustomId('offspring-change-inheritance:' + offspring.id)
             .setLabel('Change Inheritance')
