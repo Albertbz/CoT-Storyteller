@@ -1,14 +1,14 @@
 // Require the necessary discord.js classes
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, GatewayIntentBits } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
 const { token } = require('./configs/config.json');
 const { syncSpreadsheetsToDatabase } = require('./spreadsheetSync.js');
 const { updateRecruitmentPost } = require('./misc.js');
 const cron = require('node-cron');
 
 // Create a new client instance
-global.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent] });
+global.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent], partials: [Partials.GuildMember] });
 
 /**
  * Load commands
