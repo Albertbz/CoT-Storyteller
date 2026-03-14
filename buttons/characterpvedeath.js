@@ -56,7 +56,7 @@ async function playerTimeCheck(interaction) {
 
   const player = await Players.findByPk(interaction.user.id);
   const character = await player.getCharacter();
-
+  // Check if player's account is less than 3 days old (1000ms x 60sec x 60min x 72hrs = 259200000 milliseconds)
   if ((date(now) - (date(player.createdAt))) <= 259200000) {
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
@@ -68,10 +68,10 @@ async function playerTimeCheck(interaction) {
       );
     await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 
-    return { playerTimeCheck : true }
+    return true 
     }
   else {
-    return { playerTimeCheck : false }
+    return false
     }
 }
   

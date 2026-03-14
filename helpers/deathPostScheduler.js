@@ -1,4 +1,3 @@
-const schedule = require('node-schedule');
 const { ContainerBuilder, MessageFlags, userMention } = require('discord.js');
 const { DeathPosts, Deceased } = require('../models');
 const { channels } = require('./configs/ids.json');
@@ -12,8 +11,7 @@ async function sendPost(client, postId) {
         const post = await DeathPosts.findByPk(postId, {
             include: [{
                 model: Deceased,
-                as: 'deceased',
-                required: true
+                as: 'deceased'
             }]
         });
 
@@ -85,8 +83,7 @@ async function initalizeDeathPosts(client) {
         const allPosts = await DeathPosts.findAll({
             include: [{
                 model: Deceased,
-                as: 'deceased',
-                required: true
+                as: 'deceased'
             }]
         });
 
@@ -100,7 +97,7 @@ async function initalizeDeathPosts(client) {
 }
 
 // Cancel a specific scheduled post by deceased character, not attached to anything yet. If needed, we can build this out
-function cancelPost(characterID) {
+async function cancelPost(characterID) {
         // Find the death post by characterId
         const post = await DeathPosts.findOne({
             where: {

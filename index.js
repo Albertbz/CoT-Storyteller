@@ -115,10 +115,6 @@ for (const file of stringSelectMenuFiles) {
   }
 }
 
-
-
-
-
 /**
  * Daily update of recruitment post
  */

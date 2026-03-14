@@ -1,6 +1,7 @@
 const { EmbedBuilder, userMention, inlineCode, MessageFlags, ContainerBuilder, TextDisplayBuilder, hyperlink, time, bold, italic, strikethrough, TimestampStyles, AttachmentBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts } = require('./dbObjects.js');
-const { roles, channels, guilds } = require('./configs/ids.json');
+const { roles, channels } = require('./configs/ids.json');
+const { guildId } = require('./configs/config.json');
 const { Op } = require('sequelize');
 
 const COLORS = {

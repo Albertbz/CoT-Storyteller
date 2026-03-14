@@ -15,16 +15,9 @@ module.exports = (sequelize, DataTypes) => {
         note: {
             type: DataTypes.TEXT
         },
-        posted: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false
-        },
         scheduledPostTime: {
             type: DataTypes.DATE,
             validate: {isDate: true}
-        },
-        createdTime: {
-            type: DataTypes.DATE
         },
 
         logInfo: {
@@ -36,7 +29,6 @@ module.exports = (sequelize, DataTypes) => {
                     `\n` +
                     `character: \`${character.name}\` (\`${character.id}\`)\n` +
                     `note: \`${this.note}\`\n` +
-                    `posted: \`${this.posted}\`\n` +
                     `scheduled: ${this.scheduledPostTime}`
                 );
             },
@@ -50,7 +42,6 @@ module.exports = (sequelize, DataTypes) => {
                 const character = await this.getCharacter();
                 return (`**Character**: \`${character.name}\` (\`${character.id}\`)\n` +
                     `**Final Note**: \`${this.note}\`\n` +
-                    `**Posted**: \`${this.posted}\`\n` +
                     `**Scheduled Post Time**: ${this.scheduledPostTime}`
                 );
             },

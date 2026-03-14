@@ -1,10 +1,11 @@
 const { Events } = require('discord.js');
+const { initializeDeathPosts } = require('../helpers/deathPostScheduler.js');
 
 module.exports = {
   name: Events.ClientReady,
   once: true,
-  execute(client) {
+  async execute(client) {
     console.log(`Ready! Logged in as ${client.user.tag}`);
-    await checkDeathPosts();
+    await initializeDeathPosts();
   },
 };
