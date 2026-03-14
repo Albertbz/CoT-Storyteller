@@ -34,6 +34,40 @@ module.exports = {
     // buttons to: change name, change region, legitimise, hide/unhide, 
     // change inheritance (social class) if either parent has socialClassName that is "Noble" 
     // or "Ruler"
+    const conditionalActionRow = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('offspring-change-name:' + offspring.id)
+          .setLabel('Change Name')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('✍️'),
+        new ButtonBuilder()
+          .setCustomId('offspring-change-region:' + offspring.id)
+          .setLabel('Change Region/House')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🏠'),
+      )
+
+    if (hasNobleOrRulerParent && (offspring.legitimacy !== 'Illegitimate')) {
+      conditionalActionRow.addComponents(
+        new ButtonBuilder()
+          .setCustomId('offspring-change-inheritance:' + offspring.id)
+          .setLabel('Change Inheritance')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('👑')
+      );
+    }
+
+    if (offspring.legitimacy === 'Illegitimate') {
+      conditionalActionRow.addComponents(
+        new ButtonBuilder()
+          .setCustomId('offspring-legitimise:' + offspring.id)
+          .setLabel('Legitimise')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('📜')
+      )
+    }
+
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
@@ -48,31 +82,7 @@ module.exports = {
         )
       )
       .addActionRowComponents(
-        new ActionRowBuilder().setComponents(
-          new ButtonBuilder()
-            .setCustomId('offspring-change-name:' + offspring.id)
-            .setLabel('Change Name')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('✍️'),
-          new ButtonBuilder()
-            .setCustomId('offspring-change-region:' + offspring.id)
-            .setLabel('Change Region/House')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('🏠'),
-          hasNobleOrRulerParent &&
-          (offspring.legitimacy !== 'Illegitimate') &&
-          new ButtonBuilder()
-            .setCustomId('offspring-change-inheritance:' + offspring.id)
-            .setLabel('Change Inheritance')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('👑'),
-          (offspring.legitimacy === 'Illegitimate') &&
-          new ButtonBuilder()
-            .setCustomId('offspring-legitimise:' + offspring.id)
-            .setLabel('Legitimise')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('📜')
-        ),
+        conditionalActionRow,
 
         new ActionRowBuilder().setComponents(
           new ButtonBuilder()
