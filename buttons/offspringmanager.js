@@ -6,7 +6,7 @@ module.exports = {
   customId: 'offspring-manager-button',
   async execute(interaction) {
     // Defer update to give time to process
-    await interaction.deferUpdate();
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     // Get player that invoked the interaction
     const player = await Players.findByPk(interaction.user.id);

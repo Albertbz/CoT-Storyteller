@@ -137,16 +137,14 @@ async function getOffspringManagerContainer(player) {
           `# Manage Offspring\n` +
           `You are listed as a contact for the following offspring. Select the one that you would like to manage to continue.`
         ))
-      .addActionRowComponents((actionRow) =>
-        actionRow.setComponents(
-          new ActionRowBuilder()
-            .setComponents(
-              new StringSelectMenuBuilder()
-                .setCustomId('offspring-manage-select')
-                .setPlaceholder('Select an offspring to manage')
-                .addOptions(offspringOptions)
-            )
-        )
+      .addActionRowComponents(
+        new ActionRowBuilder()
+          .setComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId('offspring-manage-select')
+              .setPlaceholder('Select an offspring to manage')
+              .addOptions(offspringOptions)
+          )
       );
   }
   else {
