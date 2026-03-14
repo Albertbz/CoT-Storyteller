@@ -1,5 +1,5 @@
 const { ContainerBuilder, inlineCode, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require("discord.js");
-const { Players, PlayableChildren } = require("../dbObjects");
+const { Players, PlayableChildren, Characters } = require("../dbObjects");
 
 module.exports = {
   customId: 'offspring-manage-select',
