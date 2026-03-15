@@ -8,7 +8,7 @@ module.exports = (sequelize, DataTypes) => {
             unique: true,
             defaultValue: DataTypes.UUIDV4
         },
-        characterId: {
+        deceasedId: {
             type: DataTypes.UUID,
             unique: true
         },
@@ -23,7 +23,7 @@ module.exports = (sequelize, DataTypes) => {
         logInfo: {
             type: DataTypes.VIRTUAL,
             async get() {
-                const character = await this.getCharacter();
+                const character = await this.getDeceased();
                 return (
                     `id: \`${this.id}\`\n` +
                     `\n` +

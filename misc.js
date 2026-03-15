@@ -2207,11 +2207,11 @@ function ageToFertilityModifier(age) {
 }
 
 async function addDeathPostToDatabase({ characterId, note } = {}) {
-
+  const deceased = await this.getDeceased();
   let post = null;
   try {
     post = await DeathPosts.create({
-      characterId: deceased.characterId,
+      deceasedId: deceased.id,
       note: note,
       scheduledPostTime: Date(now() + (2 * 60 * 60 * 1000)), // adds 2 hours
     });
