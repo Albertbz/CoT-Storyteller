@@ -2310,39 +2310,46 @@ function ageToFertilityModifier(age) {
   if (age < 5) return 1;
 }
 
-async function addDeathPostToDatabase({ characterId, note } = {}) {
-  const deceased = await this.getDeceased();
-  let post = null;
+async function addDeathPostToDatabase(deceased, note) {
+  const postNotCreatedEmbed = new EmbedBuilder()
+    .setTitle('Death Post Not Created')
+    .setColor(COLORS.RED);
+
+  let deathPost = null;
   try {
-    post = await DeathPosts.create({
+    deathPost = await DeathPosts.create({
       deceasedId: deceased.id,
       note: note,
-      scheduledPostTime: Date(now() + (2 * 60 * 60 * 1000)), // adds 2 hours
+      // scheduledPostTime: Date.now() + (2 * 60 * 60 * 1000), // adds 2 hours
+      scheduledPostTime: Date.now() + (2 * 60 * 1000), // TEMPORARY: adds 2 minutes for testing
     });
 
-  await postInLogChannel(
-    'Death Post Created',
-    `Death Post for ${characterId} created. Scheduled to be posted at ${time(new Date(now() + (2 * 60 * 60 * 1000)), TimestampStyles.LongDate) } `,
-    COLORS.GREEN
-  )
+    const character = await deceased.getCharacter();
+    await postInLogChannel(
+      'Death Post Created',
+      `Death Post for ${character.name} (\`${character.id}\`) created. Scheduled to be posted ${time(new Date(deathPost.scheduledPostTime), TimestampStyles.LongDateShortTime)}.`,
+      COLORS.GREEN
+    )
   }
   catch (error) {
     console.log(error);
     postNotCreatedEmbed
       .setDescription('An error occurred while trying to create death post: ' + error.message);
-    return { postAdded: null, embed: postNotCreatedEmbed };
+    return { deathPost: null, embed: postNotCreatedEmbed };
   }
+
+
   const postCreatedEmbed = new EmbedBuilder()
-    .setTitle('Death Post Scheduled')
+    .setTitle('Death Post Created')
     .setDescription((
       `${deceased.characterId}\n` +
-      `${deceased.dayOfDeath} ${deceased.monthOfDeath}, Year ${deceased.yearOfDeath}/n` +
-      `${deceased.causeOfDeath}/n` +
-      `${post.note}`
-      ))
+      `${deceased.dayOfDeath} ${deceased.monthOfDeath}, Year ${deceased.yearOfDeath}\n` +
+      `${deceased.causeOfDeath}\n` +
+      `${deathPost.note}`
+    ))
     .setColor(COLORS.BLUE);
 
-  return { postAdded, embed: deceasedCreatedEmbed };
+  return { deathPost: deathPost, embed: postCreatedEmbed };
 }
 
 module.exports = {

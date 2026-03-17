@@ -3,7 +3,7 @@ const { addDeceasedToDatabase, addDeathPostToDatabase } = require('../misc.js');
 const { Players } = require('../dbObjects');
 const { askForConfirmation } = require('../helpers/confirmations');
 const { finalDeathModal } = require('../helpers/modalCreator.js');
-const { schedulePost } = reqire('../helpers/deathPostScheduler.js')
+const { schedulePost } = require('../helpers/deathPostScheduler.js')
 
 module.exports = {
   customId: 'character-death-modal',
@@ -65,12 +65,12 @@ async function finalDeathConfirm(interaction, day, month, year, cause, note) {
     await interaction.followUp({ content: 'There was an error marking your character as deceased. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
     return;
   }
-  const { postAdded, embed: postAddedEmbed } = await addDeathPostToDatabase( { characterId: character.id, note: postNote });
-  if (!postAdded) {
+  const { deathPost, embed: postCreatedEmbed } = await addDeathPostToDatabase(deceased, note);
+  if (!deathPost) {
     await interaction.followUp({ content: 'There was an error adding your Graveyard post. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
     return;
   }
-  await schedulePost(client, deathPost);
+  await schedulePost(deathPost);
 
   /**
    * Notify the user of successful character death

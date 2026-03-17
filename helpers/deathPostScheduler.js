@@ -1,17 +1,20 @@
 const { ContainerBuilder, MessageFlags, userMention } = require('discord.js');
-const { DeathPosts, Deceased } = require('../models');
-const { channels } = require('./configs/ids.json');
-const { Op } = require('sequelize');
-
+const { DeathPosts, Deceased, Characters } = require('../dbObjects');
+const { channels } = require('../configs/ids.json');
+const { postInLogChannel, COLORS } = require('../misc');
 
 const timeouts = new Map();
 
-async function sendPost(client, postId) {
+async function sendPost(postId) {
     try {
         const post = await DeathPosts.findByPk(postId, {
             include: [{
                 model: Deceased,
-                as: 'deceased'
+                as: 'deceased',
+                include: {
+                    model: Characters,
+                    as: 'character'
+                }
             }]
         });
 
@@ -20,11 +23,10 @@ async function sendPost(client, postId) {
             return;
         }
 
-        const deceased = post.deceased;
+        // const graveyardChannel = await client.channels.fetch(channels.graveyard);
+        const graveyardChannel = await client.channels.fetch('1465003174418055168'); // TEMPORARY for testing purposes
 
-        const graveyardChannel = await client.channels.fetch(graveyard);
-
-        if (!channel) {
+        if (!graveyardChannel) {
             console.error('Graveyard channel not found');
             return;
         }
@@ -32,23 +34,22 @@ async function sendPost(client, postId) {
         const container = new ContainerBuilder()
             .addTextDisplayComponents((textDisplay) =>
                 textDisplay.setContent(
-                    `${deceased.characterId}\n` +
-                    `${deceased.dayOfDeath} ${deceased.monthOfDeath}, Year ${deceased.yearOfDeath}/n` +
-                    `${deceased.causeOfDeath}/n` +
-                    `${post.note}/n/n` +
-                    `${usermention(deceased.playedById)}`
+                    `### ${post.deceased.character.name}\n` +
+                    `Passed away on ${post.deceased.dayOfDeath} ${post.deceased.monthOfDeath}, Year ${post.deceased.yearOfDeath}.\n` +
+                    // `${post.deceased.causeOfDeath}/n` + // I don't think we should show this, but we can easily add it back in if we want
+                    `> ${post.note}\n\n`
                 )
             );
 
-        await channel.send({
+        await graveyardChannel.send({
             components: [container], flags: [MessageFlags.IsComponentsV2]
         });
 
         await postInLogChannel(
-            'Death Post Sent',
-            `Death Post for ${characterId} posted to <#@${graveyard}>`,
+            'Death Post Posted',
+            `Death Post for ${post.deceased.character.name} (\`${post.deceased.character.id}\`) posted to ${graveyardChannel}.`,
             COLORS.GREEN
-            )
+        )
 
         await post.destroy();
 
@@ -60,67 +61,65 @@ async function sendPost(client, postId) {
 }
 
 
-async function schedulePost(client, deathPost) {
+async function schedulePost(deathPost) {
     const scheduledPostTime = new Date(deathPost.scheduledPostTime).getTime();
     const delay = scheduledPostTime - Date.now();
 
     if (delay <= 0) {
-        await sendPost(client, deathPost.id);
+        await sendPost(deathPost.id);
         return;
     }
 
     const timeoutId = setTimeout(async () => {
-        await sendPost(client, deathPost.id);
+        await sendPost(deathPost.id);
     }, delay);
 
     timeouts.set(deathPost.id.toString(), timeoutId);
-
-    console.log(`Scheduled death post ${deathPost.id}`);
 }
 
-async function initalizeDeathPosts(client) {
+async function initializeDeathPosts() {
     try {
         const allPosts = await DeathPosts.findAll({
-            include: [{
+            include: {
                 model: Deceased,
                 as: 'deceased'
-            }]
+            }
         });
 
         for (const post of allPosts) {
-            await schedulePost(client, post);
+            await schedulePost(post);
         }
-  
+
     } catch (error) {
         console.error('Error initializing death posts:', error);
     }
 }
 
 // Cancel a specific scheduled post by deceased character, not attached to anything yet. If needed, we can build this out
-async function cancelPost(characterID) {
-        // Find the death post by characterId
-        const post = await DeathPosts.findOne({
-            where: {
-                characterId: characterID
-            }
-        });
+// async function cancelPost(characterID) {
+//     // Find the death post by characterId
+//     const post = await DeathPosts.findOne({
+//         where: {
+//             characterId: characterID
+//         }
+//     });
 
-        if (!post) {
-            console.log(`No death post found for character ${characterID}`);
-            return false;
-        }
-    const timeoutId = timeouts.get(deathPost.id.toString());
-    if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeouts.delete(deathPost.id.toString());
-        await post.destroy();
-        console.log(`Cancelled and deleted death post for ${characterID}`);
-    }
-}
+//     if (!post) {
+//         console.log(`No death post found for character ${characterID}`);
+//         return false;
+//     }
+//     const timeoutId = timeouts.get(deathPost.id.toString());
+//     if (timeoutId) {
+//         clearTimeout(timeoutId);
+//         timeouts.delete(deathPost.id.toString());
+//         await post.destroy();
+//         console.log(`Cancelled and deleted death post for ${characterID}`);
+//     }
+// }
 
 module.exports = {
     sendPost,
     schedulePost,
-    checkDeathPosts,
-    cancelPost
+    initializeDeathPosts,
+    // cancelPost
 };

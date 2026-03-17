@@ -14,7 +14,7 @@ module.exports = {
                 type: Sequelize.UUID,
                 allowNull: false,
                 references: {
-                    model: 'deceased',
+                    model: 'deceaseds',
                     key: 'id'
                 },
                 onDelete: 'CASCADE'
@@ -27,6 +27,16 @@ module.exports = {
                 type: Sequelize.TIME,
                 allowNull: false
             },
+            createdAt: {
+                allowNull: false,
+                type: Sequelize.DATE,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+            },
+            updatedAt: {
+                allowNull: false,
+                type: Sequelize.DATE,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+            }
         });
     },
 

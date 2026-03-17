@@ -1,5 +1,3 @@
-const { format } = require("sequelize/lib/utils");
-
 module.exports = (sequelize, DataTypes) => {
     return sequelize.define('deathPosts', {
         id: {
@@ -17,9 +15,8 @@ module.exports = (sequelize, DataTypes) => {
         },
         scheduledPostTime: {
             type: DataTypes.DATE,
-            validate: {isDate: true}
+            validate: { isDate: true }
         },
-
         logInfo: {
             type: DataTypes.VIRTUAL,
             async get() {
