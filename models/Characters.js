@@ -218,6 +218,12 @@ module.exports = (sequelize, DataTypes) => {
       set(value) {
         throw new Error('Do not try to set the formattedInfo value!')
       }
+    },
+    livesUpdatedAt: {
+      type: DataTypes.DATE
+    },
+    houseUpdatedAt: {
+      type: DataTypes.DATE
     }
   }, {
     hooks: {

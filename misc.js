@@ -1011,7 +1011,7 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   if (newName !== null && newName !== character.name) newValues.name = newName; oldValues.name = character.name;
   if (newSex !== null && newSex !== character.sex) newValues.sex = newSex; oldValues.sex = character.sex;
   if (newRegionId !== null && newRegionId !== character.regionId) newValues.regionId = newRegionId; oldValues.regionId = character.regionId;
-  if (newHouseId !== null && newHouseId !== character.houseId) newValues.houseId = newHouseId; oldValues.houseId = character.houseId;
+  if (newHouseId !== null && newHouseId !== character.houseId) newValues.houseId = newHouseId; oldValues.houseId = character.houseId, newValues.houseUpdatedAt = Date.now();
   if (newSocialClassName !== null && newSocialClassName !== character.socialClassName) newValues.socialClassName = newSocialClassName; oldValues.socialClassName = character.socialClassName;
   if (newYearOfMaturity !== null && newYearOfMaturity !== character.yearOfMaturity) newValues.yearOfMaturity = newYearOfMaturity; oldValues.yearOfMaturity = character.yearOfMaturity;
   if (newYearOfCreation !== null && newYearOfCreation !== character.yearOfCreation) newValues.yearOfCreation = newYearOfCreation; oldValues.yearOfCreation = character.yearOfCreation;
