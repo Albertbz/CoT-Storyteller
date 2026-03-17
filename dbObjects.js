@@ -1,5 +1,6 @@
 const Sequelize = require('sequelize');
-const { guilds, roles } = require('./configs/ids.json');
+const { roles } = require('./configs/ids.json');
+const { guildId } = require('./configs/config.json');
 
 const sequelize = new Sequelize('database', 'user', 'password', {
   host: 'localhost',
@@ -49,6 +50,14 @@ VassalSteelbearers.belongsTo(Vassals, { foreignKey: 'vassalId', as: 'vassal' });
 VassalSteelbearers.belongsTo(Steelbearers, { foreignKey: 'steelbearerId', as: 'steelbearer' });
 
 
+// Add hook to remove playable child entry when character deleted (if they are also a playable child)
+Characters.addHook('afterDestroy', async (character, options) => {
+  const playableChild = await sequelize.models.playablechildren.findOne({ where: { characterId: character.id } });
+  if (playableChild) {
+    await playableChild.destroy();
+  }
+});
+
 // Add hook to update roles when steelbearer is destroyed
 Steelbearers.addHook('afterDestroy', async (steelbearer, options) => {
   const region = await sequelize.models.regions.findOne({ where: { id: steelbearer.regionId } });
@@ -57,7 +66,7 @@ Steelbearers.addHook('afterDestroy', async (steelbearer, options) => {
     if (character) {
       const player = await sequelize.models.players.findOne({ where: { characterId: character.id } });
       if (player) {
-        const guild = await client.guilds.fetch(guilds.cot);
+        const guild = await client.guilds.fetch(guildId);
         if (guild) {
           try {
             const member = await guild.members.fetch(player.id);

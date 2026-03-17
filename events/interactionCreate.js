@@ -79,8 +79,11 @@ module.exports = {
       }
     }
     else if (interaction.isModalSubmit()) {
+      // Get the base customId by splitting on colons
+      const baseCustomId = interaction.customId.split(':')[0];
+
       // Check whether a modal handler exists for this customId
-      const modalHandler = interaction.client.modals.get(interaction.customId);
+      const modalHandler = interaction.client.modals.get(baseCustomId);
 
       // If not, ignore modal and return
       if (!modalHandler) return;
@@ -107,6 +110,32 @@ module.exports = {
     else if (interaction.isStringSelectMenu()) {
       // Check whether a string select menu handler exists for this customId
       const selectMenuHandler = interaction.client.stringSelectMenus.get(interaction.customId);
+
+      // If not, ignore select menu and return
+      if (!selectMenuHandler) return;
+
+      // Otherwise, handle the select menu interaction
+      try {
+        await selectMenuHandler.execute(interaction);
+      }
+      catch (error) {
+        console.error(error);
+        try {
+          if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({ content: 'There was an error while executing this interaction!', flags: MessageFlags.Ephemeral });
+          } else {
+            await interaction.reply({ content: 'There was an error while executing this interaction!', flags: MessageFlags.Ephemeral });
+          }
+        }
+        catch (error) {
+          console.error(error);
+          return null;
+        }
+      }
+    }
+    else if (interaction.isUserSelectMenu()) {
+      // Check whether a user select menu handler exists for this customId
+      const selectMenuHandler = interaction.client.userSelectMenus.get(interaction.customId);
 
       // If not, ignore select menu and return
       if (!selectMenuHandler) return;

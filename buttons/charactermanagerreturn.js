@@ -1,6 +1,6 @@
 const { MessageFlags } = require('discord.js');
 const { Players } = require('../dbObjects.js');
-const { createManageCharacterContainer } = require('../helpers/managecharacter.js');
+const { getCharacterManagerContainer } = require('../helpers/containerCreator.js');
 
 module.exports = {
   customId: 'character-manager-return-button',
@@ -12,7 +12,7 @@ module.exports = {
     const player = await Players.findByPk(interaction.user.id);
     const character = await player.getCharacter();
 
-    const container = await createManageCharacterContainer(character);
+    const container = await getCharacterManagerContainer(character);
 
     return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }

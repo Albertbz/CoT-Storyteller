@@ -59,13 +59,13 @@ async function createCharacterManagerMessage() {
     .addActionRowComponents((actionRow) =>
       actionRow.setComponents(
         new ButtonBuilder()
-          .setCustomId('manage-character-button')
+          .setCustomId('character-manager-button')
           .setLabel('Character')
           .setStyle(ButtonStyle.Secondary)
           .setEmoji('👤')
         ,
         new ButtonBuilder()
-          .setCustomId('manage-offspring-button')
+          .setCustomId('offspring-manager-button')
           .setLabel('Offspring')
           .setStyle(ButtonStyle.Secondary)
           .setEmoji('👶')

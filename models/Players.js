@@ -1,3 +1,6 @@
+const { Hooks } = require("sequelize/lib/hooks");
+const { sendCharacterJoinMessage } = require("../helpers/messageSender");
+
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('players', {
     id: {
@@ -51,5 +54,22 @@ module.exports = (sequelize, DataTypes) => {
         throw new Error('Do not try to set the formattedInfo value!')
       }
     }
-  });
+  }, {
+    hooks: {
+      beforeUpdate: async (player, options) => {
+        // If character assignment is being changed, post in the character's
+        // region channel about the character joining
+        if (player.changed('characterId')) {
+          const character = await player.getCharacter();
+          if (character) {
+            const region = await character.getRegion();
+            if (region && region.generalChannelId) {
+              sendCharacterJoinMessage(player, character, region);
+            }
+          }
+        }
+      }
+    }
+  }
+  );
 }

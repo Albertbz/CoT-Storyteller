@@ -46,7 +46,7 @@ module.exports = {
     // Post message in graveyard channel
     const graveyardChannel = await client.channels.fetch(channels.graveyard);
     if (graveyardLines.length > 0) {
-      const message = `# The following characters have died of old age this year, but have not posted their graveyard post yet.\nIf you are tagged in this message, then your character has been marked as deceased and your roles updated to reflect this.`;
+      const message = `# The following characters have died of old age this year, but have not posted their graveyard post yet.\nIf you are tagged in this message, then your character has been marked as deceased and your roles updated to reflect this. You do not need to do anything else, but you can post a graveyard post if you wish. If your character is listed here but you believe this is a mistake, please contact a storyteller for assistance.`;
       await graveyardChannel.send(`${message}\n\n${graveyardLines.join('\n')}`);
     }
 

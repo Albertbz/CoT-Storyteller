@@ -1,4 +1,5 @@
 const { Op } = require('sequelize');
+const { sendCharacterJoinMessage } = require('../helpers/messageSender');
 
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('characters', {
@@ -218,5 +219,26 @@ module.exports = (sequelize, DataTypes) => {
         throw new Error('Do not try to set the formattedInfo value!')
       }
     }
-  });
+  }, {
+    hooks: {
+      beforeUpdate: async (instance, options) => {
+        // If region is being changed and character is played by someone,
+        // send a message in the character's region channel to inform region 
+        // members of the change
+        if (instance.changed('regionId')) {
+          const player = await instance.getPlayer();
+          if (!player) return; // If character isn't played by anyone, no need to send message
+
+          const newRegionId = instance.get('regionId');
+          const newRegion = await sequelize.models.regions.findByPk(newRegionId);
+
+          // Send message to new region if it has a general channel
+          if (newRegion && newRegion.generalChannelId) {
+            sendCharacterJoinMessage(player, instance, newRegion);
+          }
+        }
+      }
+    }
+  }
+  );
 }

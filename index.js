@@ -1,14 +1,14 @@
 // Require the necessary discord.js classes
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, GatewayIntentBits } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
 const { token } = require('./configs/config.json');
 const { syncSpreadsheetsToDatabase } = require('./spreadsheetSync.js');
 const { updateRecruitmentPost } = require('./misc.js');
 const cron = require('node-cron');
 
 // Create a new client instance
-global.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent] });
+global.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent], partials: [Partials.GuildMember] });
 
 /**
  * Load commands
@@ -116,6 +116,28 @@ for (const file of stringSelectMenuFiles) {
 }
 
 /**
+ * Load user select menus
+ */
+// Create a new collection for user select menus
+client.userSelectMenus = new Collection();
+
+// Read user select menu files from the userselectmenus directory
+const userSelectMenusPath = path.join(__dirname, 'userselectmenus');
+const userSelectMenuFiles = fs.readdirSync(userSelectMenusPath).filter(file => file.endsWith('.js'));
+
+// Loop through user select menu files and set them in the collection
+for (const file of userSelectMenuFiles) {
+  const filePath = path.join(userSelectMenusPath, file);
+  const userSelectMenu = require(filePath);
+  // Set a new item in the Collection with the key as the user select menu customId and the value as the exported module
+  if ('customId' in userSelectMenu && 'execute' in userSelectMenu) {
+    client.userSelectMenus.set(userSelectMenu.customId, userSelectMenu);
+  } else {
+    console.log(`[WARNING] The user select menu at ${filePath} is missing a required "customId" or "execute" property.`);
+  }
+}
+
+/**
  * Daily update of recruitment post
  */
 cron.schedule('0 0 * * *', async () => {
@@ -158,6 +180,10 @@ cron.schedule('0 * * * *', async () => {
     console.log('Scheduled spreadsheet sync complete.');
   }
   catch (error) {
+    if (error.message.includes('TimeoutError')) {
+      console.log('Spreadsheet sync timed out.');
+      return;
+    }
     console.error('Error during scheduled spreadsheet sync:', error);
   }
 }, {

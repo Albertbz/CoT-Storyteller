@@ -160,7 +160,6 @@ module.exports = {
       const interactionUser = interaction.user;
       const collectorFilter = i => {
         try {
-          console.log(`Collector received interaction from user ID: ${i.user.id} (${i.user.username}), expected user ID: ${interactionUser.id} (${interactionUser.username})`);
           return i.user.id === interactionUser.id;
         }
         catch (error) {
@@ -976,7 +975,6 @@ module.exports = {
       // Send the summary messages in the graveyard channel if any
       if (summaryMessages.length > 0) {
         const graveyardChannel = await interaction.client.channels.fetch(channels.graveyard);
-        // const graveyardChannel = await interaction.client.channels.fetch('1465003174418055168'); // DEV Test
 
         for (const message of summaryMessages) {
           // Send each message and save the URL

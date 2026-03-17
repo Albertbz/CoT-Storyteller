@@ -115,6 +115,18 @@ module.exports = {
               { name: 'No', value: 'No' }
             )
         )
+        .addStringOption(option =>
+          option
+            .setName('parent1_new')
+            .setDescription('The new first parent.')
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('parent2_new')
+            .setDescription('The new second parent.')
+            .setAutocomplete(true)
+        )
         .addBooleanOption(option =>
           option
             .setName('forcechange')
@@ -216,6 +228,11 @@ module.exports = {
               { name: 'Hunters', value: 'Hunters' },
               { name: 'Clockmakers', value: 'Clockmakers' }
             )
+        )
+        .addChannelOption(option =>
+          option
+            .setName('generalchannel_new')
+            .setDescription('The new general channel for the region.')
         )
     )
     .addSubcommand(subcommand =>
@@ -347,6 +364,18 @@ module.exports = {
               { name: 'Noble', value: 'Noble' }
             )
         )
+        .addStringOption(option =>
+          option
+            .setName('bearingcharacter_new')
+            .setDescription('The new bearing character for the relationship.')
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('conceivingcharacter_new')
+            .setDescription('The new conceiving character for the relationship.')
+            .setAutocomplete(true)
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -470,7 +499,7 @@ module.exports = {
     if (subcommand === 'character') {
       const focusedOption = interaction.options.getFocused(true);
 
-      if (focusedOption.name === 'name') {
+      if (focusedOption.name === 'name' || focusedOption.name === 'parent1_new' || focusedOption.name === 'parent2_new') {
         const focusedValue = interaction.options.getFocused();
 
         const characters = await Characters.findAll({
@@ -597,10 +626,12 @@ module.exports = {
 
         choices = children.map(child => {
           const parentNames = []
-          parentNames.push(child.character.parent1.name)
+          if (child.character.parent1) {
+            parentNames.push(child.character.parent1.name.substring(0, 30));
+          }
 
           if (child.character.parent2) {
-            parentNames.push(child.character.parent2.name.substring(0, 30))
+            parentNames.push(child.character.parent2.name.substring(0, 30));
           }
 
           return ({
@@ -666,29 +697,43 @@ module.exports = {
     if (subcommand === 'relationship') {
       const focusedValue = interaction.options.getFocused();
 
-      // Find relationships where the focused character name is a parent
-      const relationships = await Relationships.findAll({
-        include: [
-          { model: Characters, as: 'bearingCharacter' },
-          { model: Characters, as: 'conceivingCharacter' }
-        ],
-        where: {
-          [Op.or]: [
-            { '$bearingCharacter.name$': { [Op.startsWith]: `%${focusedValue}%` } },
-            { '$conceivingCharacter.name$': { [Op.startsWith]: `%${focusedValue}%` } }
-          ]
-        },
-        limit: 25
-      });
+      const focusedOption = interaction.options.getFocused(true);
 
-      choices = relationships.map(rel => {
-        const bearingCharacterName = rel.bearingCharacter ? rel.bearingCharacter.name : 'Unknown';
-        const conceivingCharacterName = rel.conceivingCharacter ? rel.conceivingCharacter.name : 'Unknown';
-        return {
-          name: `${bearingCharacterName} & ${conceivingCharacterName}`,
-          value: rel.id
-        };
-      });
+      if (focusedOption.name === 'relationship') {
+        // Find relationships where the focused character name is a parent
+        const relationships = await Relationships.findAll({
+          include: [
+            { model: Characters, as: 'bearingCharacter' },
+            { model: Characters, as: 'conceivingCharacter' }
+          ],
+          where: {
+            [Op.or]: [
+              { '$bearingCharacter.name$': { [Op.startsWith]: `%${focusedValue}%` } },
+              { '$conceivingCharacter.name$': { [Op.startsWith]: `%${focusedValue}%` } }
+            ]
+          },
+          limit: 25
+        });
+
+        choices = relationships.map(rel => {
+          const bearingCharacterName = rel.bearingCharacter ? rel.bearingCharacter.name : 'Unknown';
+          const conceivingCharacterName = rel.conceivingCharacter ? rel.conceivingCharacter.name : 'Unknown';
+          return {
+            name: `${bearingCharacterName} & ${conceivingCharacterName}`,
+            value: rel.id
+          };
+        });
+      }
+      else if (focusedOption.name === 'bearingcharacter_new' || focusedOption.name === 'conceivingcharacter_new') {
+        const characters = await Characters.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
+          attributes: ['name', 'id'],
+          limit: 25
+        });
+
+        choices = characters.map(character => ({ name: character.name, value: character.id }));
+      }
+
     }
 
     // Handle autocompletes for deathrolls subcommand
@@ -802,6 +847,8 @@ module.exports = {
       const newRole = interaction.options.getString('role_new');
       const newComments = interaction.options.getString('comments_new');
       const newIsRollingForBastards = interaction.options.getString('rollingforbastards_new') === null ? null : (interaction.options.getString('rollingforbastards_new') === 'Yes' ? true : false);
+      const newParent1Id = interaction.options.getString('parent1_new');
+      const newParent2Id = interaction.options.getString('parent2_new');
       const forceChange = interaction.options.getBoolean('forcechange') || false;
 
       const character = await Characters.findByPk(characterId);
@@ -819,6 +866,8 @@ module.exports = {
           newRole: newRole,
           newComments: newComments,
           newIsRollingForBastards: newIsRollingForBastards,
+          newParent1Id: newParent1Id,
+          newParent2Id: newParent2Id,
           forceChange: forceChange
         })
 
@@ -1147,6 +1196,7 @@ module.exports = {
       const newRole1 = interaction.options.getString('role1_new');
       const newRole2 = interaction.options.getString('role2_new');
       const newRole3 = interaction.options.getString('role3_new');
+      const newGeneralChannel = interaction.options.getChannel('generalchannel_new');
 
       const region = await Regions.findByPk(regionId);
 
@@ -1160,7 +1210,8 @@ module.exports = {
           newRulingHouseId: newRulingHouseId,
           newRole1: newRole1,
           newRole2: newRole2,
-          newRole3: newRole3
+          newRole3: newRole3,
+          newGeneralChannelId: newGeneralChannel ? newGeneralChannel.id : null
         });
 
         await interaction.editReply({ embeds: [regionChangedEmbed], flags: MessageFlags.Ephemeral });
@@ -1297,13 +1348,17 @@ module.exports = {
       const relationshipId = interaction.options.getString('relationship');
       const newCommitted = interaction.options.getString('committed_new');
       const newInheritedTitle = interaction.options.getString('inheritedtitle_new');
+      const newBearingCharacterId = interaction.options.getString('bearingcharacter_new');
+      const newConceivingCharacterId = interaction.options.getString('conceivingcharacter_new');
 
       const relationship = await Relationships.findByPk(relationshipId);
 
       try {
         const { relationship: updatedRelationship, embed: relationshipChangedEmbed } = await changeRelationshipInDatabase(interaction.user, relationship, {
           newIsCommitted: newCommitted === null ? null : (newCommitted === 'Yes' ? true : false),
-          newInheritedTitle: newInheritedTitle
+          newInheritedTitle: newInheritedTitle,
+          newBearingCharacterId: newBearingCharacterId,
+          newConceivingCharacterId: newConceivingCharacterId
         });
         return interaction.editReply({ embeds: [relationshipChangedEmbed], flags: MessageFlags.Ephemeral });
       }

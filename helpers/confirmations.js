@@ -126,6 +126,10 @@ async function askForConfirmation(interaction, title, description, confirmFuncti
         // Catch timeout error, but do nothing with it
       }
     }
+    else if (interaction.customId === 'character-manager-return-button') {
+      // User cancelled out of the confirmation, so we can just stop the collector
+      collector.stop();
+    }
   });
 
   collector.on('end', async (_, reason) => {

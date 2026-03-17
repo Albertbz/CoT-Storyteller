@@ -33,6 +33,13 @@ async function syncSpreadsheetsToDatabase() {
     }
   });
 
+  // Quickfix remove playable children whose characters have been deleted
+  for (const playableChild of playableChildren) {
+    if (playableChild.character === null) {
+      await playableChild.destroy();
+    }
+  }
+
   const activePlayers = await Players.findAll({
     where: { isActive: true },
     include: { model: Characters, as: 'character' }
@@ -420,6 +427,11 @@ async function syncSpreadsheetsToDatabase() {
   }
   await deceasedSheet.loadCells();
   for (const [i, deceased] of sortedDeceaseds.entries()) {
+    if (deceased.character === null) {
+      await deceased.destroy();
+      continue;
+    }
+
     const nameCell = deceasedSheet.getCell(i + 1, 0);
     const affiliationCell = deceasedSheet.getCell(i + 1, 1);
     const dateOfDeathCell = deceasedSheet.getCell(i + 1, 2);
@@ -427,8 +439,10 @@ async function syncSpreadsheetsToDatabase() {
     const causeOfDeathCell = deceasedSheet.getCell(i + 1, 4);
     const snowflakeCell = deceasedSheet.getCell(i + 1, 5);
 
+    const affiliation = deceased.character.region && deceased.character.region.name === 'Wanderer' ? deceased.character.region.name : deceased.character.house ? deceased.character.house.name : deceased.character.region.name;
+
     nameCell.value = deceased.character.name;
-    affiliationCell.value = deceased.character.house ? deceased.character.house.name : deceased.character.region.name;
+    affiliationCell.value = affiliation;
     dateOfDeathCell.value = deceased.dateOfDeath;
     ageOfDeathCell.value = deceased.yearOfDeath - deceased.character.yearOfMaturity;
     causeOfDeathCell.value = deceased.causeOfDeath;

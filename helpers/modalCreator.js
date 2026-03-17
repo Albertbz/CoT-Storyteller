@@ -1,6 +1,7 @@
 const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextDisplayBuilder, inlineCode } = require('discord.js');
-const { Regions, Houses } = require('../dbObjects.js');
-const { guilds } = require('../configs/ids.json');
+const { Regions, Houses, Relationships } = require('../dbObjects.js');
+const { guildId } = require('../configs/config.json');
+const { Op } = require('sequelize');
 
 /**
  * Creates a character creation modal with optional pre-filled values.
@@ -48,8 +49,8 @@ async function characterCreateModal({ characterName = null, regionId = null, not
     .setRequired(true)
 
   // Get current regions and their ruling houses, as well as their emojis
-  const cotGuild = await client.guilds.fetch(guilds.cot);
-  const guildEmojis = await cotGuild.emojis.fetch();
+  const guild = await client.guilds.fetch(guildId);
+  const guildEmojis = await guild.emojis.fetch();
   const regions = await Regions.findAll({ include: { model: Houses, as: 'rulingHouse' } });
   const regionOptions = regions.map(region => {
     const selectMenuOption = new StringSelectMenuOptionBuilder()
@@ -269,8 +270,277 @@ async function characterSurnameModal(character, { surnameValue = null } = {}) {
   return modal;
 }
 
+
+async function intercharacterRollCreateModal(character1, character2, { bearingCharacterPrev = null, committed = null, inheritedTitle = null } = {}) {
+  const modal = new ModalBuilder()
+    .setCustomId('intercharacter-roll-create-modal')
+    .setTitle('Create Intercharacter Roll');
+
+  /**
+   * Depending on whether there is a choice to be made about which character is
+   * bearing and conceiving, create a select menu to specify this, or if not,
+   * just create a text display to inform the user of which character is bearing
+   * and which is conceiving
+   */
+  let bearingCharacter = null;
+  let conceivingCharacter = null;
+  // Check if there is a choice to be made about which character is bearing and which is conceiving
+  const existsRollWithCharacter1BearingOrCharacter2Conceiving = await Relationships.findOne({
+    where: {
+      [Op.or]: [
+        { bearingCharacterId: character1.id },
+        { conceivingCharacterId: character2.id }
+      ]
+    }
+  })
+
+  if (existsRollWithCharacter1BearingOrCharacter2Conceiving) {
+    bearingCharacter = character1;
+    conceivingCharacter = character2;
+  }
+  else {
+    const existsRollWithCharacter2ConceivingOrCharacter1Bearing = await Relationships.findOne({
+      where: {
+        [Op.or]: [
+          { conceivingCharacterId: character1.id },
+          { bearingCharacterId: character2.id }
+        ]
+      }
+    })
+
+    if (existsRollWithCharacter2ConceivingOrCharacter1Bearing) {
+      bearingCharacter = character2;
+      conceivingCharacter = character1;
+    }
+  }
+
+  const canInheritNobleTitles = (character1.socialClassName === 'Noble' || character2.socialClassName === 'Noble' || character1.socialClassName === 'Ruler' || character2.socialClassName === 'Ruler');
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `## You are creating an intercharacter roll between **${character1.name}** and **${character2.name}**.\n` +
+      (bearingCharacter && conceivingCharacter ? `**${bearingCharacter.name}** will be the bearing partner and **${conceivingCharacter.name}** will be the conceiving partner, as one or both of them are already in another intercharacter roll as that type of partner.\n\n` : `Please specify which character will be the bearing partner.\n`) +
+      `Please${bearingCharacter && conceivingCharacter ? ' ' : ' also '}specify whether the characters are married to each other or not${canInheritNobleTitles ? ', and if they are married, whether any children born from this intercharacter roll will inherit noble titles or not.' : '.'}`
+    )
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  if (!bearingCharacter && bearingCharacterPrev) {
+    bearingCharacter = bearingCharacterPrev;
+  }
+
+  const { bearingLabel, marriedLabel, inheritTitlesLabel } = await getIntercharacterRollLabels(character1, character2, { bearingCharacter, committed, inheritedTitle });
+
+  modal.addLabelComponents(bearingLabel, marriedLabel);
+
+  if (inheritTitlesLabel) {
+    modal.addLabelComponents(inheritTitlesLabel);
+  }
+
+  return modal;
+}
+
+async function intercharacterRollEditModal(roll) {
+  const modal = new ModalBuilder()
+    .setCustomId(`intercharacter-roll-edit-modal:${roll.id}`)
+    .setTitle('Edit Intercharacter Roll');
+
+  // Add a text display that explains which intercharacter roll is being edited, 
+  // and what the current settings of that roll are
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `## You are editing the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}**.\n` +
+      `Please change any of the values you want to change, and leave any values you do not want to change the same as they currently are.`
+    )
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  const { bearingLabel, marriedLabel, inheritTitlesLabel } = await getIntercharacterRollLabels(roll.bearingCharacter, roll.conceivingCharacter, { bearingCharacter: roll.bearingCharacter, committed: roll.isCommitted, inheritedTitle: roll.inheritedTitle !== 'None', ignoreNumRolls: 1 });
+
+  modal.addLabelComponents(bearingLabel, marriedLabel);
+
+  if (inheritTitlesLabel) {
+    modal.addLabelComponents(inheritTitlesLabel);
+  }
+
+  return modal;
+}
+
+async function getIntercharacterRollLabels(character1, character2, { bearingCharacter = null, committed = null, inheritedTitle = null, ignoreNumRolls = 0 } = {}) {
+  // Create the input and label for choosing the bearing character, which can
+  // be prefilled if there is already a bearing character 
+  const character1BearingOption = new StringSelectMenuOptionBuilder()
+    .setLabel(`${character1.name}`)
+    .setValue(`${character1.id}:${character2.id}`)
+    .setDefault(bearingCharacter && bearingCharacter.id === character1.id ? true : false);
+
+  const character2BearingOption = new StringSelectMenuOptionBuilder()
+    .setLabel(`${character2.name}`)
+    .setValue(`${character2.id}:${character1.id}`)
+    .setDefault(bearingCharacter && bearingCharacter.id === character2.id ? true : false);
+
+  const bearingSelectMenu = new StringSelectMenuBuilder()
+    .setCustomId('intercharacter-roll-bearing-select')
+    .setPlaceholder('Select the bearing partner')
+    .setRequired(true)
+
+  // If one of the characters is already the bearing or conceiving partner in
+  // another roll, then there is no choice to be made about who is the bearing
+  // and who is the conceiving character, so we only add the option for the
+  // character that can be the bearing character. Otherwise, we add options for
+  // both characters to be the bearing character
+  const existingRollsWithCharacter1BearingOrCharacter2ConceivingCount = await Relationships.count({
+    where: {
+      [Op.or]: [
+        { bearingCharacterId: character1.id },
+        { conceivingCharacterId: character2.id }
+      ]
+    }
+  });
+
+  const existingRollsWithCharacter1ConceivingOrCharacter2BearingCount = await Relationships.count({
+    where: {
+      [Op.or]: [
+        { conceivingCharacterId: character1.id },
+        { bearingCharacterId: character2.id }
+      ]
+    }
+  });
+
+  if (existingRollsWithCharacter1BearingOrCharacter2ConceivingCount - ignoreNumRolls > 0 && existingRollsWithCharacter1ConceivingOrCharacter2BearingCount === 0) {
+    bearingSelectMenu.addOptions(character1BearingOption);
+  }
+  else if (existingRollsWithCharacter1BearingOrCharacter2ConceivingCount === 0 && existingRollsWithCharacter1ConceivingOrCharacter2BearingCount - ignoreNumRolls > 0) {
+    bearingSelectMenu.addOptions(character2BearingOption);
+  }
+  else {
+    bearingSelectMenu.addOptions(character1BearingOption, character2BearingOption);
+  }
+
+  const bearingLabel = new LabelBuilder()
+    .setLabel('Which character is the bearing partner?')
+    .setDescription('The other character will automatically be the conceiving partner.')
+    .setStringSelectMenuComponent(bearingSelectMenu);
+
+  // Create the input and label for whether the characters are married or not,
+  // potentially prefilled with whether they are currently married or not
+  const marriedSelectMenu = new StringSelectMenuBuilder()
+    .setCustomId('intercharacter-roll-committed-select')
+    .setPlaceholder('Select whether the characters are married or not')
+    .setRequired(true)
+    .addOptions(
+      new StringSelectMenuOptionBuilder()
+        .setLabel('Married')
+        .setValue('true')
+        .setDefault(committed === true ? true : false),
+      new StringSelectMenuOptionBuilder()
+        .setLabel('Not Married')
+        .setValue('false')
+        .setDefault(committed === false ? true : false)
+    );
+
+  const marriedLabel = new LabelBuilder()
+    .setLabel('Are the characters married to each other?')
+    .setDescription('This will affect the legitimacy of any children born from this intercharacter roll.')
+    .setStringSelectMenuComponent(marriedSelectMenu);
+
+  // Create the input and label for whether any children born from this roll will
+  // inherit noble titles or not, which only applies if either character is noble,
+  // and which can be prefilled with the current value if it is already set
+  let inheritTitlesLabel = null;
+  if (character1.socialClassName === 'Noble' || character2.socialClassName === 'Noble' || character1.socialClassName === 'Ruler' || character2.socialClassName === 'Ruler') {
+    const inheritTitlesSelectMenu = new StringSelectMenuBuilder()
+      .setCustomId('intercharacter-roll-inherit-titles-select')
+      .setPlaceholder('Select whether any children will inherit noble titles')
+      .setRequired(false)
+      .addOptions(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('Will Inherit Noble Titles')
+          .setValue('true')
+          .setDefault(inheritedTitle === true ? true : false),
+        new StringSelectMenuOptionBuilder()
+          .setLabel('Will Not Inherit Noble Titles')
+          .setValue('false')
+          .setDefault(inheritedTitle === false ? true : false)
+      );
+
+    inheritTitlesLabel = new LabelBuilder()
+      .setLabel('Will any children born inherit noble titles?')
+      .setDescription('This only makes a difference for intercharacter rolls between married characters.')
+      .setStringSelectMenuComponent(inheritTitlesSelectMenu);
+  }
+
+  return { bearingLabel, marriedLabel, inheritTitlesLabel };
+}
+
+
+async function characterChangeRegionModal(character, { regionId = null } = {}) {
+  const modal = new ModalBuilder()
+    .setCustomId('character-change-region-modal')
+    .setTitle('Change Region of Character');
+
+
+  /**
+   * Create a textdisplay to have the name of the character and some information
+   */
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing the region of your character, **${character.name}**.\n` +
+      `Changing your character's region will also change their house to the house that rules that region, and may also change their social class.`
+    )
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  /**
+   * Create a select menu to specify which region the character should be 
+   * changed to, prefilled with the character's current region
+   */
+  const guild = await client.guilds.fetch(guildId);
+  const guildEmojis = await guild.emojis.fetch();
+  const regions = await Regions.findAll({ include: { model: Houses, as: 'rulingHouse' } });
+  const regionOptions = regions.map(region => {
+    const selectMenuOption = new StringSelectMenuOptionBuilder()
+      .setLabel(region.name === 'Wanderer' ? 'None' : region.name)
+      .setValue(region.id)
+      .setDescription(`${region.name === 'Wanderer' ? 'Your character will be a wanderer' : 'House ' + region.rulingHouse.name}`);
+
+    // Find emoji for this region's ruling house
+    if (region.rulingHouse) {
+      const emoji = guildEmojis.find(e => e.name === region.rulingHouse.emojiName);
+      if (emoji) {
+        selectMenuOption.setEmoji(emoji.toString());
+      }
+    }
+
+    // If a region ID was provided and matches this region, pre-select this option
+    if (regionId && region.id === regionId) {
+      selectMenuOption.setDefault(true);
+    }
+
+    return selectMenuOption;
+  });
+
+  const regionInput = new StringSelectMenuBuilder()
+    .setCustomId('character-change-region-select')
+    .setPlaceholder('Select a new region for your character')
+    .setRequired(true)
+    .addOptions(regionOptions);
+
+  const regionLabel = new LabelBuilder()
+    .setLabel('Which region is the character to change to?')
+    .setDescription('This determines your character\'s house.')
+    .setStringSelectMenuComponent(regionInput);
+
+  modal.addLabelComponents(regionLabel);
+
+  return modal;
+}
+
 module.exports = {
   characterCreateModal,
   finalDeathModal,
-  characterSurnameModal
+  characterSurnameModal,
+  intercharacterRollCreateModal,
+  intercharacterRollEditModal,
+  characterChangeRegionModal
 }

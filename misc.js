@@ -188,7 +188,7 @@ async function addRelationshipToDatabase(storyteller, { bearingCharacterId, conc
   // Check whether committed is false but inheritedTitle is 'Noble'
   if (!isCommitted && inheritedTitle === 'Noble') {
     relationshipNotCreatedEmbed
-      .setDescription('A committed relationship cannot have an inherited title of Noble.');
+      .setDescription('An uncommitted relationship cannot have an inherited title of Noble.');
     return { relationship: null, embed: relationshipNotCreatedEmbed };
   }
 
@@ -483,7 +483,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     .setColor(COLORS.RED);
 
   try {
-    const guild = await client.guilds.fetch(guilds.cot);
+    const guild = await client.guilds.fetch(guildId);
     const member = await guild.members.fetch(playerId);
 
     const character = await Characters.findByPk(characterId);
@@ -890,7 +890,7 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
   }
 
   // Check whether character is not commoner while not a wanderer
-  if (character.socialClassName === 'Commoner' && !(await Regions.findByPk(character.regionId)).name === 'Wanderer') {
+  if (character.socialClassName === 'Commoner' && (await Regions.findByPk(character.regionId)).name !== 'Wanderer') {
     deceasedNotCreatedEmbed
       .setDescription('Character is a Commoner and cannot be marked as deceased.');
     return { deceased: null, embed: deceasedNotCreatedEmbed };
@@ -961,7 +961,7 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
   // Remove roles of member if specified
   if (removeRoles && playedById) {
     if (player) {
-      const guild = await client.guilds.fetch(guilds.cot);
+      const guild = await client.guilds.fetch(guildId);
       try {
         const member = await guild.members.fetch(player.id);
         if (member) {
@@ -1327,7 +1327,7 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
 }
 
 
-async function changeRegionInDatabase(storyteller, region, { newRoleId = null, newRulingHouseId = null, newRole1 = null, newRole2 = null, newRole3 = null } = {}) {
+async function changeRegionInDatabase(storyteller, region, { newRoleId = null, newRulingHouseId = null, newRole1 = null, newRole2 = null, newRole3 = null, newGeneralChannelId = null } = {}) {
   const regionNotChangedEmbed = new EmbedBuilder()
     .setTitle('Region Not Changed')
     .setColor(COLORS.RED);
@@ -1344,6 +1344,7 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
   // Save all old and new values for the values that are changing
   if (newRoleId !== null && newRoleId !== region.roleId) newRegionValues.roleId = newRoleId; oldRegionValues.roleId = region.roleId;
   if (newRulingHouseId !== null && newRulingHouseId !== region.rulingHouseId) newRegionValues.rulingHouseId = newRulingHouseId; oldRegionValues.rulingHouseId = region.rulingHouseId;
+  if (newGeneralChannelId !== null && newGeneralChannelId !== region.generalChannelId) newRegionValues.generalChannelId = newGeneralChannelId; oldRegionValues.generalChannelId = region.generalChannelId;
 
   // Get recruitment entry for the region to check if recruitment roles are changing
   const recruitment = await region.getRecruitment();
@@ -1383,6 +1384,11 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
         const newHouse = await Houses.findByPk(newValue);
         logInfoChanges.push({ key: 'rulingHouse', oldValue: oldHouse ? `${inlineCode(oldHouse.name)} (${inlineCode(oldHouse.id)})` : '`-`', newValue: newHouse ? `${inlineCode(newHouse.name)} (${inlineCode(newHouse.id)})` : '`-`' });
         formattedInfoChanges.push({ key: '**Ruling House**', oldValue: oldHouse ? oldHouse.name : '-', newValue: newHouse ? newHouse.name : '-' });
+        break;
+      }
+      case 'generalChannelId': {
+        logInfoChanges.push({ key: 'generalChannel', oldValue: oldValue ? `<#${oldValue}> (${inlineCode(oldValue)})` : '`-`', newValue: newValue ? `<#${newValue}> (${inlineCode(newValue)})` : '`-`' });
+        formattedInfoChanges.push({ key: '**General Channel**', oldValue: oldValue ? `<#${oldValue}>` : '-', newValue: newValue ? `<#${newValue}>` : '-' });
         break;
       }
     }
@@ -1681,7 +1687,7 @@ async function changePlayableChildInDatabase(storyteller, playableChild, { newCo
   return { playableChild, embed: playableChildChangedEmbed }
 }
 
-async function changeRelationshipInDatabase(storyteller, relationship, { newIsCommitted = null, newInheritedTitle = null } = {}) {
+async function changeRelationshipInDatabase(storyteller, relationship, { newIsCommitted = null, newInheritedTitle = null, newBearingCharacterId = null, newConceivingCharacterId = null } = {}) {
   const relationshipNotChangedEmbed = new EmbedBuilder()
     .setTitle('Relationship Not Changed')
     .setColor(COLORS.RED);
@@ -1698,6 +1704,8 @@ async function changeRelationshipInDatabase(storyteller, relationship, { newIsCo
   // Save all old and new values for the values that are changing
   if (newIsCommitted !== null && newIsCommitted !== relationship.isCommitted) newValues.isCommitted = newIsCommitted; oldValues.isCommitted = relationship.isCommitted;
   if (newInheritedTitle !== null && newInheritedTitle !== relationship.inheritedTitle) newValues.inheritedTitle = newInheritedTitle; oldValues.inheritedTitle = relationship.inheritedTitle;
+  if (newBearingCharacterId !== null && newBearingCharacterId !== relationship.bearingCharacterId) newValues.bearingCharacterId = newBearingCharacterId; oldValues.bearingCharacterId = relationship.bearingCharacterId;
+  if (newConceivingCharacterId !== null && newConceivingCharacterId !== relationship.conceivingCharacterId) newValues.conceivingCharacterId = newConceivingCharacterId; oldValues.conceivingCharacterId = relationship.conceivingCharacterId;
 
   // Check if anything is actually changing
   if (Object.keys(newValues).length === 0) {
@@ -1718,6 +1726,58 @@ async function changeRelationshipInDatabase(storyteller, relationship, { newIsCo
     }
   }
 
+  // If changing bearing or conceiving character, make sure that it is just a swap
+  // and not an actual change to a different character. Also make sure that if it
+  // is a swap, it is still a valid swap (look at other existing relationships)
+  if (newValues.bearingCharacterId || newValues.conceivingCharacterId) {
+    const newBearingIdIsConceivingCharacterId = newValues.bearingCharacterId && newValues.bearingCharacterId === relationship.conceivingCharacterId;
+    const newConceivingIdIsBearingCharacterId = newValues.conceivingCharacterId && newValues.conceivingCharacterId === relationship.bearingCharacterId;
+
+    if (!newBearingIdIsConceivingCharacterId && !newConceivingIdIsBearingCharacterId) {
+      relationshipNotChangedEmbed
+        .setDescription('You can only swap the bearing and conceiving characters in a relationship, not change them to completely different characters.');
+      return { relationship: null, embed: relationshipNotChangedEmbed };
+    }
+    else {
+      // It's a swap, so set the new values accordingly
+      newValues.bearingCharacterId = relationship.conceivingCharacterId;
+      newValues.conceivingCharacterId = relationship.bearingCharacterId;
+    }
+
+    // Check if the swap would result in a character being both bearing and conceiving in different relationships, which is not allowed
+    const bearingCharacterIdToCheck = newValues.bearingCharacterId ? newValues.bearingCharacterId : relationship.bearingCharacterId;
+    const conceivingCharacterIdToCheck = newValues.conceivingCharacterId ? newValues.conceivingCharacterId : relationship.conceivingCharacterId;
+
+    const bearingCharacterAsConceiving = await Relationships.findOne({
+      where: {
+        conceivingCharacterId: bearingCharacterIdToCheck,
+        id: { [Op.not]: relationship.id }
+      }
+    });
+
+    const conceivingCharacterAsBearing = await Relationships.findOne({
+      where: {
+        bearingCharacterId: conceivingCharacterIdToCheck,
+        id: { [Op.not]: relationship.id }
+      }
+    });
+
+    if (bearingCharacterAsConceiving || conceivingCharacterAsBearing) {
+      relationshipNotChangedEmbed
+        .setDescription('The swap would result in a character being both a bearing and conceiving character in different relationships, which is not allowed.');
+      return { relationship: null, embed: relationshipNotChangedEmbed };
+    }
+
+  }
+
+  // If setting retalionship to uncommitted, make sure to also set inherited title to None if it is not already
+  if (newValues.isCommitted !== undefined && !newValues.isCommitted) {
+    const inheritedTitleToCheck = newValues.inheritedTitle !== undefined ? newValues.inheritedTitle : relationship.inheritedTitle;
+    if (inheritedTitleToCheck && inheritedTitleToCheck !== 'None') {
+      newValues.inheritedTitle = 'None';
+    }
+  }
+
   // All checks passed, proceed with update
   await relationship.update(newValues);
 
@@ -1728,6 +1788,20 @@ async function changeRelationshipInDatabase(storyteller, relationship, { newIsCo
     const oldValue = oldValues[key];
 
     switch (key) {
+      case 'bearingCharacterId': {
+        const oldBearingCharacter = await Characters.findByPk(oldValue);
+        const newBearingCharacter = await Characters.findByPk(newValue);
+        logInfoChanges.push({ key: 'bearingCharacter', oldValue: oldBearingCharacter ? `${inlineCode(oldBearingCharacter.name)} (${inlineCode(oldBearingCharacter.id)})` : '`-`', newValue: newBearingCharacter ? `${inlineCode(newBearingCharacter.name)} (${inlineCode(newBearingCharacter.id)})` : '`-`' });
+        formattedInfoChanges.push({ key: '**Bearing Character**', oldValue: oldBearingCharacter ? oldBearingCharacter.name : '-', newValue: newBearingCharacter ? newBearingCharacter.name : '-' });
+        break;
+      }
+      case 'conceivingCharacterId': {
+        const oldConceivingCharacter = await Characters.findByPk(oldValue);
+        const newConceivingCharacter = await Characters.findByPk(newValue);
+        logInfoChanges.push({ key: 'conceivingCharacter', oldValue: oldConceivingCharacter ? `${inlineCode(oldConceivingCharacter.name)} (${inlineCode(oldConceivingCharacter.id)})` : '`-`', newValue: newConceivingCharacter ? `${inlineCode(newConceivingCharacter.name)} (${inlineCode(newConceivingCharacter.id)})` : '`-`' });
+        formattedInfoChanges.push({ key: '**Conceiving Character**', oldValue: oldConceivingCharacter ? oldConceivingCharacter.name : '-', newValue: newConceivingCharacter ? newConceivingCharacter.name : '-' });
+        break;
+      }
       case 'isCommitted': {
         logInfoChanges.push({ key: 'isCommitted', oldValue: inlineCode(oldValue ? 'Yes' : 'No'), newValue: inlineCode(newValue ? 'Yes' : 'No') });
         formattedInfoChanges.push({ key: '**Committed**', oldValue: oldValue ? 'Yes' : 'No', newValue: newValue ? 'Yes' : 'No' });
@@ -1857,7 +1931,7 @@ async function changeDeceasedInDatabase(storyteller, deceased, { newYearOfDeath 
 
 // Syncs a Discord member's roles based on their character's region and social class
 async function syncMemberRolesWithCharacter(player, character) {
-  const guild = await client.guilds.fetch(guilds.cot);
+  const guild = await client.guilds.fetch(guildId);
   let member = null;
   try {
     member = await guild.members.fetch(player.id);
@@ -1992,8 +2066,8 @@ async function createRecruitmentPostMessage() {
     }
   });
 
-  const cotGuild = await client.guilds.fetch(guilds.cot);
-  const guildEmojis = await cotGuild.emojis.fetch();
+  const guild = await client.guilds.fetch(guildId);
+  const guildEmojis = await guild.emojis.fetch();
   let housesText = ''
   for (const region of regions) {
     const house = await region.getRulingHouse();
@@ -2152,6 +2226,11 @@ async function updateRecruitmentPost() {
   let returnContainer = new ContainerBuilder();
 
   if (recruitmentPost) {
+    // Make sure it is unarchived if it was archived
+    if (recruitmentPost.archived) {
+      await recruitmentPost.setArchived(false);
+    }
+
     // If found recruitment post, simply update the starter message
     const starterMessage = await recruitmentPost.fetchStarterMessage();
     if (starterMessage) {
@@ -2187,6 +2266,31 @@ async function updateRecruitmentPost() {
   )
 
   return { components: [returnContainer], flags: MessageFlags.IsComponentsV2 };
+}
+
+async function removeRelationshipFromDatabase(storyteller, relationship) {
+  const relationshipNotRemovedEmbed = new EmbedBuilder()
+    .setTitle('Relationship Not Removed')
+    .setColor(COLORS.RED);
+
+  if (!relationship) {
+    const relationshipNotRemovedEmbed = new EmbedBuilder()
+      .setTitle('Relationship Not Removed')
+      .setDescription('Relationship does not exist in the database.')
+      .setColor(COLORS.RED);
+    return { relationship: null, embed: relationshipNotRemovedEmbed };
+  }
+
+  const relationshipLogInfo = await relationship.logInfo;
+
+  await relationship.destroy();
+
+  await postInLogChannel(
+    'Relationship Removed',
+    `**Removed by: ${userMention(storyteller.id)}**\n\n` +
+    `${relationshipLogInfo}`,
+    COLORS.RED
+  );
 }
 
 async function postInLogChannel(title, description, color) {
@@ -2265,5 +2369,6 @@ module.exports = {
   syncMemberRolesWithCharacter,
   updateRecruitmentPost,
   addDeathPostToDatabase,
+  removeRelationshipFromDatabase,
   COLORS
 }; 
