@@ -5,27 +5,18 @@ const { postInLogChannel, COLORS, addDeceasedToDatabase } = require('../misc');
 module.exports = {
   name: Events.GuildMemberRemove,
   async execute(member) {
-    if (member.partial) {
-      try {
-        await member.fetch();
-      }
-      catch (error) {
-        console.error('Error fetching partial member:', error);
-        return;
-      }
-    }
-
     // When a member leaves, then if they were playing a character, note it in
     // the storyteller log and set the character as deceased in the database.
     try {
-      console.log(`Member ${member.user} has left the server.`);
-      const player = await Players.findByPk(member.user.id);
+      const user = await client.users.fetch(member.id);
+      console.log(`Member ${user} has left the server.`);
+      const player = await Players.findByPk(user.id);
       if (player) {
         const character = await player.getCharacter();
         if (character) {
           await postInLogChannel(
             'Player Left Server',
-            `Player **${member.user}** (ID: ${member.user.id}) has left the server.\n\n` +
+            `Player **${user}** (ID: ${user.id}) has left the server.\n\n` +
             `They were playing the character **${character.name}** (ID: ${character.id}).`,
             COLORS.RED
           );
