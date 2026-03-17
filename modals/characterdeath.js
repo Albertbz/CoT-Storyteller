@@ -1,8 +1,9 @@
 const { MessageFlags, ContainerBuilder, inlineCode, ModalBuilder, TextInputBuilder, StringSelectMenuBuilder, LabelBuilder, StringSelectMenuOptionBuilder, TextInputStyle } = require('discord.js');
-const { addDeceasedToDatabase } = require('../misc.js');
+const { addDeceasedToDatabase, addDeathPostToDatabase } = require('../misc.js');
 const { Players } = require('../dbObjects');
 const { askForConfirmation } = require('../helpers/confirmations');
 const { finalDeathModal } = require('../helpers/modalCreator.js');
+const { schedulePost } = reqire('../helpers/deathPostScheduler.js')
 
 module.exports = {
   customId: 'character-death-modal',
@@ -54,7 +55,7 @@ async function finalDeathConfirm(interaction, day, month, year, cause, note) {
   await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 
   /**
-   * Add deceased in the database
+   * Add deceased in the database and Schedule post to Graveyard
    */
   const player = await Players.findByPk(interaction.user.id);
   const character = await player.getCharacter();
@@ -64,6 +65,12 @@ async function finalDeathConfirm(interaction, day, month, year, cause, note) {
     await interaction.followUp({ content: 'There was an error marking your character as deceased. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
     return;
   }
+  const { postAdded, embed: postAddedEmbed } = await addDeathPostToDatabase( { characterId: character.id, note: postNote });
+  if (!postAdded) {
+    await interaction.followUp({ content: 'There was an error adding your Graveyard post. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
+    return;
+  }
+  await schedulePost(client, deathPost);
 
   /**
    * Notify the user of successful character death

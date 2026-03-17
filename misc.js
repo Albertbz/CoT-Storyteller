@@ -1,5 +1,5 @@
 const { EmbedBuilder, userMention, inlineCode, MessageFlags, ContainerBuilder, TextDisplayBuilder, hyperlink, time, bold, italic, strikethrough, TimestampStyles, AttachmentBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths } = require('./dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts } = require('./dbObjects.js');
 const { roles, channels } = require('./configs/ids.json');
 const { guildId } = require('./configs/config.json');
 const { Op } = require('sequelize');
@@ -2310,6 +2310,41 @@ function ageToFertilityModifier(age) {
   if (age < 5) return 1;
 }
 
+async function addDeathPostToDatabase({ characterId, note } = {}) {
+  const deceased = await this.getDeceased();
+  let post = null;
+  try {
+    post = await DeathPosts.create({
+      deceasedId: deceased.id,
+      note: note,
+      scheduledPostTime: Date(now() + (2 * 60 * 60 * 1000)), // adds 2 hours
+    });
+
+  await postInLogChannel(
+    'Death Post Created',
+    `Death Post for ${characterId} created. Scheduled to be posted at ${time(new Date(now() + (2 * 60 * 60 * 1000)), TimestampStyles.LongDate) } `,
+    COLORS.GREEN
+  )
+  }
+  catch (error) {
+    console.log(error);
+    postNotCreatedEmbed
+      .setDescription('An error occurred while trying to create death post: ' + error.message);
+    return { postAdded: null, embed: postNotCreatedEmbed };
+  }
+  const postCreatedEmbed = new EmbedBuilder()
+    .setTitle('Death Post Scheduled')
+    .setDescription((
+      `${deceased.characterId}\n` +
+      `${deceased.dayOfDeath} ${deceased.monthOfDeath}, Year ${deceased.yearOfDeath}/n` +
+      `${deceased.causeOfDeath}/n` +
+      `${post.note}`
+      ))
+    .setColor(COLORS.BLUE);
+
+  return { postAdded, embed: deceasedCreatedEmbed };
+}
+
 module.exports = {
   addPlayerToDatabase,
   addCharacterToDatabase,
@@ -2333,6 +2368,7 @@ module.exports = {
   assignSteelbearerToRegion,
   syncMemberRolesWithCharacter,
   updateRecruitmentPost,
+  addDeathPostToDatabase,
   removeRelationshipFromDatabase,
   COLORS
 }; 

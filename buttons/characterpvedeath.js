@@ -4,9 +4,13 @@ const { Players, Characters } = require('../dbObjects.js');
 const { askForConfirmation } = require('../helpers/confirmations.js');
 
 async function characterPveDeathConfirm(interaction) {
+  
+ 
   // Defer the update to allow time to process
   await interaction.deferUpdate();
 
+  const player = await Players.findByPk(interaction.user.id);
+  const character = await player.getCharacter();
   /**
    * Notify the user of death change in progress
    */
@@ -23,8 +27,7 @@ async function characterPveDeathConfirm(interaction) {
   /**
    * Update the character PvE death count in DB
    */
-  const player = await Players.findByPk(interaction.user.id);
-  const character = await player.getCharacter();
+  
   const addedpvedeath = character.pveDeaths + 1
   const { character: changedCharacter, embed: _ } = await changeCharacterInDatabase(interaction.user, character, true, { newPveDeaths: addedpvedeath });
   if (!changedCharacter) {
@@ -49,12 +52,39 @@ async function characterPveDeathConfirm(interaction) {
   return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 }
 
+async function playerTimeCheck(interaction) {
+
+  const player = await Players.findByPk(interaction.user.id);
+  const character = await player.getCharacter();
+  // Check if player's account is less than 3 days old (1000ms x 60sec x 60min x 72hrs = 259200000 milliseconds)
+  if ((date(now) - (date(player.createdAt))) <= 259200000) {
+    const container = new ContainerBuilder()
+      .addTextDisplayComponents((textDisplay) =>
+        textDisplay.setContent(
+          `# PvE death mitigated\n` +
+          `PvE deaths within the first 3 days of server playtime do not count towards your first character\n` +
+          `You can continue to manage your character using the Character Manager GUI above.`
+        )
+      );
+    await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+
+    return true 
+    }
+  else {
+    return false
+    }
+}
+  
+
+
 module.exports = {
   customId: 'character-pve-death-button',
   async execute(interaction) {
     // Defer the update to allow time to process
     await interaction.deferUpdate();
-
+    // Check player account time
+    const check = await playerTimeCheck(interaction);
+    if (check === false) {
     // Ask for confirmation
     return askForConfirmation(
       interaction,
@@ -63,4 +93,5 @@ module.exports = {
       (interaction) => characterPveDeathConfirm(interaction)
     )
   }
+}
 }
