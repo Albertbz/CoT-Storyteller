@@ -2,6 +2,7 @@ const { Players, Characters, Worlds, Regions, Houses, Recruitments, Deceased, Re
 const { citizensDoc, offspringDoc } = require('./sheets.js');
 const { getFertilityModifier } = require('./helpers/rollHelper.js');
 const { postInLogChannel, COLORS } = require('./misc.js');
+const { now } = require('sequelize/lib/utils');
 
 async function syncSpreadsheetsToDatabase() {
   // Load world

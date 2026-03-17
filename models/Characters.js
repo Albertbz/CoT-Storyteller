@@ -222,7 +222,7 @@ module.exports = (sequelize, DataTypes) => {
     livesUpdatedAt: {
       type: DataTypes.DATE
     },
-    houseUpdatedAt: {
+    regionUpdatedAt: {
       type: DataTypes.DATE
     }
   }, {
