@@ -69,6 +69,7 @@ module.exports = (sequelize, DataTypes) => {
           `**Year of Maturity:** ${character ? character.yearOfMaturity : '-'}\n` +
           `**Current Age:** ${character ? world.currentYear - character.yearOfMaturity : '-'}\n\n` +
           `**Legitimacy:** ${this.legitimacy ? this.legitimacy : '-'}\n` +
+          `**Inheritance:** ${character && (character.socialClassName !== 'Notable') ? `Nobility` : `None`}\n` +
           `**Parents:** ${parents.length > 0 ? parents.join(' & ') : '-'}\n` +
           `**Comments:** ${this.comments ? this.comments : '-'}\n` +
           `**Contacts:** ${contacts.length > 0 ? contacts.join(', ') : '-'}\n` +

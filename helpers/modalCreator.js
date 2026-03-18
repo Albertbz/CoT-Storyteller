@@ -476,7 +476,7 @@ async function getIntercharacterRollLabels(character1, character2, { bearingChar
 
 async function characterChangeRegionModal(character, { regionId = null } = {}) {
   const modal = new ModalBuilder()
-    .setCustomId('character-change-region-modal')
+    .setCustomId('character-change-region-modal:' + character.id)
     .setTitle('Change Region of Character');
 
 
@@ -485,8 +485,8 @@ async function characterChangeRegionModal(character, { regionId = null } = {}) {
    */
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing the region of your character, **${character.name}**.\n` +
-      `Changing your character's region will also change their house to the house that rules that region, and may also change their social class.`
+      `You are currently changing the region of the character **${character.name}**.\n` +
+      `Changing the character's region will also change their house to the house that rules that region, and may also change their social class.`
     )
 
   modal.addTextDisplayComponents(textDisplay);
@@ -502,7 +502,7 @@ async function characterChangeRegionModal(character, { regionId = null } = {}) {
     const selectMenuOption = new StringSelectMenuOptionBuilder()
       .setLabel(region.name === 'Wanderer' ? 'None' : region.name)
       .setValue(region.id)
-      .setDescription(`${region.name === 'Wanderer' ? 'Your character will be a wanderer' : 'House ' + region.rulingHouse.name}`);
+      .setDescription(`${region.name === 'Wanderer' ? 'The character will be a wanderer' : 'House ' + region.rulingHouse.name}`);
 
     // Find emoji for this region's ruling house
     if (region.rulingHouse) {
@@ -522,13 +522,13 @@ async function characterChangeRegionModal(character, { regionId = null } = {}) {
 
   const regionInput = new StringSelectMenuBuilder()
     .setCustomId('character-change-region-select')
-    .setPlaceholder('Select a new region for your character')
+    .setPlaceholder('Select a new region for the character')
     .setRequired(true)
     .addOptions(regionOptions);
 
   const regionLabel = new LabelBuilder()
     .setLabel('Which region is the character to change to?')
-    .setDescription('This determines your character\'s house.')
+    .setDescription('This determines the character\'s house.')
     .setStringSelectMenuComponent(regionInput);
 
   modal.addLabelComponents(regionLabel);

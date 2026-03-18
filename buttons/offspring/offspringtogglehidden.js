@@ -4,7 +4,7 @@ const { askForConfirmation } = require("../../helpers/confirmations");
 const { changePlayableChildInDatabase } = require("../../misc");
 
 module.exports = {
-  customId: `offspring-toggle-hidden`,
+  customId: 'offspring-toggle-hidden',
   async execute(interaction) {
     // Defer the update to allow time to process
     await interaction.deferUpdate();
