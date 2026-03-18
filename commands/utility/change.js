@@ -334,6 +334,15 @@ module.exports = {
             .setName('contact2_new')
             .setDescription('The new second contact of the child.')
         )
+        .addStringOption(option =>
+          option
+            .setName('hidden_new')
+            .setDescription('The new hidden status of the child.')
+            .addChoices(
+              { name: 'Yes', value: 'Yes' },
+              { name: 'No', value: 'No' }
+            )
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -1291,6 +1300,7 @@ module.exports = {
       const newComments = interaction.options.getString('comments_new');
       const newContact1 = interaction.options.getUser('contact1_new');
       const newContact2 = interaction.options.getUser('contact2_new');
+      const newHidden = interaction.options.getString('hidden_new') === null ? null : (interaction.options.getString('hidden_new') === 'Yes' ? true : false);
 
       const playableChild = await PlayableChildren.findByPk(playableChildId);
 
@@ -1325,7 +1335,8 @@ module.exports = {
           newLegitimacy: newLegitimacy,
           newComments: newComments,
           newContact1Snowflake: newContact1 ? newContact1.id : null,
-          newContact2Snowflake: newContact2 ? newContact2.id : null
+          newContact2Snowflake: newContact2 ? newContact2.id : null,
+          newHidden: newHidden
         });
         embeds.push(playableChildChangedEmbed);
       }

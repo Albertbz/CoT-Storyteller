@@ -71,7 +71,7 @@ module.exports = {
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
-          `# Managing ${offspring.character ? inlineCode(offspring.character.name) : `Offspring ${offspring.id}`}\n` +
+          `# Manage Offspring: ${offspring.character ? inlineCode(offspring.character.name) : `${offspring.id}`}\n` +
           formattedInfo
         )
       )

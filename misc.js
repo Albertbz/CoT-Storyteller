@@ -1604,7 +1604,7 @@ async function changeDuchyInDatabase(storyteller, duchy, { newName = null, newRe
   return { duchy, embed: duchyChangedEmbed }
 }
 
-async function changePlayableChildInDatabase(storyteller, playableChild, { newComments = null, newLegitimacy = null, newContact1Snowflake = null, newContact2Snowflake = null } = {}) {
+async function changePlayableChildInDatabase(storyteller, playableChild, { newComments = null, newLegitimacy = null, newContact1Snowflake = null, newContact2Snowflake = null, newHidden = null } = {}) {
   const playableChildNotChangedEmbed = new EmbedBuilder()
     .setTitle('Playable Child Not Changed')
     .setColor(COLORS.RED);
@@ -1612,7 +1612,7 @@ async function changePlayableChildInDatabase(storyteller, playableChild, { newCo
   if (!playableChild) {
     playableChildNotChangedEmbed
       .setDescription('Playable Child does not exist in the database.');
-    return { playableChild: null, playableChildNotChangedEmbed };
+    return { playableChild: null, embed: playableChildNotChangedEmbed };
   }
 
   let newValues = {};
@@ -1623,6 +1623,7 @@ async function changePlayableChildInDatabase(storyteller, playableChild, { newCo
   if (newLegitimacy !== null && newLegitimacy !== playableChild.legitimacy) newValues.legitimacy = newLegitimacy; oldValues.legitimacy = playableChild.legitimacy;
   if (newContact1Snowflake !== null && newContact1Snowflake !== playableChild.contact1Snowflake) newValues.contact1Snowflake = newContact1Snowflake; oldValues.contact1Snowflake = playableChild.contact1Snowflake;
   if (newContact2Snowflake !== null && newContact2Snowflake !== playableChild.contact2Snowflake) newValues.contact2Snowflake = newContact2Snowflake; oldValues.contact2Snowflake = playableChild.contact2Snowflake;
+  if (newHidden !== null && newHidden !== playableChild.hidden) newValues.hidden = newHidden; oldValues.hidden = playableChild.hidden;
 
   // Check if anything is actually changing
   if (Object.keys(newValues).length === 0) {
@@ -1659,6 +1660,11 @@ async function changePlayableChildInDatabase(storyteller, playableChild, { newCo
       case 'contact2Snowflake': {
         logInfoChanges.push({ key: 'contact2', oldValue: oldValue ? `${userMention(oldValue)} (${oldValue})` : '`-`', newValue: newValue ? `${userMention(newValue)} (${newValue})` : '`-`' });
         formattedInfoChanges.push({ key: '**Contact 2**', oldValue: oldValue ? userMention(oldValue) : '-', newValue: newValue ? userMention(newValue) : '-' });
+        break;
+      }
+      case 'hidden': {
+        logInfoChanges.push({ key: 'hidden', oldValue: inlineCode(oldValue ? 'Yes' : 'No'), newValue: inlineCode(newValue ? 'Yes' : 'No') });
+        formattedInfoChanges.push({ key: '**Hidden**', oldValue: oldValue ? 'Yes' : 'No', newValue: newValue ? 'Yes' : 'No' });
         break;
       }
     }

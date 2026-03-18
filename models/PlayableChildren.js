@@ -37,7 +37,8 @@ module.exports = (sequelize, DataTypes) => {
           `contact1: ${this.contact1Snowflake ? `<@${this.contact1Snowflake}> (\`${this.contact1Snowflake}\`)` : '`-`'}\n` +
           `contact2: ${this.contact2Snowflake ? `<@${this.contact2Snowflake}> (\`${this.contact2Snowflake}\`)` : '`-`'}\n` +
           `comments: \`${this.comments ? this.comments : '-'}\`\n` +
-          `legitimacy: \`${this.legitimacy ? this.legitimacy : '-'}\``
+          `legitimacy: \`${this.legitimacy ? this.legitimacy : '-'}\`` +
+          `hidden: \`${this.hidden}\``
         );
       },
       set(value) {
@@ -70,7 +71,8 @@ module.exports = (sequelize, DataTypes) => {
           `**Legitimacy:** ${this.legitimacy ? this.legitimacy : '-'}\n` +
           `**Parents:** ${parents.length > 0 ? parents.join(' & ') : '-'}\n` +
           `**Comments:** ${this.comments ? this.comments : '-'}\n` +
-          `**Contacts:** ${contacts.length > 0 ? contacts.join(', ') : '-'}`
+          `**Contacts:** ${contacts.length > 0 ? contacts.join(', ') : '-'}\n` +
+          `**Hidden:** ${this.hidden ? 'Yes' : 'No'}`
         );
       },
       set(value) {

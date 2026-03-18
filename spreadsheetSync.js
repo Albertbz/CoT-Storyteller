@@ -31,6 +31,9 @@ async function syncSpreadsheetsToDatabase() {
         { model: Regions, as: 'region' },
         { model: Houses, as: 'house' }
       ]
+    },
+    where: {
+      hidden: false
     }
   });
 
