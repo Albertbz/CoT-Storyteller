@@ -1,6 +1,6 @@
 const { TimestampStyles, ContainerBuilder, MessageFlags, time } = require("discord.js");
-const { Players } = require("../dbObjects");
-const { characterChangeRegionModal } = require("../helpers/modalCreator");
+const { Players } = require("../../dbObjects");
+const { characterChangeRegionModal } = require("../../helpers/modalCreator");
 
 module.exports = {
   customId: 'character-change-region-button',

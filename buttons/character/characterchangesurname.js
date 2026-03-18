@@ -1,6 +1,5 @@
-const { ModalBuilder, TextDisplayBuilder, TextInputBuilder, LabelBuilder, TextInputStyle, inlineCode } = require('discord.js');
-const { Players } = require('../dbObjects.js');
-const { characterSurnameModal } = require('../helpers/modalCreator.js');
+const { Players } = require('../../dbObjects.js');
+const { characterSurnameModal } = require('../../helpers/modalCreator.js');
 
 module.exports = {
   customId: 'character-change-surname-button',

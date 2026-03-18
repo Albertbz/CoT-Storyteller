@@ -1,5 +1,5 @@
 const { ContainerBuilder, ButtonBuilder, MessageFlags, ButtonStyle, inlineCode } = require('discord.js');
-const { Players } = require('../dbObjects.js');
+const { Players } = require('../../dbObjects.js');
 
 module.exports = {
   customId: 'character-register-death-button',

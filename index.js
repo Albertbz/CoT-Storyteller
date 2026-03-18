@@ -57,7 +57,7 @@ client.buttons = new Collection();
 
 // Read button files from the buttons directory
 const buttonsPath = path.join(__dirname, 'buttons');
-const buttonFiles = fs.readdirSync(buttonsPath).filter(file => file.endsWith('.js'));
+const buttonFiles = fs.readdirSync(buttonsPath, { recursive: true }).filter(file => file.endsWith('.js'));
 
 // Loop through button files and set them in the collection
 for (const file of buttonFiles) {

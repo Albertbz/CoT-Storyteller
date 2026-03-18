@@ -1,5 +1,5 @@
 const { ContainerBuilder, StringSelectMenuOptionBuilder, StringSelectMenuBuilder, ActionRowBuilder, ButtonStyle, ButtonBuilder, MessageFlags } = require("discord.js");
-const { Players, Relationships, Characters } = require("../dbObjects");
+const { Players, Relationships, Characters } = require("../../dbObjects");
 const { Op } = require("sequelize");
 
 module.exports = {

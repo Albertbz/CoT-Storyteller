@@ -1,7 +1,7 @@
-const { ContainerBuilder, ButtonBuilder, MessageFlags, ButtonStyle, inlineCode } = require('discord.js');
-const { askForConfirmation } = require('../helpers/confirmations');
-const { changeCharacterInDatabase } = require('../misc');
-const { Players } = require('../dbObjects');
+const { ContainerBuilder, MessageFlags, inlineCode } = require('discord.js');
+const { askForConfirmation } = require('../../helpers/confirmations');
+const { changeCharacterInDatabase } = require('../../misc');
+const { Players } = require('../../dbObjects');
 
 async function characterNotabilityConfirm(interaction) {
   // Defer the update to allow time to process

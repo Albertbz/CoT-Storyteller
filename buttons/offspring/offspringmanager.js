@@ -1,6 +1,6 @@
 const { MessageFlags } = require("discord.js");
-const { Players } = require("../dbObjects");
-const { getOffspringManagerContainer } = require("../helpers/containerCreator");
+const { Players } = require("../../dbObjects");
+const { getOffspringManagerContainer } = require("../../helpers/containerCreator");
 
 module.exports = {
   customId: 'offspring-manager-button',

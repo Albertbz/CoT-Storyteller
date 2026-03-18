@@ -1982,28 +1982,32 @@ async function syncMemberRolesWithCharacter(player, character) {
   // Social class roles
   try {
     const socialClass = await character.getSocialClass();
+    const notableSocialClass = await SocialClasses.findOne({ where: { name: 'Notable' } });
+    const nobleSocialClass = await SocialClasses.findOne({ where: { name: 'Noble' } });
+    const rulerSocialClass = await SocialClasses.findOne({ where: { name: 'Ruler' } });
+
     if (socialClass.name === 'Ruler') {
-      if (!member.roles.cache.has(roles.notable)) rolesToAdd.push(roles.notable);
-      if (!member.roles.cache.has(roles.noble)) rolesToAdd.push(roles.noble);
-      if (!member.roles.cache.has(roles.ruler)) rolesToAdd.push(roles.ruler);
+      if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
+      if (!member.roles.cache.has(nobleSocialClass.roleId)) rolesToAdd.push(nobleSocialClass.roleId);
+      if (!member.roles.cache.has(rulerSocialClass.roleId)) rolesToAdd.push(rulerSocialClass.roleId);
     }
     else if (socialClass.name === 'Noble') {
-      if (!member.roles.cache.has(roles.notable)) rolesToAdd.push(roles.notable);
-      if (!member.roles.cache.has(roles.noble)) rolesToAdd.push(roles.noble);
+      if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
+      if (!member.roles.cache.has(nobleSocialClass.roleId)) rolesToAdd.push(nobleSocialClass.roleId);
       // Remove ruler if they had it before
-      if (member.roles.cache.has(roles.ruler)) rolesToRemove.push(roles.ruler);
+      if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
     }
     else if (socialClass.name === 'Notable') {
-      if (!member.roles.cache.has(roles.notable)) rolesToAdd.push(roles.notable);
+      if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
       // Remove noble and ruler if they had them before
-      if (member.roles.cache.has(roles.noble)) rolesToRemove.push(roles.noble);
-      if (member.roles.cache.has(roles.ruler)) rolesToRemove.push(roles.ruler);
+      if (member.roles.cache.has(nobleSocialClass.roleId)) rolesToRemove.push(nobleSocialClass.roleId);
+      if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
     }
     else {
       // Remove notable, noble, and ruler if they had them before
-      if (member.roles.cache.has(roles.notable)) rolesToRemove.push(roles.notable);
-      if (member.roles.cache.has(roles.noble)) rolesToRemove.push(roles.noble);
-      if (member.roles.cache.has(roles.ruler)) rolesToRemove.push(roles.ruler);
+      if (member.roles.cache.has(notableSocialClass.roleId)) rolesToRemove.push(notableSocialClass.roleId);
+      if (member.roles.cache.has(nobleSocialClass.roleId)) rolesToRemove.push(nobleSocialClass.roleId);
+      if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
     }
   }
   catch (error) {

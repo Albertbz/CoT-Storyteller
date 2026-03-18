@@ -87,7 +87,7 @@ module.exports = {
         new ActionRowBuilder().setComponents(
           new ButtonBuilder()
             .setCustomId('offspring-toggle-hidden:' + offspring.id)
-            .setLabel('Toggle Hidden')
+            .setLabel(offspring.hidden ? 'Unhide' : 'Hide')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('👁️'),
           new ButtonBuilder()

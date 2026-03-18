@@ -22,6 +22,10 @@ module.exports = (sequelize, DataTypes) => {
     legitimacy: {
       type: DataTypes.STRING
     },
+    hidden: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
     logInfo: {
       type: DataTypes.VIRTUAL,
       async get() {

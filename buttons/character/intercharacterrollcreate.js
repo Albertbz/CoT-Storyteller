@@ -1,5 +1,5 @@
 const { ActionRowBuilder, StringSelectMenuBuilder, UserSelectMenuBuilder, MessageFlags, TextDisplayBuilder, ContainerBuilder, ButtonBuilder, ButtonStyle, SeparatorBuilder } = require("discord.js");
-const { Players } = require("../dbObjects");
+const { Players } = require("../../dbObjects");
 
 module.exports = {
   customId: 'intercharacter-roll-create-button',
