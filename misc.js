@@ -1,5 +1,5 @@
 const { EmbedBuilder, userMention, inlineCode, MessageFlags, ContainerBuilder, TextDisplayBuilder, hyperlink, time, bold, italic, strikethrough, TimestampStyles, AttachmentBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts, DiscordChannels } = require('./dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts, DiscordChannels, Recruitments } = require('./dbObjects.js');
 const { roles } = require('./configs/ids.json');
 const { guildId } = require('./configs/config.json');
 const { Op } = require('sequelize');
@@ -1389,8 +1389,58 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
   return { player, embed: playerChangedEmbed }
 }
 
+async function addRegionToDatabase(storyteller, { name, roleId = null, rulingHouseId = null, generalChannelId = null }, createRecruitment) {
+  const regionNotCreatedEmbed = new EmbedBuilder()
+    .setTitle('Region Not Created')
+    .setColor(COLORS.RED);
 
-async function changeRegionInDatabase(storyteller, region, { newRoleId = null, newRulingHouseId = null, newRole1 = null, newRole2 = null, newRole3 = null, newGeneralChannelId = null } = {}) {
+  // Check name uniqueness
+  const existingRegion = await Regions.findOne({ where: { name } });
+  if (existingRegion) {
+    regionNotCreatedEmbed
+      .setDescription('A region with the same name already exists.');
+    return { region: null, embed: regionNotCreatedEmbed };
+  }
+
+  try {
+    let recruitment = null;
+    if (createRecruitment) {
+      recruitment = await Recruitments.create({});
+    }
+
+    const region = await Regions.create({
+      name,
+      roleId,
+      rulingHouseId,
+      generalChannelId,
+      recruitmentId: recruitment ? recruitment.id : null
+    });
+
+    await postInLogChannel(
+      'Region Created',
+      '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
+      (await region.logInfo),
+      COLORS.GREEN
+    );
+
+    // Make an embed for region creation to return
+    const regionCreatedEmbed = new EmbedBuilder()
+      .setTitle('Region Created')
+      .setDescription((await region.formattedInfo))
+      .setColor(COLORS.GREEN);
+
+    return { region: region, embed: regionCreatedEmbed };
+  }
+  catch (error) {
+    console.error(error);
+    regionNotCreatedEmbed
+      .setDescription('An error occurred while trying to create the region: ' + error.message);
+    return { region: null, embed: regionNotCreatedEmbed };
+  }
+
+}
+
+async function changeRegionInDatabase(storyteller, region, { newName = null, newRoleId = null, newRulingHouseId = null, newRole1 = null, newRole2 = null, newRole3 = null, newGeneralChannelId = null } = {}) {
   const regionNotChangedEmbed = new EmbedBuilder()
     .setTitle('Region Not Changed')
     .setColor(COLORS.RED);
@@ -1405,6 +1455,7 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
   let oldRegionValues = {};
 
   // Save all old and new values for the values that are changing
+  if (newName !== null && newName !== region.name) newRegionValues.name = newName; oldRegionValues.name = region.name;
   if (newRoleId !== null && newRoleId !== region.roleId) newRegionValues.roleId = newRoleId; oldRegionValues.roleId = region.roleId;
   if (newRulingHouseId !== null && newRulingHouseId !== region.rulingHouseId) newRegionValues.rulingHouseId = newRulingHouseId; oldRegionValues.rulingHouseId = region.rulingHouseId;
   if (newGeneralChannelId !== null && newGeneralChannelId !== region.generalChannelId) newRegionValues.generalChannelId = newGeneralChannelId; oldRegionValues.generalChannelId = region.generalChannelId;
@@ -1424,6 +1475,16 @@ async function changeRegionInDatabase(storyteller, region, { newRoleId = null, n
     regionNotChangedEmbed
       .setDescription('No changes provided.');
     return { region: null, embed: regionNotChangedEmbed };
+  }
+
+  // Check name uniqueness
+  if (newRegionValues.name) {
+    const existsWithName = await Regions.findOne({ where: { name: newRegionValues.name } });
+    if (existsWithName && existsWithName.id !== region.id) {
+      regionNotChangedEmbed
+        .setDescription('A region with the same name already exists.');
+      return { region: null, embed: regionNotChangedEmbed };
+    }
   }
 
   // All checks passed, proceed with update
@@ -2465,6 +2526,7 @@ module.exports = {
   addVassalToDatabase,
   addPlayableChildToDatabase,
   addDeceasedToDatabase,
+  addRegionToDatabase,
   changeCharacterInDatabase,
   changePlayerInDatabase,
   changeRegionInDatabase,

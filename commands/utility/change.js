@@ -149,10 +149,15 @@ module.exports = {
         .setDescription('Change something about a region.')
         .addStringOption(option =>
           option
-            .setName('name')
-            .setDescription('The name of the region to change something about.')
+            .setName('region')
+            .setDescription('The region to change something about.')
             .setRequired(true)
             .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('name_new')
+            .setDescription('The new name of the region.')
         )
         .addStringOption(option =>
           option
@@ -577,7 +582,7 @@ module.exports = {
     if (subcommand === 'region') {
       const focusedOption = interaction.options.getFocused(true);
 
-      if (focusedOption.name === 'name') {
+      if (focusedOption.name === 'region') {
         const focusedValue = interaction.options.getFocused();
 
         const regions = await Regions.findAll({
@@ -1217,7 +1222,8 @@ module.exports = {
      * Handle changing region info
      */
     if (subcommand === 'region') {
-      const regionId = interaction.options.getString('name');
+      const regionId = interaction.options.getString('region');
+      const newName = interaction.options.getString('name_new');
       const newRulingHouseId = interaction.options.getString('rulinghouse_new');
       const newRoleId = interaction.options.getString('roleid_new');
       const newRole1 = interaction.options.getString('role1_new');
@@ -1233,6 +1239,7 @@ module.exports = {
 
       try {
         const { region: updatedRegion, embed: regionChangedEmbed } = await changeRegionInDatabase(interaction.user, region, {
+          newName: newName,
           newRoleId: newRoleId,
           newRulingHouseId: newRulingHouseId,
           newRole1: newRole1,

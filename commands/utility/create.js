@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Relationships, Worlds, PlayableChildren, Deceased } = require('../../dbObjects.js');
 const { Op, Sequelize } = require('sequelize');
-const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase, addVassalToDatabase, addPlayableChildToDatabase } = require('../../misc.js')
+const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase, addVassalToDatabase, addPlayableChildToDatabase, addRegionToDatabase } = require('../../misc.js')
 
 
 module.exports = {
@@ -227,6 +227,43 @@ module.exports = {
             .setDescription('The second contact of the child.')
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('region')
+        .setDescription('Create a new region.')
+        .addStringOption(option =>
+          option
+            .setName('name')
+            .setDescription('The name of the region.')
+            .setRequired(true)
+        )
+        .addRoleOption(option =>
+          option
+            .setName('role')
+            .setDescription('The Discord role that will be assigned to characters part of the region.')
+            .setRequired(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('rulinghouse')
+            .setDescription('The ruling house of the region.')
+            .setAutocomplete(true)
+        )
+        .addChannelOption(option =>
+          option
+            .setName('generalchannel')
+            .setDescription('The general channel of the region.')
+        )
+        .addStringOption(option =>
+          option
+            .setName('createrecruitment')
+            .setDescription('Whether to create a recruitment entry for the region or not.')
+            .setChoices(
+              { name: 'Yes', value: 'Yes' },
+              { name: 'No', value: 'No' }
+            )
+        )
+    )
   ,
   async autocomplete(interaction) {
     let choices;
@@ -264,7 +301,6 @@ module.exports = {
       choices = characters.map(character => ({ name: character.name, value: character.id }));
     }
 
-
     // Autocomplete for regions, check which option is being autocompleted
     if (focusedOption.name === 'region') {
       const focusedValue = interaction.options.getFocused();
@@ -279,7 +315,7 @@ module.exports = {
     }
 
     // Autocomplete for houses
-    else if (focusedOption.name === 'house') {
+    else if (focusedOption.name === 'house' || focusedOption.name === 'rulinghouse') {
       const focusedValue = interaction.options.getFocused();
 
       const houses = await Houses.findAll({
@@ -497,6 +533,28 @@ module.exports = {
       try {
         const { playableChild, embed: playableChildCreatedEmbed } = await addPlayableChildToDatabase(interaction.user, givenValues);
         return interaction.editReply({ embeds: [playableChildCreatedEmbed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
+      }
+    }
+    else if (subcommand === 'region') {
+      const name = interaction.options.getString('name');
+      const role = interaction.options.getRole('role');
+      const rulingHouseId = interaction.options.getString('rulinghouse');
+      const generalChannel = interaction.options.getChannel('generalchannel');
+      const createRecruitment = interaction.options.getString('createrecruitment');
+
+      let givenValues = {};
+      if (name) givenValues.name = name;
+      if (role) givenValues.roleId = role.id;
+      if (rulingHouseId) givenValues.rulingHouseId = rulingHouseId;
+      if (generalChannel) givenValues.generalChannelId = generalChannel.id;
+
+      try {
+        const { region, embed } = await addRegionToDatabase(interaction.user, givenValues, createRecruitment === 'Yes' ? true : false);
+        return interaction.editReply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       }
       catch (error) {
         console.log(error);
