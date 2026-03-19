@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, roleMention, EmbedBuilder, inlineCode, bold, ButtonBuilder, ActionRowBuilder } = require('discord.js');
-const { channels } = require('../../configs/ids.json');
+const { DiscordChannels } = require('../../dbObjects');
 
 
 module.exports = {
@@ -11,8 +11,13 @@ module.exports = {
   async execute(interaction) {
     await interaction.deferReply();
 
-    // Fetch all messages from ticket channels
-    const logChannel = interaction.client.channels.cache.get(channels.storytellerLog);
+    // Fetch all messages from the log channel
+    const logChannelEntry = await DiscordChannels.findByPk('log');
+    if (!logChannelEntry) {
+      return interaction.editReply({ content: 'Log channel is not set up. Please register a channel as the log channel using the /register channel command.' });
+    }
+
+    const logChannel = interaction.client.channels.cache.get(logChannelEntry.channelId);
 
     let logMessages = [];
     console.log('\nFetching messages from log channel...');

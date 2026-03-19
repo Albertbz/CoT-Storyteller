@@ -1,8 +1,7 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Client } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Deceased, Duchies } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter, changeDuchyInDatabase, changeDeceasedInDatabase } = require('../../misc.js');
-const { channels } = require('../../configs/ids.json');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -1153,44 +1152,63 @@ module.exports = {
         embeds.push(promotedWandererCharactersEmbed);
       }
 
-      // Post in Notable chat about the characters who have been changed to
-      // Notable and ping them with a message. One message for commoners and one
-      // for wanderers.
-      const notableChat = await interaction.client.channels.fetch(channels.notableChat);
-      // First, commoners
-      const commonerMentions = [];
+      /**
+       * Send a DM to players of characters that were promoted from commoner to 
+       * notable to let them know they are now notable and have to start 
+       * tracking PvE deaths, and that they are now aging. 
+       * Also send a DM to players of characters that were promoted from wanderer 
+       * to notable to let them know they are now notable, but that not much has 
+       * changed for them otherwise.
+       */
+      // Create the message to be sent to commoners that have been promoted to notable
+      const commonerContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder()
+            .setContent(
+              `### The character you are playing on the Chronicles of Time Vintage Story server has been promoted from commoner to notable due to the passage of time.\n` +
+              `Hi! Your character was created two in-game years ago and has therefore automatically been promoted to notable. This means that your character is no longer a commoner, and is now a notable character in the world. This also means that your character is now mortal, and you must start tracking any PvE deaths. Additionally, your character will now start aging, and due to your character previously being a commoner, it will start at age 1. Welcome to mortality!\n` +
+              `-# If you believe this to be a mistake, please contact the staff team through a ticket.`
+            )
+        )
+      const commonerMessage = { components: [commonerContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] };
+
       for (const char of commonerCharactersToPromote) {
         const charPlayer = await char.getPlayer();
         if (charPlayer) {
-          commonerMentions.push(userMention(charPlayer.id));
+          try {
+            const user = await interaction.client.users.fetch(charPlayer.id);
+            await user.send(commonerMessage);
+          }
+          catch (error) {
+            console.log(`Could not send DM to user ${charPlayer.id} for character ${char.name}:`, error);
+          }
         }
-      }
-
-      if (commonerMentions.length > 0) {
-        await notableChat.send(
-          `# Commoners made in Year ${world.currentYear - 2} that have now been made notable\n` +
-          `If you are tagged in this message, then it means that you have become notable, and are no longer a commoner! Welcome to mortality! From now on, you must record any PvE deaths in <#1328825990276972706>, and you will slowly be aging. You will start at Age 1, so you still have plenty of years before you have to worry about dying of old age.\n\n` +
-          commonerMentions.join('\n')
-        );
       }
 
       // Then, wanderers
-      const wandererMentions = [];
+      const wandererContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder()
+            .setContent(
+              `### The character you are playing on the Chronicles of Time Vintage Story server has been promoted from non-notable wanderer to notable wanderer due to the passage of time.\n` +
+              `Hi! Your character was created two in-game years ago and has therefore automatically been promoted to notable. This means that your character is no longer a non-notable wanderer, and is now a notable character in the world. However, not much has changed for you otherwise, as wanderers are already mortal and have to track PvE deaths. Welcome to being a notable wanderer!\n` +
+              `-# If you believe this to be a mistake, please contact the staff team through a ticket.`
+            )
+        )
+      const wandererMessage = { components: [wandererContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] };
+
       for (const char of wandererCharactersToPromote) {
         const charPlayer = await char.getPlayer();
         if (charPlayer) {
-          wandererMentions.push(userMention(charPlayer.id));
+          try {
+            const user = await interaction.client.users.fetch(charPlayer.id);
+            await user.send(wandererMessage);
+          }
+          catch (error) {
+            console.log(`Could not send DM to user ${charPlayer.id} for character ${char.name}:`, error);
+          }
         }
       }
-
-      if (wandererMentions.length > 0) {
-        await notableChat.send(
-          `# Wanderers made in Year ${world.currentYear - 2} that have now been made notable\n` +
-          `If you are tagged in this message, then it means that you have become notable, and can no longer become a commoner if you join a house! Not much has changed for you, as you were a wanderer and as such were already mortal.\n\n` +
-          wandererMentions.join('\n')
-        );
-      }
-
 
       return interaction.editReply({ embeds: embeds, flags: MessageFlags.Ephemeral });
     }

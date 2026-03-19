@@ -1,6 +1,6 @@
 const { EmbedBuilder, userMention, inlineCode, MessageFlags, ContainerBuilder, TextDisplayBuilder, hyperlink, time, bold, italic, strikethrough, TimestampStyles, AttachmentBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts } = require('./dbObjects.js');
-const { roles, channels } = require('./configs/ids.json');
+const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts, DiscordChannels } = require('./dbObjects.js');
+const { roles } = require('./configs/ids.json');
 const { guildId } = require('./configs/config.json');
 const { Op } = require('sequelize');
 
@@ -1008,24 +1008,80 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
 
 
   // Save all old and new values for the values that are changing
-  if (newName !== null && newName !== character.name) newValues.name = newName; oldValues.name = character.name;
-  if (newSex !== null && newSex !== character.sex) newValues.sex = newSex; oldValues.sex = character.sex;
-  if (newRegionId !== null && newRegionId !== character.regionId) newValues.regionId = newRegionId; oldValues.regionId = character.regionId; newValues.regionUpdatedAt = Date.now();
-  if (newHouseId !== null && newHouseId !== character.houseId) newValues.houseId = newHouseId; oldValues.houseId = character.houseId;
-  if (newSocialClassName !== null && newSocialClassName !== character.socialClassName) newValues.socialClassName = newSocialClassName; oldValues.socialClassName = character.socialClassName;
-  if (newYearOfMaturity !== null && newYearOfMaturity !== character.yearOfMaturity) newValues.yearOfMaturity = newYearOfMaturity; oldValues.yearOfMaturity = character.yearOfMaturity;
-  if (newYearOfCreation !== null && newYearOfCreation !== character.yearOfCreation) newValues.yearOfCreation = newYearOfCreation; oldValues.yearOfCreation = character.yearOfCreation;
-  if (newRole !== null && newRole !== character.role) newValues.role = newRole; oldValues.role = character.role;
-  if (newPveDeaths !== null && newPveDeaths !== character.pveDeaths) newValues.pveDeaths = newPveDeaths; oldValues.pveDeaths = character.pveDeaths;
-  if (newComments !== null && newComments !== character.comments) newValues.comments = newComments; oldValues.comments = character.comments;
-  if (newParent1Id !== null && newParent1Id !== character.parent1Id) newValues.parent1Id = newParent1Id; oldValues.parent1Id = character.parent1Id;
-  if (newParent2Id !== null && newParent2Id !== character.parent2Id) newValues.parent2Id = newParent2Id; oldValues.parent2Id = character.parent2Id;
-  if (newIsRollingForBastards !== null && newIsRollingForBastards !== character.isRollingForBastards) newValues.isRollingForBastards = newIsRollingForBastards; oldValues.isRollingForBastards = character.isRollingForBastards;
-  if (newDeathRoll1 !== null && newDeathRoll1 !== character.deathRoll1) newValues.deathRoll1 = newDeathRoll1 === 0 ? null : newDeathRoll1; oldValues.deathRoll1 = character.deathRoll1;
-  if (newDeathRoll2 !== null && newDeathRoll2 !== character.deathRoll2) newValues.deathRoll2 = newDeathRoll2 === 0 ? null : newDeathRoll2; oldValues.deathRoll2 = character.deathRoll2;
-  if (newDeathRoll3 !== null && newDeathRoll3 !== character.deathRoll3) newValues.deathRoll3 = newDeathRoll3 === 0 ? null : newDeathRoll3; oldValues.deathRoll3 = character.deathRoll3;
-  if (newDeathRoll4 !== null && newDeathRoll4 !== character.deathRoll4) newValues.deathRoll4 = newDeathRoll4 === 0 ? null : newDeathRoll4; oldValues.deathRoll4 = character.deathRoll4;
-  if (newDeathRoll5 !== null && newDeathRoll5 !== character.deathRoll5) newValues.deathRoll5 = newDeathRoll5 === 0 ? null : newDeathRoll5; oldValues.deathRoll5 = character.deathRoll5;
+  if (newName !== null && newName !== character.name) {
+    newValues.name = newName;
+    oldValues.name = character.name;
+  }
+  if (newSex !== null && newSex !== character.sex) {
+    newValues.sex = newSex;
+    oldValues.sex = character.sex;
+  }
+  if (newRegionId !== null && newRegionId !== character.regionId) {
+    newValues.regionId = newRegionId;
+    oldValues.regionId = character.regionId;
+    newValues.regionUpdatedAt = Date.now();
+    oldValues.regionUpdatedAt = new Date(character.regionUpdatedAt).getTime();
+  }
+  if (newHouseId !== null && newHouseId !== character.houseId) {
+    newValues.houseId = newHouseId;
+    oldValues.houseId = character.houseId;
+  }
+  if (newSocialClassName !== null && newSocialClassName !== character.socialClassName) {
+    newValues.socialClassName = newSocialClassName;
+    oldValues.socialClassName = character.socialClassName;
+  }
+  if (newYearOfMaturity !== null && newYearOfMaturity !== character.yearOfMaturity) {
+    newValues.yearOfMaturity = newYearOfMaturity;
+    oldValues.yearOfMaturity = character.yearOfMaturity;
+  }
+  if (newYearOfCreation !== null && newYearOfCreation !== character.yearOfCreation) {
+    newValues.yearOfCreation = newYearOfCreation;
+    oldValues.yearOfCreation = character.yearOfCreation;
+  }
+  if (newRole !== null && newRole !== character.role) {
+    newValues.role = newRole;
+    oldValues.role = character.role;
+  }
+  if (newPveDeaths !== null && newPveDeaths !== character.pveDeaths) {
+    newValues.pveDeaths = newPveDeaths;
+    oldValues.pveDeaths = character.pveDeaths;
+  }
+  if (newComments !== null && newComments !== character.comments) {
+    newValues.comments = newComments;
+    oldValues.comments = character.comments;
+  }
+  if (newParent1Id !== null && newParent1Id !== character.parent1Id) {
+    newValues.parent1Id = newParent1Id;
+    oldValues.parent1Id = character.parent1Id;
+  }
+  if (newParent2Id !== null && newParent2Id !== character.parent2Id) {
+    newValues.parent2Id = newParent2Id;
+    oldValues.parent2Id = character.parent2Id;
+  }
+  if (newIsRollingForBastards !== null && newIsRollingForBastards !== character.isRollingForBastards) {
+    newValues.isRollingForBastards = newIsRollingForBastards;
+    oldValues.isRollingForBastards = character.isRollingForBastards;
+  }
+  if (newDeathRoll1 !== null && newDeathRoll1 !== character.deathRoll1) {
+    newValues.deathRoll1 = newDeathRoll1 === 0 ? null : newDeathRoll1;
+    oldValues.deathRoll1 = character.deathRoll1;
+  }
+  if (newDeathRoll2 !== null && newDeathRoll2 !== character.deathRoll2) {
+    newValues.deathRoll2 = newDeathRoll2 === 0 ? null : newDeathRoll2;
+    oldValues.deathRoll2 = character.deathRoll2;
+  }
+  if (newDeathRoll3 !== null && newDeathRoll3 !== character.deathRoll3) {
+    newValues.deathRoll3 = newDeathRoll3 === 0 ? null : newDeathRoll3;
+    oldValues.deathRoll3 = character.deathRoll3;
+  }
+  if (newDeathRoll4 !== null && newDeathRoll4 !== character.deathRoll4) {
+    newValues.deathRoll4 = newDeathRoll4 === 0 ? null : newDeathRoll4;
+    oldValues.deathRoll4 = character.deathRoll4;
+  }
+  if (newDeathRoll5 !== null && newDeathRoll5 !== character.deathRoll5) {
+    newValues.deathRoll5 = newDeathRoll5 === 0 ? null : newDeathRoll5;
+    oldValues.deathRoll5 = character.deathRoll5;
+  }
 
   // Check if anything is actually changing
   if (Object.keys(newValues).length === 0) {
@@ -1088,6 +1144,7 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
       // If ruling house is different from current house, set to be updated
       if (rulingHouse && rulingHouse.id !== character.houseId) {
         newValues.houseId = rulingHouse.id;
+        oldValues.houseId = character.houseId;
       }
     }
   }
@@ -1096,6 +1153,7 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   // sure to update to at least year of creation
   if (character.yearOfMaturity === 0 && newValues.yearOfMaturity === undefined) {
     newValues.yearOfMaturity = character.yearOfCreation;
+    oldValues.yearOfMaturity = character.yearOfMaturity;
   }
 
   // If comment is '-', change to null
@@ -1208,6 +1266,11 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
       case 'deathRoll5': {
         logInfoChanges.push({ key: 'deathRoll5', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
         formattedInfoChanges.push({ key: '**Death Roll @ Age 8+**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'regionUpdatedAt': {
+        logInfoChanges.push({ key: 'regionUpdatedAt', oldValue: inlineCode(oldValue ? inlineCode(oldValue) : '-'), newValue: inlineCode(newValue) });
+        // formattedInfoChanges.push({ key: '**Region Updated At**', oldValue: oldValue ? time(Math.trunc(oldValue / 1000)) : '-', newValue: time(Math.trunc(newValue / 1000)) });
         break;
       }
     }
@@ -2220,7 +2283,20 @@ async function updateRecruitmentPost() {
    * Get the previous message and update it, or post a new one if it doesn't exist/can't be found
    */
   // Check whether the recruitment post exists already
-  const houseInfoForumChannel = await client.channels.fetch(channels.housesInfo);
+  const regionsChannelEntry = await DiscordChannels.findByPk('regions');
+  if (!regionsChannelEntry) {
+    console.log('Regions channel not found in database, cannot update recruitment post. Please register a channel to be used for region info using the /register channel command.');
+
+    const notFoundContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `Regions channel not found in database, cannot update recruitment post. Please register a channel to be used for region info using the /register channel command.`
+        )
+      )
+
+    return { components: [notFoundContainer], flags: [MessageFlags.IsComponentsV2] };
+  }
+  const houseInfoForumChannel = client.channels.cache.get(regionsChannelEntry.channelId);
 
   let recruitmentPost;
   // Get all active threads in the channel and check for one with the name 'House Recruitment'
@@ -2284,10 +2360,8 @@ async function removeRelationshipFromDatabase(storyteller, relationship) {
     .setColor(COLORS.RED);
 
   if (!relationship) {
-    const relationshipNotRemovedEmbed = new EmbedBuilder()
-      .setTitle('Relationship Not Removed')
+    relationshipNotRemovedEmbed
       .setDescription('Relationship does not exist in the database.')
-      .setColor(COLORS.RED);
     return { relationship: null, embed: relationshipNotRemovedEmbed };
   }
 
@@ -2308,9 +2382,26 @@ async function postInLogChannel(title, description, color) {
     .setTitle(title)
     .setDescription(description)
     .setColor(color)
-  const logChannel = await client.channels.fetch(channels.storytellerLog);
+
+  // Find the registered log channel in the database
+  const logChannelEntry = await DiscordChannels.findByPk('log');
+  if (!logChannelEntry) {
+    console.log('Log channel not found in database, cannot post log message. Please register a channel to be used as the log channel using the /register channel command.');
+    return;
+  }
+
+  let logChannel = client.channels.cache.get(logChannelEntry.channelId);
+  if (!logChannel) {
+    try {
+      logChannel = await client.channels.fetch(logChannelEntry.channelId);
+    }
+    catch (error) {
+      console.log('Log channel not found: ' + error);
+      return;
+    }
+  }
+
   await logChannel.send({ embeds: [logEmbed] });
-  return logEmbed;
 }
 
 function ageToFertilityModifier(age) {

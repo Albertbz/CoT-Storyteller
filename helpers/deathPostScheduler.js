@@ -1,6 +1,5 @@
 const { ContainerBuilder, MessageFlags, userMention } = require('discord.js');
-const { DeathPosts, Deceased, Characters } = require('../dbObjects');
-const { channels } = require('../configs/ids.json');
+const { DeathPosts, Deceased, Characters, DiscordChannels } = require('../dbObjects');
 const { postInLogChannel, COLORS } = require('../misc');
 
 const timeouts = new Map();
@@ -23,11 +22,17 @@ async function sendPost(postId) {
             return;
         }
 
-        // const graveyardChannel = await client.channels.fetch(channels.graveyard);
+        const graveyardChannelEntry = await DiscordChannels.findByPk('graveyard');
+        if (!graveyardChannelEntry) {
+            console.log('No graveyard channel registered. Cannot post death post. Please register a graveyard channel using /register channel.');
+            return;
+        }
+
+        // const graveyardChannel = client.channels.cache.get(graveyardChannelEntry.channelId);
         const graveyardChannel = await client.channels.fetch('1465003174418055168'); // TEMPORARY for testing purposes
 
         if (!graveyardChannel) {
-            console.error('Graveyard channel not found');
+            console.error('Graveyard channel not found. Cannot post death post.');
             return;
         }
 

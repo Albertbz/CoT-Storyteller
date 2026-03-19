@@ -2,7 +2,6 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
 const { postInLogChannel, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
 const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathRollResultToDatabase, makeDeathRollsSummaryMessages, buildOffspringChanceEmbed } = require('../../helpers/rollHelper.js');
-const { channels } = require('../../configs/ids.json');
 
 // Centralized messages
 const CANCEL_CONTAINER = new ContainerBuilder()
@@ -45,6 +44,12 @@ module.exports = {
       subcommand
         .setName('death')
         .setDescription('Start death rolls.')
+        .addChannelOption(option =>
+          option
+            .setName('summary_channel')
+            .setDescription('The channel to post the summary of death rolls to.')
+            .setRequired(true)
+        )
         .addBooleanOption(option =>
           option
             .setName('skip_interactions')
@@ -623,6 +628,7 @@ module.exports = {
      * Do death rolls
      */
     else if (interaction.options.getSubcommand() === 'death') {
+      const summaryChannel = interaction.options.getChannel('summary_channel');
       const skipInteractions = interaction.options.getBoolean('skip_interactions') ?? false;
       const shouldLog = interaction.options.getBoolean('should_log') ?? true;
 
@@ -972,24 +978,22 @@ module.exports = {
 
       const summaryMessageURLs = [];
 
-      // Send the summary messages in the graveyard channel if any
+      // Send the summary messages in the summary channel specified by the user
       if (summaryMessages.length > 0) {
-        const graveyardChannel = await interaction.client.channels.fetch(channels.graveyard);
-
         for (const message of summaryMessages) {
           // Send each message and save the URL
-          const sentMessage = await graveyardChannel.send(message);
+          const sentMessage = await summaryChannel.send(message);
           summaryMessageURLs.push(sentMessage.url);
         }
 
 
-        // Edit the original message to include links to the summary messages in the graveyard channel
+        // Edit the original message to include links to the summary messages in the summary channel
         const summaryContainer = new ContainerBuilder()
           .addTextDisplayComponents(
             new TextDisplayBuilder()
               .setContent(
                 `# Death Rolls Summary\n` +
-                `The death rolls have been completed. See the summary messages in the graveyard channel for details:\n\n` +
+                `The death rolls have been completed. See the summary messages in the specified summary channel for details:\n\n` +
                 summaryMessageURLs.map((url, index) => `**Summary Message ${index + 1}:** ${url}`).join('\n')
               )
           );

@@ -1,6 +1,5 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder } = require('discord.js');
-const { Players, Characters, SocialClasses, Worlds, Regions, DeathRollDeaths } = require('../../dbObjects.js');
-const { channels } = require('../../configs/ids.json');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
+const { DeathRollDeaths } = require('../../dbObjects.js');
 const { addDeceasedToDatabase, postInLogChannel, COLORS } = require('../../misc.js');
 
 
@@ -24,7 +23,6 @@ module.exports = {
     // Process each dying character, and add a summary of the results. Also,
     // create a message that can be sent in the graveyard channel that pings
     // those who had characters die.
-    const graveyardLines = [];
     const summaryLines = [];
     const logLines = [];
 
@@ -33,21 +31,32 @@ module.exports = {
 
       const player = await character.getPlayer();
       if (player) {
-        graveyardLines.push(`${character.name} (|| ${userMention(player.id)} ||)`);
-        summaryLines.push(`${inlineCode(character.name)} (${userMention(player.id)}) - Marked as deceased.`);
+        try {
+          const user = await interaction.client.users.fetch(player.id);
+
+          const container = new ContainerBuilder()
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(
+                `### Your character, *${character.name}*, has been marked as deceased.\n` +
+                `Hi ${user}! Your character, *${character.name}*, failed their death roll for this year, and the date of death has passed. However, you have not yet posted in the graveyard channel. As such, your character has been marked as deceased, and your roles have been updated to reflect this. You do not need to do anything else.` +
+                `-# If you believe this is a mistake, please make a ticket so staff can help you.`
+              )
+            )
+
+          await user.send({ components: [container], flags: [MessageFlags.IsComponentsV2] });
+
+          summaryLines.push(`${inlineCode(character.name)} (${userMention(player.id)}) - Marked as deceased.`);
+        }
+        catch (error) {
+          summaryLines.push(`${inlineCode(character.name)} (${userMention(player.id)}) - Marked as deceased, but failed to send DM.`);
+        }
+
         logLines.push(`${inlineCode(character.name)} (${character.id}) | ${userMention(player.id)}`);
         await addDeceasedToDatabase(interaction.user, true, { characterId: character.id, yearOfDeath: deathRecord.yearOfDeath, monthOfDeath: deathRecord.monthOfDeath, dayOfDeath: deathRecord.dayOfDeath, causeOfDeath: 'Age', playedById: player.id });
       }
       else {
         summaryLines.push(`${inlineCode(character.name)} (${character.id}) - No player assigned. Must mark as deceased manually.`);
       }
-    }
-
-    // Post message in graveyard channel
-    const graveyardChannel = await client.channels.fetch(channels.graveyard);
-    if (graveyardLines.length > 0) {
-      const message = `# The following characters have died of old age this year, but have not posted their graveyard post yet.\nIf you are tagged in this message, then your character has been marked as deceased and your roles updated to reflect this. You do not need to do anything else, but you can post a graveyard post if you wish. If your character is listed here but you believe this is a mistake, please contact a storyteller for assistance.`;
-      await graveyardChannel.send(`${message}\n\n${graveyardLines.join('\n')}`);
     }
 
     // Post in log channel
