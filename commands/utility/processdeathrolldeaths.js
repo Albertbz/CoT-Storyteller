@@ -38,7 +38,7 @@ module.exports = {
             .addTextDisplayComponents(
               new TextDisplayBuilder().setContent(
                 `### Your character, *${character.name}*, has been marked as deceased.\n` +
-                `Hi ${user}! Your character, *${character.name}*, failed their death roll for this year, and the date of death has passed. However, you have not yet posted in the graveyard channel. As such, your character has been marked as deceased, and your roles have been updated to reflect this. You do not need to do anything else.` +
+                `Hi ${user}! Your character, *${character.name}*, failed their death roll for this year, and the date of death has passed. However, you have not yet posted in the graveyard channel. As such, your character has been marked as deceased, and your roles have been updated to reflect this. You do not need to do anything else.\n` +
                 `-# If you believe this is a mistake, please make a ticket so staff can help you.`
               )
             )
