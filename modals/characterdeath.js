@@ -1,4 +1,4 @@
-const { MessageFlags, ContainerBuilder, inlineCode, ModalBuilder, TextInputBuilder, StringSelectMenuBuilder, LabelBuilder, StringSelectMenuOptionBuilder, TextInputStyle } = require('discord.js');
+const { MessageFlags, ContainerBuilder, inlineCode, ModalBuilder, TextInputBuilder, StringSelectMenuBuilder, LabelBuilder, StringSelectMenuOptionBuilder, TextInputStyle, TextDisplayBuilder } = require('discord.js');
 const { addDeceasedToDatabase, addDeathPostToDatabase } = require('../misc.js');
 const { Players } = require('../dbObjects');
 const { askForConfirmation } = require('../helpers/confirmations');
@@ -26,11 +26,16 @@ module.exports = {
     // User final check for information update using helper
     return askForConfirmation(
       interaction,
-      `Review Character Final Death`,
-      `Please review the final death information below and confirm that this is correct for the death of ${inlineCode(character.name)}.\n\n` +
-      `**Date of Death:** ${month} ${day}, Year ${year}\n` +
-      `**Cause of Death:** ${cause}\n` +
-      `**Final Note:** ${note}\n`,
+      [
+        new TextDisplayBuilder().setContent(
+          `# Review Character Final Death\n` +
+          `Please review the final death information below and confirm that this is correct for the death of ${inlineCode(character.name)}.\n\n` +
+          `**Date of Death:** ${month} ${day}, Year ${year}\n` +
+          `**Cause of Death:** ${cause}\n` +
+          `**Final Note:** ${note}\n`
+        )
+      ],
+      'character-manager-return-button',
       (interaction) => finalDeathConfirm(interaction, day, month, year, cause, note),
       (interaction) => finalDeathEdit(interaction, day, month, year, cause, note)
     )

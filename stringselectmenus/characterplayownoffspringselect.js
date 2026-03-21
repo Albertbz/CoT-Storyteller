@@ -1,4 +1,4 @@
-const { ContainerBuilder, MessageFlags, ButtonBuilder, ButtonStyle, inlineCode } = require('discord.js');
+const { ContainerBuilder, MessageFlags, ButtonBuilder, ButtonStyle, inlineCode, TextDisplayBuilder } = require('discord.js');
 const { PlayableChildren } = require('../dbObjects.js');
 const { askForConfirmation } = require('../helpers/confirmations.js');
 const { assignCharacterToPlayer } = require('../misc.js');
@@ -60,9 +60,14 @@ module.exports = {
     // Ask for confirmation to play as the selected offspring character, showing character info in the confirmation message
     return askForConfirmation(
       interaction,
-      `Confirm Playing as Offspring Character: ${inlineCode(character.name)}`,
-      `You are about to play as the offspring character **${inlineCode(character.name)}**, with the following details:\n\n` +
-      playableChildInfo,
+      [
+        new TextDisplayBuilder().setContent(
+          `# Confirm Playing as Offspring Character\n` +
+          `You are about to play as the offspring character **${inlineCode(character.name)}**, with the following details:\n\n` +
+          playableChildInfo
+        )
+      ],
+      'character-manager-return-button',
       (interaction) => characterPlayOwnOffspringConfirm(interaction, character)
     )
   }

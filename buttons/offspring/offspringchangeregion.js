@@ -1,5 +1,5 @@
 const { PlayableChildren } = require("../../dbObjects");
-const { characterChangeRegionModal } = require("../../helpers/modalCreator");
+const { changeRegionModal } = require("../../helpers/modalCreator");
 
 module.exports = {
   customId: 'offspring-change-region',
@@ -11,7 +11,7 @@ module.exports = {
     const character = await offspring.getCharacter();
 
     // Get modal for changing region and show it
-    const modal = await characterChangeRegionModal(character, { regionId: character.regionId });
+    const modal = await changeRegionModal(character, 'offspring', { regionId: character.regionId });
     return interaction.showModal(modal);
   }
 }

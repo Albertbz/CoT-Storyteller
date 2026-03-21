@@ -21,6 +21,7 @@ module.exports = {
               { name: 'Graveyard', value: 'graveyard' },
               { name: 'Log', value: 'log' },
               { name: 'Regions', value: 'regions' },
+              { name: 'Approval', value: 'approval' }
             )
         )
         .addChannelOption(option =>

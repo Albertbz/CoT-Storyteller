@@ -1,4 +1,4 @@
-const { MessageFlags, ContainerBuilder, inlineCode } = require('discord.js');
+const { MessageFlags, ContainerBuilder, inlineCode, TextDisplayBuilder } = require('discord.js');
 const { changeCharacterInDatabase } = require('../misc.js');
 const { Players } = require('../dbObjects');
 const { askForConfirmation } = require('../helpers/confirmations.js');
@@ -77,8 +77,13 @@ module.exports = {
     // Ask for confirmation of surname change
     return askForConfirmation(
       interaction,
-      `Change Character Surname`,
-      `You are currently changing the surname of your character to **${inlineCode(newSurname)}**.`,
+      [
+        new TextDisplayBuilder().setContent(
+          `# Change Character Surname\n` +
+          `You are currently changing the surname of your character to **${inlineCode(newSurname)}**.`
+        )
+      ],
+      'character-manager-return-button',
       (interaction) => characterChangeSurnameConfirm(interaction, newSurname),
       (interaction) => characterChangeSurnameEdit(interaction, newSurname)
     );

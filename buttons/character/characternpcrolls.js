@@ -1,4 +1,4 @@
-const { ContainerBuilder, MessageFlags } = require('discord.js');
+const { ContainerBuilder, MessageFlags, TextDisplayBuilder } = require('discord.js');
 const { Players } = require('../../dbObjects.js');
 const { askForConfirmation } = require('../../helpers/confirmations.js');
 const { changeCharacterInDatabase } = require('../../misc.js');
@@ -71,8 +71,13 @@ module.exports = {
 
     return askForConfirmation(
       interaction,
-      character.isRollingForBastards ? 'Opt out of NPC Rolls' : 'Opt in to NPC Rolls',
-      character.isRollingForBastards ? optOutDescription : optInDescription,
+      [
+        new TextDisplayBuilder().setContent(
+          `# ${character.isRollingForBastards ? `Opt out of NPC Rolls` : `Opt in to NPC Rolls`}\n` +
+          `${character.isRollingForBastards ? optOutDescription : optInDescription}`
+        )
+      ],
+      'character-manager-return-button',
       (interaction) => characterNPCRollsConfirm(interaction)
     )
   }

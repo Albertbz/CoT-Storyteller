@@ -1,7 +1,7 @@
 const { Relationships, Characters } = require("../dbObjects");
 const { askForConfirmation } = require("../helpers/confirmations");
 const { changeRelationshipInDatabase } = require("../misc");
-const { MessageFlags, ContainerBuilder } = require("discord.js");
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require("discord.js");
 
 async function intercharacterRollEditConfirm(interaction, roll, newBearingCharacter, newConceivingCharacter, newCommitted, newInheritedTitle) {
   // Defer the reply to allow time to process
@@ -134,12 +134,17 @@ module.exports = {
     // Ask for confirmation
     return askForConfirmation(
       interaction,
-      'Confirm Intercharacter Roll Edit',
-      `Are you sure you want to edit the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}** to the following values?\n\n` +
-      `**Bearing Character:** ${bearingCharacter.name}\n` +
-      `**Conceiving Character:** ${conceivingCharacter.name}\n` +
-      `**Married:** ${committed ? 'Yes' : 'No'}\n` +
-      `**Inherited Title:** ${inheritedTitle}`,
+      [
+        new TextDisplayBuilder().setContent(
+          `# Confirm Intercharacter Roll Edit\n` +
+          `Please confirm that you want to edit the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}** to the following values:\n\n` +
+          `**Bearing Character:** ${bearingCharacter.name}\n` +
+          `**Conceiving Character:** ${conceivingCharacter.name}\n` +
+          `**Married:** ${committed ? 'Yes' : 'No'}\n` +
+          `**Inherited Title:** ${inheritedTitle}`
+        )
+      ],
+      'character-manager-return-button',
       (interaction) => intercharacterRollEditConfirm(interaction, roll, bearingCharacter, conceivingCharacter, committed, inheritedTitle)
     )
   }

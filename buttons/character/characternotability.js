@@ -1,4 +1,4 @@
-const { ContainerBuilder, MessageFlags, inlineCode } = require('discord.js');
+const { ContainerBuilder, MessageFlags, inlineCode, TextDisplayBuilder } = require('discord.js');
 const { askForConfirmation } = require('../../helpers/confirmations');
 const { changeCharacterInDatabase } = require('../../misc');
 const { Players } = require('../../dbObjects');
@@ -57,8 +57,13 @@ module.exports = {
     // Ask for confirmation to opt in to notability
     return askForConfirmation(
       interaction,
-      'Character Notability Opt-In',
-      'By opting in to notability, your character will be made mortal and will begin aging. It will also be possible for your character to participate in the offspring system. It is not possible to later opt out of notability, so make sure that you want to proceed.\n\nYou are currently opting in to notability.',
+      [
+        new TextDisplayBuilder().setContent(
+          `# Character Notability Opt-In\n` +
+          `By opting in to notability, your character will be made mortal and will begin aging. It will also be possible for your character to participate in the offspring system. It is not possible to later opt out of notability, so make sure that you want to proceed.\n\nYou are currently opting in to notability.`
+        )
+      ],
+      'character-manager-return-button',
       (interaction) => characterNotabilityConfirm(interaction)
     )
   }

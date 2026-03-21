@@ -1,4 +1,4 @@
-const { ContainerBuilder, MessageFlags } = require("discord.js");
+const { ContainerBuilder, MessageFlags, TextDisplayBuilder } = require("discord.js");
 const { PlayableChildren, Characters } = require("../../dbObjects");
 const { askForConfirmation } = require("../../helpers/confirmations");
 const { changePlayableChildInDatabase } = require("../../misc");
@@ -18,8 +18,13 @@ module.exports = {
     // Ask for confirmation
     return askForConfirmation(
       interaction,
-      `Toggle Hidden Status`,
-      `You are currently ${offspring.hidden ? 'unhiding' : 'hiding'} this offspring. This means that the offspring will ${offspring.hidden ? 'be visible' : 'be hidden'} in the list of offspring that other players can apply to play and are able to see information about.`,
+      [
+        new TextDisplayBuilder().setContent(
+          `# Toggle Hidden Status\n` +
+          `You are currently ${offspring.hidden ? 'unhiding' : 'hiding'} this offspring. This means that the offspring will ${offspring.hidden ? 'be visible' : 'be hidden'} in the list of offspring that other players can apply to play and are able to see information about.`
+        )
+      ],
+      'offspring-manager-return-button',
       (interaction) => toggleHiddenConfirm(interaction, offspring)
     )
   }

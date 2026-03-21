@@ -1,4 +1,4 @@
-const { ContainerBuilder, MessageFlags, inlineCode } = require('discord.js');
+const { ContainerBuilder, MessageFlags, inlineCode, TextDisplayBuilder } = require('discord.js');
 const { changeCharacterInDatabase } = require('../../misc.js');
 const { Players } = require('../../dbObjects.js');
 const { askForConfirmation } = require('../../helpers/confirmations.js');
@@ -87,8 +87,13 @@ module.exports = {
       // Ask for confirmation
       return askForConfirmation(
         interaction,
-        'Confirm Adding PvE Death',
-        'You are currently adding a PvE death to your character. This will increase your character\'s PvE death count by 1. You cannot undo this action.',
+        [
+          new TextDisplayBuilder().setContent(
+            `# Confirm Adding PvE Death\n` +
+            `You are currently adding a PvE death to your character. This will increase your character\'s PvE death count by 1. You cannot undo this action.`
+          )
+        ],
+        'character-manager-return-button',
         (interaction) => characterPveDeathConfirm(interaction)
       )
     }

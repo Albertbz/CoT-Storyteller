@@ -1,4 +1,4 @@
-const { MessageFlags, ContainerBuilder } = require("discord.js");
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require("discord.js");
 const { Relationships, Characters } = require("../dbObjects");
 const { askForConfirmation } = require("../helpers/confirmations");
 const { removeRelationshipFromDatabase } = require("../misc");
@@ -30,8 +30,13 @@ module.exports = {
 
     return askForConfirmation(
       interaction,
-      'Confirm Intercharacter Roll Deletion',
-      `You are currently deleting the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}**. Are you sure you want to proceed? This action cannot be undone.`,
+      [
+        new TextDisplayBuilder().setContent(
+          `# Confirm Intercharacter Roll Deletion\n` +
+          `You are currently deleting the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}**. Are you sure you want to proceed? This action cannot be undone.`
+        )
+      ],
+      'character-manager-return-button',
       (interaction) => intercharacterRollDeleteConfirm(interaction, roll)
     )
   }

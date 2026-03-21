@@ -1,7 +1,7 @@
-const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextDisplayBuilder, inlineCode } = require('discord.js');
+const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextDisplayBuilder, inlineCode, FileUploadBuilder } = require('discord.js');
 const { Regions, Houses, Relationships } = require('../dbObjects.js');
 const { guildId } = require('../configs/config.json');
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 
 /**
  * Creates a character creation modal with optional pre-filled values.
@@ -473,10 +473,17 @@ async function getIntercharacterRollLabels(character1, character2, { bearingChar
   return { bearingLabel, marriedLabel, inheritTitlesLabel };
 }
 
-
-async function characterChangeRegionModal(character, { regionId = null } = {}) {
+/**
+ * Creates a modal for changing the region of a character, with an optional pre-selected region.
+ * @param {*} character The character entry to change the region of.
+ * @param {string} manager The manager that is being used to change the character's region. 
+ * @param {Object} [options={}] - Optional configuration.
+ * @param {string|null} [options.regionId=null] - The region ID.
+ * @returns {Promise<ModalBuilder>} The constructed modal for changing the character's region.
+ */
+async function changeRegionModal(character, manager, { regionId = null } = {}) {
   const modal = new ModalBuilder()
-    .setCustomId('character-change-region-modal:' + character.id)
+    .setCustomId(`${manager}-change-region-modal:${character.id}`)
     .setTitle('Change Region of Character');
 
 
@@ -536,11 +543,42 @@ async function characterChangeRegionModal(character, { regionId = null } = {}) {
   return modal;
 }
 
+async function offspringLegitimiseModal(offspring) {
+  const modal = new ModalBuilder()
+    .setCustomId('offspring-legitimise-modal:' + offspring.id)
+    .setTitle('Legitimise Offspring');
+
+  const offspringCharacter = await offspring.getCharacter();
+
+  // Create textdisplay to explain what legitimising the offspring means and 
+  // what the requirements are
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `To legitimise the offspring **${offspringCharacter.name}**, please provide a screenshot of a piece of parchment that has been signed by the ruler of the lands that the offspring belongs to. The parchment must state that the offspring is now a legitimate child of their parent(s), and must include the name of the offspring and their parent(s).`
+    )
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  // Create a file upload input for the screenshot of the signed parchment
+  const screenshotInput = new FileUploadBuilder()
+    .setCustomId('offspring-legitimise-screenshot')
+
+  const screenshotLabel = new LabelBuilder()
+    .setLabel('Upload screenshot of signed parchment')
+    .setDescription('Make sure the screenshot includes the things mentioned in the instructions above.')
+    .setFileUploadComponent(screenshotInput);
+
+  modal.addLabelComponents(screenshotLabel);
+
+  return modal;
+}
+
 module.exports = {
   characterCreateModal,
   finalDeathModal,
   characterSurnameModal,
   intercharacterRollCreateModal,
   intercharacterRollEditModal,
-  characterChangeRegionModal
+  changeRegionModal,
+  offspringLegitimiseModal
 }

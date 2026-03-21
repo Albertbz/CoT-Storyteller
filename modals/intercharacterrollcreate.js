@@ -1,4 +1,4 @@
-const { MessageFlags, ContainerBuilder, ButtonStyle, ButtonBuilder, userMention } = require("discord.js");
+const { MessageFlags, ContainerBuilder, ButtonStyle, ButtonBuilder, userMention, TextDisplayBuilder } = require("discord.js");
 const { askForConfirmation } = require("../helpers/confirmations");
 const { Characters } = require("../dbObjects");
 const { addRelationshipToDatabase } = require("../misc");
@@ -221,12 +221,17 @@ module.exports = {
      */
     return askForConfirmation(
       interaction,
-      `Confirm Intercharacter Roll Creation`,
-      `Please confirm that you want to create an intercharacter roll with the following details:\n\n` +
-      `**Bearing Character:** ${bearingCharacter.name}\n` +
-      `**Conceiving Character:** ${conceivingCharacter.name}\n` +
-      `**Married:** ${committed ? 'Yes' : 'No'}\n` +
-      `**Inherited Title:** ${inheritedTitle ? 'Nobility' : 'None'}`,
+      [
+        new TextDisplayBuilder().setContent(
+          `# Confirm Intercharacter Roll Creation\n` +
+          `Please confirm that you want to create an intercharacter roll with the following details:\n\n` +
+          `**Bearing Character:** ${bearingCharacter.name}\n` +
+          `**Conceiving Character:** ${conceivingCharacter.name}\n` +
+          `**Married:** ${committed ? 'Yes' : 'No'}\n` +
+          `**Inherited Title:** ${inheritedTitle ? 'Nobility' : 'None'}`
+        )
+      ],
+      'character-manager-return-button',
       (interaction) => intercharacterRollCreateConfirm(interaction, bearingCharacter, conceivingCharacter, committed, inheritedTitle),
       (interaction) => intercharacterRollCreateEdit(interaction, bearingCharacter, conceivingCharacter, committed, inheritedTitle)
     )

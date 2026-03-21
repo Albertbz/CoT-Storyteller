@@ -10,7 +10,8 @@ const COLORS = {
   RED: 0xA30000,
   LIGHT_YELLOW: 0xFFFFA3,
   YELLOW: 0xA3A300,
-  ORANGE: 0xFFA500
+  ORANGE: 0xFFA500,
+  APRICOT: 0xFFB27F
 };
 
 async function addPlayerToDatabase(storyteller, { id, ign, timezone = null } = {}) {

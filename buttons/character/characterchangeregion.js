@@ -1,6 +1,6 @@
 const { TimestampStyles, ContainerBuilder, MessageFlags, time } = require("discord.js");
 const { Players } = require("../../dbObjects");
-const { characterChangeRegionModal } = require("../../helpers/modalCreator");
+const { changeRegionModal } = require("../../helpers/modalCreator");
 
 module.exports = {
   customId: 'character-change-region-button',
@@ -11,7 +11,7 @@ module.exports = {
     const regionChangedRecently = regionChangedCheck(character);
 
     if (!regionChangedRecently) {
-      const modal = await characterChangeRegionModal(character, { regionId: character.regionId });
+      const modal = await changeRegionModal(character, 'character', { regionId: character.regionId });
       await interaction.showModal(modal);
     }
     else {
@@ -34,7 +34,7 @@ function regionChangedCheck(character) {
   }
 
   // Check if character has changed region within the last 3 days (1000 * 60 * 60 * 24 * 3 = 259200000 milliseconds)
-  if ((Date.now() - new Date(character.regionUpdatedAt).getTime()) <= 259200000) {
+  if ((Date.now() - new Date(character.regionUpdatedAt).getTime()) <= 10) {
     return true;
   }
   else {
