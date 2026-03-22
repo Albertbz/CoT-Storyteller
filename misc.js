@@ -993,7 +993,7 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
 
 // Changes the provided values of a character and posts the change to the log
 // channel using postInLogChannel.
-async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newRegionId = null, newHouseId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null, newYearOfCreation = null, forceChange = false } = {}) {
+async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newRegionId = null, newHouseId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null, newYearOfCreation = null, forceChange = false, autoChangeHouse = true } = {}) {
   const characterNotChangedEmbed = new EmbedBuilder()
     .setTitle('Character Not Changed')
     .setColor(COLORS.RED);
@@ -1139,12 +1139,16 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
 
     // If houseId not provided, set to ruling house of new region, if wanderer
     // set to null
-    if (!newValues.houseId) {
+    if (autoChangeHouse && !newValues.houseId) {
       const newRegion = await Regions.findByPk(newValues.regionId);
       const rulingHouse = await newRegion.getRulingHouse();
       // If ruling house is different from current house, set to be updated
       if (rulingHouse && rulingHouse.id !== character.houseId) {
         newValues.houseId = rulingHouse.id;
+        oldValues.houseId = character.houseId;
+      }
+      else {
+        newValues.houseId = null;
         oldValues.houseId = character.houseId;
       }
     }
@@ -1160,6 +1164,12 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   // If comment is '-', change to null
   if (newValues.comments === '-') {
     newValues.comments = null;
+  }
+
+  // If new house id is 0, change to null
+  if (newValues.houseId === 0) {
+    newValues.houseId = null;
+    oldValues.houseId = character.houseId;
   }
 
   // All checks passed, prepare the description of changes
