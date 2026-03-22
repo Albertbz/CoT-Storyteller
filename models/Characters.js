@@ -201,9 +201,14 @@ module.exports = (sequelize, DataTypes) => {
               relationshipList.push(`${bearingCharacter.name} & ${conceivingCharacter.name}`);
             }
 
+            const children = await sequelize.models.characters.findAll({
+              where: { [Op.or]: [{ parent1Id: this.id }, { parent2Id: this.id }] }
+            })
+
             const offspringInfo = (
               `### Offspring Info\n` +
               `**Parents:** ${parents.length > 0 ? parents.join(', ') : `Unknown`}\n` +
+              `**Children:** ${children.length > 0 ? children.map(child => `\`${child.name}\``).join(', ') : `None`}\n` +
               `**Opted in to NPC rolls:** ${this.isRollingForBastards ? `Yes` : `No`}\n` +
               `**Intercharacter Rolls:** ${relationshipList.length > 0 ? `\n- ${relationshipList.join('\n- ')}` : `None`}`
             )
