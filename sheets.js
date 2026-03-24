@@ -1,6 +1,6 @@
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { JWT } = require('google-auth-library');
-const creds = require('./configs/cot-storyteller-6781c6d9e0e6.json');
+const creds = require('./configs/googleserviceaccount.json');
 
 // Initialize auth - see https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication
 const serviceAccountAuth = new JWT({
@@ -11,10 +11,7 @@ const serviceAccountAuth = new JWT({
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
-const notableOffspringDoc = new GoogleSpreadsheet('1J47mELEQAWMexPopWatUe15EUrcIkZbAo1ChgwgquxE', serviceAccountAuth);
-const citizenryRegistryDoc = new GoogleSpreadsheet('1vPk2oXTCj5I6gMtMKNL6LpmL-qFX5LqM2J5oQHK-ZSo', serviceAccountAuth);
-
 const citizensDoc = new GoogleSpreadsheet('1GSWM4WNu6Af_83PK0b3oVwRAQo1oloxe45FKgnSM9jA', serviceAccountAuth);
 const offspringDoc = new GoogleSpreadsheet('12-X5-Am78611BmY5OwSk9lmuZJjhEz-jY55ZebH4Quc', serviceAccountAuth);
 
-module.exports = { notableOffspringDoc, citizenryRegistryDoc, citizensDoc, offspringDoc }
+module.exports = { citizensDoc, offspringDoc }
