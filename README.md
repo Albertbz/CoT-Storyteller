@@ -48,6 +48,7 @@ CoT-Storyteller is a comprehensive Discord bot that handles character creation, 
 - npm or yarn
 - Discord Bot Token
 - Google Service Account credentials (for Sheets integration)
+- Google Sheets shared with the Service Account
 
 ### Installation
 
