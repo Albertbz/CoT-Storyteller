@@ -1,7 +1,6 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, roleMention, EmbedBuilder, inlineCode, bold, ButtonBuilder, ActionRowBuilder, time, TimestampStyles, ContainerBuilder } = require('discord.js');
-const { roles } = require('../../configs/ids.json');
-const { postInLogChannel, addDeceasedToDatabase, changePlayerInDatabase } = require('../../misc.js');
-const { Players, Characters, Deceased, Worlds } = require('../../dbObjects.js');
+const { SlashCommandBuilder, InteractionContextType, MessageFlags, inlineCode, bold, ButtonBuilder, ActionRowBuilder, time, TimestampStyles, ContainerBuilder } = require('discord.js');
+const { addDeceasedToDatabase, changePlayerInDatabase } = require('../../misc.js');
+const { Players, Characters, Worlds, DiscordRoles } = require('../../dbObjects.js');
 const DiscordChannels = require('../../models/DiscordChannels.js');
 
 
@@ -285,10 +284,17 @@ module.exports = {
     messageLines.push(`Members still on the server: ${inlineCode(affectedMemberDetails.length)}`);
     console.log(`Members still on the server: ${affectedMemberDetails.length}`);
 
-    // Filter to those that do not already have the New Member role
-    const membersToSetNewMember = affectedMemberDetails.filter(memberDetail => {
-      return !memberDetail.roles.some(role => role.id === roles.newMember);
-    });
+    // Filter to those that do not already have the Guest role
+    const guestRoleEntry = await DiscordRoles.findByPk('guest');
+    let membersToSetNewMember = affectedMemberDetails;
+    if (!guestRoleEntry) {
+      console.log('Guest role not found in database, cannot filter members that already have Guest role.');
+    }
+    else {
+      membersToSetNewMember = affectedMemberDetails.filter(memberDetail => {
+        return !memberDetail.roles.some(role => role.id === guestRoleEntry.roleId);
+      });
+    }
 
     // Log the amount of members to be changed to New Member role
     messageLines.push(`Members to be set to New Member role: ${inlineCode(membersToSetNewMember.length)}`);
@@ -363,14 +369,26 @@ module.exports = {
             // Finally, set the roles of the members to New Member role
             for (const memberDetail of membersToSetNewMember) {
               // If banned, keep banned role as well
-              if (memberDetail.roles.includes(roles.banned)) {
-                await memberDetail.member.roles.set([roles.newMember, roles.banned]);
+              const bannedRoleEntry = await DiscordRoles.findByPk('banned');
+              if (!bannedRoleEntry) {
+                console.log('Banned role not found in database, cannot check if member is banned.');
+              }
+
+              if (bannedRoleEntry && memberDetail.roles.includes(bannedRoleEntry.roleId)) {
+                await memberDetail.member.roles.set([bannedRoleEntry.roleId]);
               }
               else {
-                // Send a message to the member to let them know that they have been
-                // unwhitelisted
-                await memberDetail.member.roles.set([roles.newMember]);
+                const guestRoleEntry = await DiscordRoles.findByPk('guest');
+                if (!guestRoleEntry) {
+                  console.log('Guest role not found in database, cannot set member to Guest role.');
+                }
+                else {
+                  // Set roles to just the guest role
+                  await memberDetail.member.roles.set([guestRoleEntry.roleId]);
+                }
                 try {
+                  // Send a message to the member to let them know that they have been
+                  // unwhitelisted
                   await memberDetail.member.send(message);
                 }
                 catch (error) {

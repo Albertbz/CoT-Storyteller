@@ -1,5 +1,4 @@
 const Sequelize = require('sequelize');
-const { roles } = require('./configs/ids.json');
 const { guildId } = require('./configs/config.json');
 
 const sequelize = new Sequelize('database', 'user', 'password', {
@@ -27,6 +26,7 @@ const Deceased = require('./models/Deceased.js')(sequelize, Sequelize.DataTypes)
 const DeathRollDeaths = require('./models/DeathRollDeaths.js')(sequelize, Sequelize.DataTypes);
 const DeathPosts = require('./models/DeathPosts.js')(sequelize, Sequelize.DataTypes);
 const DiscordChannels = require('./models/DiscordChannels.js')(sequelize, Sequelize.DataTypes);
+const DiscordRoles = require('./models/DiscordRoles.js')(sequelize, Sequelize.DataTypes);
 
 Regions.belongsTo(Houses, { foreignKey: 'rulingHouseId', as: 'rulingHouse' });
 Regions.belongsTo(Recruitments, { foreignKey: 'recruitmentId', as: 'recruitment' });
@@ -72,7 +72,13 @@ Steelbearers.addHook('afterDestroy', async (steelbearer, options) => {
           try {
             const member = await guild.members.fetch(player.id);
             if (member) {
-              await member.roles.remove(roles.steelbearer);
+              const steelbearerRoleEntry = await DiscordRoles.findByPk('steelbearer');
+              if (steelbearerRoleEntry) {
+                await member.roles.remove(steelbearerRoleEntry.roleId);
+              }
+              else {
+                console.log('Steelbearer role not found in database, cannot remove role from member.');
+              }
             }
           }
           catch {
@@ -124,4 +130,23 @@ Players.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 DeathPosts.belongsTo(Deceased, { foreignKey: 'deceasedId', as: 'deceased' });
 
 
-module.exports = { Players, Characters, Houses, Recruitments, Regions, Duchies, Vassals, Steelbearers, VassalSteelbearers, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths, DeathPosts, DiscordChannels };
+module.exports = {
+  Players,
+  Characters,
+  Houses,
+  Recruitments,
+  Regions,
+  Duchies,
+  Vassals,
+  Steelbearers,
+  VassalSteelbearers,
+  SocialClasses,
+  Worlds,
+  Relationships,
+  PlayableChildren,
+  Deceased,
+  DeathRollDeaths,
+  DeathPosts,
+  DiscordChannels,
+  DiscordRoles
+};

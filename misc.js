@@ -1,6 +1,5 @@
 const { EmbedBuilder, userMention, inlineCode, MessageFlags, ContainerBuilder, TextDisplayBuilder, hyperlink, time, bold, italic, strikethrough, TimestampStyles, AttachmentBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts, DiscordChannels, Recruitments } = require('./dbObjects.js');
-const { roles } = require('./configs/ids.json');
+const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts, DiscordChannels, Recruitments, DiscordRoles } = require('./dbObjects.js');
 const { guildId } = require('./configs/config.json');
 const { Op } = require('sequelize');
 
@@ -961,12 +960,26 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
   }
   // Remove roles of member if specified
   if (removeRoles && playedById) {
+    // Get all region roles
+    const regions = await Regions.findAll();
+    const regionRoleIds = regions.map(region => region.roleId);
+
+    // Get all social class roles
+    const socialClasses = await SocialClasses.findAll();
+    const socialClassRoleIds = socialClasses.map(socialClass => socialClass.roleId);
+
+    // Get steelbearer role
+    const steelbearerRoleEntry = await DiscordRoles.findByPk('steelbearer');
+    const steelbearerRoleId = steelbearerRoleEntry ? steelbearerRoleEntry.roleId : null;
+
+    const rolesToRemove = [regionRoleIds, socialClassRoleIds, steelbearerRoleId];
+
     if (player) {
       const guild = await client.guilds.fetch(guildId);
       try {
         const member = await guild.members.fetch(player.id);
         if (member) {
-          await member.roles.remove([roles.eshaeryn, roles.firstLanding, roles.noble, roles.notable, roles.riverhelm, roles.ruler, roles.steelbearer, roles.theBarrowlands, roles.theHeartlands, roles.velkharaan, roles.vernados, roles.wanderer]);
+          await member.roles.remove(rolesToRemove);
         }
       }
       catch (error) {
@@ -2097,10 +2110,17 @@ async function syncMemberRolesWithCharacter(player, character) {
   }
 
   // If member has banned role, do not change roles
-  if (member.roles.cache.has(roles.banned)) {
-    console.log('Member with ID ' + player.id + ' is banned, not changing roles.');
-    return false;
+  const bannedRoleEntry = await DiscordRoles.findByPk('banned');
+  if (!bannedRoleEntry) {
+    console.log('Banned role ID not found in database, cannot check if member is banned so assuming they are not.');
   }
+  else {
+    if (member.roles.cache.has(bannedRoleEntry.roleId)) {
+      console.log('Member with ID ' + player.id + ' is banned, not changing roles.');
+      return false;
+    }
+  }
+
 
   // Go through the possible roles and track which to add and remove
   let rolesToAdd = [];
@@ -2166,19 +2186,26 @@ async function syncMemberRolesWithCharacter(player, character) {
 
   // Steelbearer role
   try {
-    // Check whether character is steelbearer by looking at steelbearers
-    const steelbearerRecord = await Steelbearers.findOne({ where: { characterId: character.id } });
-    if (steelbearerRecord) {
-      if (!member.roles.cache.has(roles.steelbearer)) {
-        rolesToAdd.push(roles.steelbearer);
-      }
+    const steelbearerRoleEntry = await DiscordRoles.findByPk('steelbearer');
+    if (!steelbearerRoleEntry) {
+      console.log('Steelbearer role ID not found in database.');
     }
     else {
-      // Remove steelbearer role if they had it before
-      if (member.roles.cache.has(roles.steelbearer)) {
-        rolesToRemove.push(roles.steelbearer);
+      // Check whether character is steelbearer by looking at steelbearers
+      const steelbearerRecord = await Steelbearers.findOne({ where: { characterId: character.id } });
+      if (steelbearerRecord) {
+        if (!member.roles.cache.has(steelbearerRoleEntry.roleId)) {
+          rolesToAdd.push(steelbearerRoleEntry.roleId);
+        }
+      }
+      else {
+        // Remove steelbearer role if they had it before
+        if (member.roles.cache.has(steelbearerRoleEntry.roleId)) {
+          rolesToRemove.push(steelbearerRoleEntry.roleId);
+        }
       }
     }
+
   }
   catch (error) {
     console.log('Failed to assign steelbearer role: ' + error);
