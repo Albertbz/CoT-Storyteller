@@ -25,12 +25,12 @@ module.exports = {
     await interaction.deferReply();
 
     // Fetch all messages from the whitelist applications channel
-    const whitelistsChannel = interaction.client.channels.cache.get('1327928742080675870');
+    const whitelistsLogChannel = interaction.client.channels.cache.get('1327928742080675870');
 
     let whitelistsMessages = [];
     console.log('\nFetching messages from whitelist applications channel...');
     // Create message pointer
-    let whitelistsMessage = await whitelistsChannel.messages
+    let whitelistsMessage = await whitelistsLogChannel.messages
       .fetch({ limit: 1 })
       .then(messagePage => (messagePage.size === 1 ? messagePage.at(0) : null));
     if (whitelistsMessage) {
@@ -38,7 +38,7 @@ module.exports = {
     }
 
     while (whitelistsMessage) {
-      await whitelistsChannel.messages
+      await whitelistsLogChannel.messages
         .fetch({ limit: 100, before: whitelistsMessage.id })
         .then(messagePage => {
           messagePage.forEach(msg => whitelistsMessages.push(msg));

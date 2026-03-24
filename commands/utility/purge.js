@@ -2,6 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { roles } = require('../../configs/ids.json');
 const { postInLogChannel, addDeceasedToDatabase, changePlayerInDatabase } = require('../../misc.js');
 const { Players, Characters, Deceased, Worlds } = require('../../dbObjects.js');
+const DiscordChannels = require('../../models/DiscordChannels.js');
 
 
 module.exports = {
@@ -189,17 +190,17 @@ module.exports = {
     // Find the Discord members corresponding to all filtered whitelisted players
     // by getting all accepted whitelist embeds from the whitelist channel and
     // matching LastKnownPlayername to the embed description
-    const whitelistChannel = interaction.client.channels.cache.get('1327928742080675870');
+    const whitelistLogChannel = interaction.client.channels.cache.get('1327928742080675870');
 
     let whitelistMessages = [];
     console.log('\nFetching messages from whitelist channel...');
     // Create message pointer
-    let whitelistMessage = await whitelistChannel.messages
+    let whitelistMessage = await whitelistLogChannel.messages
       .fetch({ limit: 1 })
       .then(messagePage => (messagePage.size === 1 ? messagePage.at(0) : null));
 
     while (whitelistMessage) {
-      await whitelistChannel.messages
+      await whitelistLogChannel.messages
         .fetch({ limit: 100, before: whitelistMessage.id })
         .then(messagePage => {
           messagePage.forEach(msg => whitelistMessages.push(msg));
@@ -302,12 +303,18 @@ module.exports = {
       name: 'members_set_to_new_member.txt'
     };
 
+    const whitelistChannelEntry = await DiscordChannels.findByPk('whitelist');
+    const whitelistChannel = interaction.client.channels.cache.get(whitelistChannelEntry.channelId);
+
+    const ticketChannelEntry = await DiscordChannels.findByPk('tickets');
+    const ticketChannel = interaction.client.channels.cache.get(ticketChannelEntry.channelId);
+
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
           `### You have been unwhitelisted from Chronicles of Time for being inactive for over 45 days.\n` +
           `Hi! This is an automated message to let you know that you have been unwhitelisted from Chronicles of Time for being inactive for over 45 days. This means that your access to the Vintage Story server has been removed, and if you were playing a character, that character has been marked as having left the continent, and marked as dead from a technical standpoint.\n\n` +
-          `If you wish to return to the server and play again, please make a new whitelist application in <#1327943418680184835> - we would love to have you back! If you have any questions, please also feel free to reach out to a member of staff in <#1369527086015971340>.`
+          `If you wish to return to the server and play again, please make a new whitelist application${whitelistChannel ? ` in ${whitelistChannel}` : ''} - we would love to have you back! If you have any questions, please also feel free to reach out to a member of staff${ticketChannel ? ` in ${ticketChannel}` : ''}.`
         )
       )
 
