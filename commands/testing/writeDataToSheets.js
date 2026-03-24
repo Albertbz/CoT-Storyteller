@@ -10,10 +10,16 @@ module.exports = {
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    await syncSpreadsheetsToDatabase();
+    try {
+      await syncSpreadsheetsToDatabase();
 
-    return interaction.editReply({
-      content: 'The data has been written.', flags: MessageFlags.Ephemeral
-    });
+      return interaction.editReply({
+        content: 'The data has been written.', flags: MessageFlags.Ephemeral
+      });
+    }
+    catch (error) {
+      return interaction.editReply({ content: error.message || 'An error occurred while writing data to the spreadsheets.', flags: MessageFlags.Ephemeral });
+    }
+
   }
 }

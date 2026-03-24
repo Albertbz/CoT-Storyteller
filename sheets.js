@@ -1,6 +1,7 @@
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { JWT } = require('google-auth-library');
 const creds = require('./configs/googleserviceaccount.json');
+const { citizensSpreadsheetId, offspringSpreadsheetId } = require('./configs/spreadsheets.json');
 
 // Initialize auth - see https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication
 const serviceAccountAuth = new JWT({
@@ -11,7 +12,15 @@ const serviceAccountAuth = new JWT({
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
-const citizensDoc = new GoogleSpreadsheet('1GSWM4WNu6Af_83PK0b3oVwRAQo1oloxe45FKgnSM9jA', serviceAccountAuth);
-const offspringDoc = new GoogleSpreadsheet('12-X5-Am78611BmY5OwSk9lmuZJjhEz-jY55ZebH4Quc', serviceAccountAuth);
+// If spreadsheet IDs are not provided, set citizensDoc and offspringDoc to null to prevent errors when trying to access them
+if (!citizensSpreadsheetId || !offspringSpreadsheetId) {
+  console.log('Spreadsheet IDs not provided in configs/spreadsheets.json. Spreadsheets will not be synced to the database.');
+  module.exports = { citizensDoc: null, offspringDoc: null };
+  return;
+}
+
+// Initialize the GoogleSpreadsheet objects for both spreadsheets
+const citizensDoc = new GoogleSpreadsheet(citizensSpreadsheetId, serviceAccountAuth);
+const offspringDoc = new GoogleSpreadsheet(offspringSpreadsheetId, serviceAccountAuth);
 
 module.exports = { citizensDoc, offspringDoc }

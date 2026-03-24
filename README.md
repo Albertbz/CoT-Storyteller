@@ -71,7 +71,14 @@ CoT-Storyteller is a comprehensive Discord bot that handles character creation, 
        "guildId": "YOUR_GUILD_ID"
      }
      ```
-   - Place your Google Service Account JSON in `configs/` and rename the file to `googleserviceaccount.json`
+   - Place your Google Service Account JSON in `configs/` and rename the file `googleserviceaccount.json`
+   - Create `configs/spreadsheets.json` with the IDs of the citizen and offspring spreadsheets:
+     ```json
+     {
+       "citizensSpreadsheetId": "CITIZEN_SPREADSHEET_ID",
+       "offspringSpreadsheetId": "OFFSPRING_SPREADSHEET_ID"
+     }
+     ```
 
 4. Initialize the database:
    ```bash
@@ -89,7 +96,7 @@ CoT-Storyteller is a comprehensive Discord bot that handles character creation, 
    ```
 
 7. Register channels and roles:
-  - Use the `/register channel` and `/register role` commands to register the channels and roles required for the bot to run properly. If any are not registered, errors may occur and will be posted in the console.
+  - Use the `/register channel` and `/register role` Discord commands to register the channels and roles required for the bot to run properly. If any are not registered, errors may occur and will be posted in the console.
 
 ## Key Commands
 

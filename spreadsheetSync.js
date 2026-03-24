@@ -4,6 +4,12 @@ const { getFertilityModifier } = require('./helpers/rollHelper.js');
 const { postInLogChannel, COLORS } = require('./misc.js');
 
 async function syncSpreadsheetsToDatabase() {
+  // Check if citizensDoc or offspringDoc is null, which would indicate that spreadsheet IDs were not provided in configs/spreadsheets.json
+  if (citizensDoc === null || offspringDoc === null) {
+    console.log('Cannot sync spreadsheets to database because spreadsheet IDs were not provided in configs/spreadsheets.json');
+    throw new Error('Spreadsheet IDs not provided in configs/spreadsheets.json');
+  }
+
   // Load world
   const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
 
