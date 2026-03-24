@@ -37,7 +37,7 @@ module.exports = (sequelize, DataTypes) => {
           `contact1: ${this.contact1Snowflake ? `<@${this.contact1Snowflake}> (\`${this.contact1Snowflake}\`)` : '`-`'}\n` +
           `contact2: ${this.contact2Snowflake ? `<@${this.contact2Snowflake}> (\`${this.contact2Snowflake}\`)` : '`-`'}\n` +
           `comments: \`${this.comments ? this.comments : '-'}\`\n` +
-          `legitimacy: \`${this.legitimacy ? this.legitimacy : '-'}\`` +
+          `legitimacy: \`${this.legitimacy ? this.legitimacy : '-'}\`\n` +
           `hidden: \`${this.hidden}\``
         );
       },
