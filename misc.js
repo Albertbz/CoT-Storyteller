@@ -1125,6 +1125,14 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
         .setDescription('Commoner characters cannot roll for bastards.');
       return { character: null, embed: characterNotChangedEmbed };
     }
+
+    // Cannot be dead (check if Deceased entry exists)
+    const deceasedRecord = await Deceased.findOne({ where: { characterId: character.id } });
+    if (deceasedRecord) {
+      characterNotChangedEmbed
+        .setDescription('Deceased characters cannot roll for bastards.');
+      return { character: null, embed: characterNotChangedEmbed };
+    }
   }
 
   // If changing region, do some checks and update house if not provided
