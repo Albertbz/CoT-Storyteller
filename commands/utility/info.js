@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, EmbedBuilder, MessageFlags, userMention, inlineCode } = require('discord.js');
-const { Players, Characters, SocialClasses, Regions, Worlds } = require('../../dbObjects.js');
+const { Players, Characters, SocialClasses, Regions, Worlds, PlayableChildren, Relationships } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 const { COLORS } = require('../../misc.js');
 
@@ -41,6 +41,30 @@ module.exports = {
             .setRequired(true)
             .setAutocomplete(true))
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('child')
+        .setDescription('Get info about a child.')
+        .addStringOption(option =>
+          option
+            .setName('child')
+            .setDescription('The child.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('relationship')
+        .setDescription('Get info about a relationship.')
+        .addStringOption(option =>
+          option
+            .setName('relationship')
+            .setDescription('The relationship.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
   ,
   async autocomplete(interaction) {
     const subcommand = interaction.options.getSubcommand();
@@ -65,6 +89,72 @@ module.exports = {
         limit: 25
       });
       await interaction.respond(regions.map(region => ({ name: region.name, value: region.id })))
+    }
+
+    // Autocomplete for children
+    if (subcommand === 'child') {
+      const focusedValue = interaction.options.getFocused();
+
+      const children = await PlayableChildren.findAll({
+        include: {
+          model: Characters, as: 'character',
+          include: [
+            { model: Characters, as: 'parent1' },
+            { model: Characters, as: 'parent2' }
+          ],
+          where: { name: { [Op.startsWith]: focusedValue } },
+        },
+        attributes: ['id'],
+        limit: 25
+      });
+
+      const choices = children.map(child => {
+        const parentNames = []
+        if (child.character.parent1) {
+          parentNames.push(child.character.parent1.name.substring(0, 30));
+        }
+
+        if (child.character.parent2) {
+          parentNames.push(child.character.parent2.name.substring(0, 30));
+        }
+
+        return ({
+          name: (child.character.name.substring(0, 30) + ' | ' + parentNames.join(' & ')),
+          value: child.id
+        })
+      }
+      );
+
+      await interaction.respond(choices);
+    }
+
+    if (subcommand === 'relationship') {
+      const focusedValue = interaction.options.getFocused();
+
+      const relationships = await Relationships.findAll({
+        include: [
+          { model: Characters, as: 'bearingCharacter' },
+          { model: Characters, as: 'conceivingCharacter' }
+        ],
+        where: {
+          [Op.or]: [
+            { '$bearingCharacter.name$': { [Op.startsWith]: `%${focusedValue}%` } },
+            { '$conceivingCharacter.name$': { [Op.startsWith]: `%${focusedValue}%` } }
+          ]
+        },
+        limit: 25
+      });
+
+      const choices = relationships.map(rel => {
+        const bearingCharacterName = rel.bearingCharacter ? rel.bearingCharacter.name : 'Unknown';
+        const conceivingCharacterName = rel.conceivingCharacter ? rel.conceivingCharacter.name : 'Unknown';
+        return {
+          name: `${bearingCharacterName} & ${conceivingCharacterName}`,
+          value: rel.id
+        };
+      });
+
+      await interaction.respond(choices);
     }
   },
   async execute(interaction) {
@@ -130,6 +220,47 @@ module.exports = {
       infoEmbeds.push(regionInfoEmbed);
     }
 
+    /**
+     * Get info about a child
+     */
+    else if (subcommand === 'child') {
+      const childId = interaction.options.getString('child');
+
+      // Get the child from the database
+      const child = await PlayableChildren.findByPk(childId, {
+        include: {
+          model: Characters, as: 'character'
+        }
+      });
+      if (!child) {
+        return interaction.editReply({ content: 'That child does not exist.', flags: MessageFlags.Ephemeral });
+      }
+
+      const childInfoEmbed = await getChildInfoEmbed(child);
+      infoEmbeds.push(childInfoEmbed);
+    }
+
+    /**
+     * Get info about a relationship
+     */
+    else if (subcommand === 'relationship') {
+      const relationshipId = interaction.options.getString('relationship');
+
+      // Get the relationship from the database
+      const relationship = await Relationships.findByPk(relationshipId, {
+        include: [
+          { model: Characters, as: 'bearingCharacter' },
+          { model: Characters, as: 'conceivingCharacter' }
+        ]
+      });
+      if (!relationship) {
+        return interaction.editReply({ content: 'That relationship does not exist.', flags: MessageFlags.Ephemeral });
+      }
+
+      const relationshipInfoEmbed = await getRelationshipInfoEmbed(relationship);
+      infoEmbeds.push(relationshipInfoEmbed);
+    }
+
     // Send the embeds
     return interaction.editReply({ embeds: infoEmbeds, flags: MessageFlags.Ephemeral });
   }
@@ -156,5 +287,19 @@ async function getRegionInfoEmbed(region) {
   return new EmbedBuilder()
     .setTitle(`Region Info: ${region.name}`)
     .setDescription(await region.formattedInfo)
+    .setColor(COLORS.BLUE);
+}
+
+async function getChildInfoEmbed(child) {
+  return new EmbedBuilder()
+    .setTitle(`Child Info: ${child.character.name}`)
+    .setDescription(await child.formattedInfo)
+    .setColor(COLORS.BLUE);
+}
+
+async function getRelationshipInfoEmbed(relationship) {
+  return new EmbedBuilder()
+    .setTitle(`Relationship Info: ${relationship.bearingCharacter ? relationship.bearingCharacter.name : 'Unknown'} & ${relationship.conceivingCharacter ? relationship.conceivingCharacter.name : 'Unknown'}`)
+    .setDescription(await relationship.formattedInfo)
     .setColor(COLORS.BLUE);
 }
