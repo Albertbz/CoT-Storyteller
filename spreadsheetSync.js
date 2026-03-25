@@ -2,6 +2,7 @@ const { Players, Characters, Worlds, Regions, Houses, Deceased, Relationships, P
 const { citizensDoc, offspringDoc } = require('./sheets.js');
 const { getFertilityModifier } = require('./helpers/rollHelper.js');
 const { postInLogChannel, COLORS } = require('./misc.js');
+const { WANDERER_REGION_ID } = require('./constants.js');
 
 async function syncSpreadsheetsToDatabase() {
   // Check if citizensDoc or offspringDoc is null, which would indicate that spreadsheet IDs were not provided in configs/spreadsheets.json
@@ -164,7 +165,7 @@ async function syncSpreadsheetsToDatabase() {
 
     const region = playableChild.character.region;
     let affiliationToWrite = null;
-    if (region.name !== 'Wanderer') {
+    if (region.id !== WANDERER_REGION_ID) {
       const house = await Houses.findOne({ where: { id: region.rulingHouseId } });
       affiliationToWrite = house.name;
     }
@@ -261,7 +262,7 @@ async function syncSpreadsheetsToDatabase() {
       const vsUsernameCell = regionSheet.getCell(i + 1, 14);
 
       socialClassCell.value = player.character.socialClassName;
-      if (region.name === 'Wanderer' && player.character.socialClassName === 'Commoner') {
+      if (region.id === WANDERER_REGION_ID && player.character.socialClassName === 'Commoner') {
         socialClassCell.value = 'Wanderer';
       }
 
@@ -272,7 +273,7 @@ async function syncSpreadsheetsToDatabase() {
       snowflakeCell.value = player.id;
       vsUsernameCell.value = player.ign;
 
-      if (player.character.socialClassName !== 'Commoner' || region.name === 'Wanderer') {
+      if (player.character.socialClassName !== 'Commoner' || region.id === WANDERER_REGION_ID) {
         pveDeathsCell.value = player.character.pveDeaths;
         yearOfMaturityCell.value = player.character.yearOfMaturity;
         ageCell.value = world.currentYear - player.character.yearOfMaturity;
@@ -448,7 +449,7 @@ async function syncSpreadsheetsToDatabase() {
     const causeOfDeathCell = deceasedSheet.getCell(i + 1, 4);
     const snowflakeCell = deceasedSheet.getCell(i + 1, 5);
 
-    const affiliation = deceased.character.region && deceased.character.region.name === 'Wanderer' ? deceased.character.region.name : deceased.character.house ? deceased.character.house.name : deceased.character.region.name;
+    const affiliation = deceased.character.region && deceased.character.region.id === WANDERER_REGION_ID ? deceased.character.region.name : deceased.character.house ? deceased.character.house.name : deceased.character.region.name;
 
     nameCell.value = deceased.character.name;
     affiliationCell.value = affiliation;

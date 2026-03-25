@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { sendCharacterJoinMessage } = require('../helpers/messageSender');
+const { WANDERER_REGION_ID } = require('../constants');
 
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('characters', {
@@ -75,7 +76,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.VIRTUAL,
       async get() {
         const region = await this.getRegion();
-        return this.socialClassName !== 'Commoner' || (region && region.name === 'Wanderer');
+        return this.socialClassName !== 'Commoner' || (region && region.id === WANDERER_REGION_ID);
       },
       set(value) {
         throw new Error('Do not try to set the isMortal value!')
@@ -127,7 +128,7 @@ module.exports = (sequelize, DataTypes) => {
           `**Year of Creation:** ${this.yearOfCreation}\n` +
           // `**Sex:** ${this.sex}\n` +
           `**Region:** ${region ? region.name : `-`}\n` +
-          `${region && region.name === `Wanderer` ? `` : `**House:** ${house ? house.name : `-`}\n`}` +
+          `${region && region.id === WANDERER_REGION_ID ? `` : `**House:** ${house ? house.name : `-`}\n`}` +
           `**Social Class:** ${this.socialClassName}\n` +
           `**Role:** ${this.role ? this.role : '-'}\n` +
           `**Comments:** ${this.comments ? this.comments : '-'}`);
@@ -135,7 +136,7 @@ module.exports = (sequelize, DataTypes) => {
         infoList.push(generalInfo);
 
         // Show all info for non-commoners and wanderers
-        if (this.socialClassName !== 'Commoner' || (region && region.name === 'Wanderer')) {
+        if (this.socialClassName !== 'Commoner' || (region && region.id === WANDERER_REGION_ID)) {
 
           const world = await sequelize.models.worlds.findByPk('World');
 

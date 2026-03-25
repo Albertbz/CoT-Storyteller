@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require("discord.js");
 const { Deceased, Characters, Regions, Houses } = require("../../dbObjects");
 const { changeCharacterInDatabase } = require("../../misc");
+const { WANDERER_REGION_ID } = require("../../constants");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -32,7 +33,7 @@ module.exports = {
       for (const deceased of deceaseds) {
         // If character died before year 25, check the region and house and
         // update the region if house is not null and region is Wanderer
-        if (deceased.yearOfDeath < 25 && deceased.character.house && deceased.character.region && deceased.character.region.name === 'Wanderer') {
+        if (deceased.yearOfDeath < 25 && deceased.character.house && deceased.character.region && deceased.character.region.id === WANDERER_REGION_ID) {
           const houseToRegionMap = {
             'Locke': 'The Barrowlands',
             'Merrick': 'The Heartlands',
@@ -57,7 +58,7 @@ module.exports = {
         }
         // If character died after year 25 and has region as Wanderer, set the
         // house to null
-        else if (deceased.yearOfDeath >= 25 && deceased.character.region && deceased.character.region.name === 'Wanderer') {
+        else if (deceased.yearOfDeath >= 25 && deceased.character.region && deceased.character.region.id === WANDERER_REGION_ID) {
           if (deceased.character.house) {
             await changeCharacterInDatabase(interaction.user, deceased.character, true, { newHouseId: 0 });
           }
@@ -73,7 +74,7 @@ module.exports = {
       });
 
       for (const character of characters) {
-        if (character.region && character.region.name === 'Wanderer' && character.house) {
+        if (character.region && character.region.id === WANDERER_REGION_ID && character.house) {
           await changeCharacterInDatabase(interaction.user, character, true, { newHouseId: 0 });
         }
       }

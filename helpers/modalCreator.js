@@ -2,6 +2,7 @@ const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputSty
 const { Regions, Houses, Relationships } = require('../dbObjects.js');
 const { guildId } = require('../configs/config.json');
 const { Op, Sequelize } = require('sequelize');
+const { WANDERER_REGION_ID } = require('../constants.js');
 
 /**
  * Creates a character creation modal with optional pre-filled values.
@@ -54,9 +55,9 @@ async function characterCreateModal({ characterName = null, regionId = null, not
   const regions = await Regions.findAll({ include: { model: Houses, as: 'rulingHouse' } });
   const regionOptions = regions.map(region => {
     const selectMenuOption = new StringSelectMenuOptionBuilder()
-      .setLabel(region.name === 'Wanderer' ? 'None' : region.name)
+      .setLabel(region.id === WANDERER_REGION_ID ? 'None' : region.name)
       .setValue(region.id)
-      .setDescription(`${region.name === 'Wanderer' ? 'Your character will be a wanderer' : region.rulingHouse ? 'House ' + region.rulingHouse.name : 'No ruling house'}`);
+      .setDescription(`${region.id === WANDERER_REGION_ID ? 'Your character will be a wanderer' : region.rulingHouse ? 'House ' + region.rulingHouse.name : 'No ruling house'}`);
 
     // Find emoji for this region's ruling house
     if (region.rulingHouse) {
@@ -507,9 +508,9 @@ async function changeRegionModal(character, manager, { regionId = null } = {}) {
   const regions = await Regions.findAll({ include: { model: Houses, as: 'rulingHouse' } });
   const regionOptions = regions.map(region => {
     const selectMenuOption = new StringSelectMenuOptionBuilder()
-      .setLabel(region.name === 'Wanderer' ? 'None' : region.name)
+      .setLabel(region.id === WANDERER_REGION_ID ? 'None' : region.name)
       .setValue(region.id)
-      .setDescription(`${region.name === 'Wanderer' ? 'The character will be a wanderer' : region.rulingHouse ? 'House ' + region.rulingHouse.name : 'No ruling house'}`);
+      .setDescription(`${region.id === WANDERER_REGION_ID ? 'The character will be a wanderer' : region.rulingHouse ? 'House ' + region.rulingHouse.name : 'No ruling house'}`);
 
     // Find emoji for this region's ruling house
     if (region.rulingHouse) {

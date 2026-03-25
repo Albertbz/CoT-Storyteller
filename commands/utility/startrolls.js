@@ -2,6 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
 const { postInLogChannel, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
 const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathRollResultToDatabase, makeDeathRollsSummaryMessages, buildOffspringChanceEmbed } = require('../../helpers/rollHelper.js');
+const { WANDERER_REGION_ID } = require('../../constants.js');
 
 // Centralized messages
 const CANCEL_CONTAINER = new ContainerBuilder()
@@ -385,8 +386,7 @@ module.exports = {
 
                     for (const childType of offspringResult.rolls) {
                       // Make the character
-                      const wandererRegion = await Regions.findOne({ where: { name: 'Wanderer' } });
-                      let regionId = wandererRegion.id;
+                      let regionId = WANDERER_REGION_ID; // Default to wanderer region
                       let houseId = null;
 
                       if (offspringResult.relationship) {
@@ -541,8 +541,7 @@ module.exports = {
                   if (resultInteraction.customId === 'continue') {
                     if (successfulRoll) {
                       for (const childRoll of rollRes) {
-                        const wandererRegion = await Regions.findOne({ where: { name: 'Wanderer' } });
-                        let regionId = wandererRegion.id;
+                        let regionId = WANDERER_REGION_ID; // Default to wanderer region
 
                         const { character: childCharacter } = await addCharacterToDatabase(interactionUser, {
                           name: childRoll,
@@ -650,7 +649,7 @@ module.exports = {
       const eligibleCharacters = characters.filter(character => {
         const age = nextYear - character.yearOfMaturity;
         const isCommoner = character.socialClass.name === 'Commoner';
-        const isWanderer = character.region.name === 'Wanderer';
+        const isWanderer = character.region.id === WANDERER_REGION_ID;
         return age > 3 && (isWanderer || !isCommoner) && !deceasedCharacters.some(deceased => deceased.characterId === character.id) && !playableChildren.some(child => child.characterId === character.id);
       });
 

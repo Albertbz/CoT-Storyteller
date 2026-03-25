@@ -2,6 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Deceased, Duchies } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter, changeDuchyInDatabase, changeDeceasedInDatabase, changeSocialClassInDatabase } = require('../../misc.js');
+const { WANDERER_REGION_ID } = require('../../constants.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -1106,7 +1107,7 @@ module.exports = {
           yearOfCreation: world.currentYear - 2
         },
         include: [
-          { model: Regions, as: 'region', where: { name: { [Op.ne]: 'Wanderer' } } }
+          { model: Regions, as: 'region', where: { id: { [Op.ne]: WANDERER_REGION_ID } } }
         ]
       });
 
@@ -1149,7 +1150,7 @@ module.exports = {
           yearOfCreation: world.currentYear - 2
         },
         include: [
-          { model: Regions, as: 'region', where: { name: 'Wanderer' } }
+          { model: Regions, as: 'region', where: { id: WANDERER_REGION_ID } }
         ]
       });
 

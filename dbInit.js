@@ -1,4 +1,5 @@
 const Sequelize = require('sequelize');
+const { WANDERER_REGION_ID } = require('./constants.js');
 
 // Create connection to database
 const sequelize = new Sequelize('database', 'user', 'password', {
@@ -35,15 +36,16 @@ sequelize.sync({ force }).then(async () => {
 
   // Create the default region, Wanderer, which will be used for characters without a specified region
   await Regions.create({
+    id: WANDERER_REGION_ID, // Hardcoded ID for the Wanderer region, which should never be deleted
     name: 'Wanderer',
     roleId: 0 // This is a placeholder value that can and should be changed using /change region once the bot is running.
-  })
+  });
 
   // Create the default social classes
-  await SocialClasses.create({ name: 'Commoner', roleId: 0 }); // The roleId is a placeholder value that can and should be changed using /change socialclass once the bot is running.
-  await SocialClasses.create({ name: 'Notable', roleId: 1 }); // The roleId is a placeholder value that can and should be changed using /change socialclass once the bot is running.
-  await SocialClasses.create({ name: 'Noble', roleId: 2 }); // The roleId is a placeholder value that can and should be changed using /change socialclass once the bot is running.
-  await SocialClasses.create({ name: 'Ruler', roleId: 3 }); // The roleId is a placeholder value that can and should be changed using /change socialclass once the bot is running.
+  await SocialClasses.create({ name: 'Commoner', roleId: 1 }); // The roleId is a placeholder value that can and should be changed using /change socialclass once the bot is running.
+  await SocialClasses.create({ name: 'Notable', roleId: 2 }); // The roleId is a placeholder value that can and should be changed using /change socialclass once the bot is running.
+  await SocialClasses.create({ name: 'Noble', roleId: 3 }); // The roleId is a placeholder value that can and should be changed using /change socialclass once the bot is running.
+  await SocialClasses.create({ name: 'Ruler', roleId: 4 }); // The roleId is a placeholder value that can and should be changed using /change socialclass once the bot is running.
 
   console.log('Database synced.');
   await sequelize.close();

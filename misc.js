@@ -2,6 +2,7 @@ const { EmbedBuilder, userMention, inlineCode, MessageFlags, ContainerBuilder, T
 const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts, DiscordChannels, Recruitments, DiscordRoles } = require('./dbObjects.js');
 const { guildId } = require('./configs/config.json');
 const { Op } = require('sequelize');
+const { WANDERER_REGION_ID } = require('./constants.js');
 
 const COLORS = {
   BLUE: 0x0000A3,
@@ -107,15 +108,12 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
   }
 
   // If regionId or houseId is null, set to Wanderer or ruling house of region respectively
-  const wandererRegion = await Regions.findOne({ where: { name: 'Wanderer' } });
   if (regionId === null) {
-    regionId = wandererRegion.id;
+    regionId = WANDERER_REGION_ID;
   }
-  if (houseId === null) {
-    if (regionId !== wandererRegion.id) {
-      const rulingHouse = await Houses.findOne({ where: { id: (await Regions.findByPk(regionId)).rulingHouseId } });
-      houseId = rulingHouse.id;
-    }
+  if (houseId === null && regionId !== WANDERER_REGION_ID) {
+    const rulingHouse = await Houses.findOne({ where: { id: (await Regions.findByPk(regionId)).rulingHouseId } });
+    houseId = rulingHouse ? rulingHouse.id : null;
   }
 
   const existsWithName = await Characters.findOne({ where: { name: name } });
@@ -658,7 +656,7 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
     // Get the region from the character's current region
     const region = await Regions.findByPk(character.regionId);
     // Check whether part of a region that is not wanderer
-    if (!region || region.name === 'Wanderer') {
+    if (!region || region.id === WANDERER_REGION_ID) {
       notAssignedEmbed
         .setDescription('Character is not part of a valid region that can have steelbearers assigned.');
       return { steelbearer: null, embed: notAssignedEmbed };
@@ -890,7 +888,7 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
   }
 
   // Check whether character is not commoner while not a wanderer
-  if (character.socialClassName === 'Commoner' && (await Regions.findByPk(character.regionId)).name !== 'Wanderer') {
+  if (character.socialClassName === 'Commoner' && character.regionId !== WANDERER_REGION_ID) {
     deceasedNotCreatedEmbed
       .setDescription('Character is a Commoner and cannot be marked as deceased.');
     return { deceased: null, embed: deceasedNotCreatedEmbed };
@@ -2306,10 +2304,10 @@ async function createRecruitmentPostMessage() {
   const descriptionText = italic('For new players joining, please prioritize the houses in need in order to ensure fun for everyone.');
   const overviewLink = '## ' + hyperlink('Overview of all Elstrand Citizens', '<https://docs.google.com/spreadsheets/d/1GSWM4WNu6Af_83PK0b3oVwRAQo1oloxe45FKgnSM9jA/edit?usp=sharing>');
 
-  // Get all regions with their recruitment info, excluding Wanderer
+  // Get all regions that have recruitment info to display
   const regions = await Regions.findAll({
     where: {
-      name: { [Op.ne]: 'Wanderer' }
+      recruitmentId: { [Op.ne]: null }
     }
   });
 
@@ -2381,10 +2379,10 @@ async function createRecruitmentPostMessage() {
 }
 
 async function updateRecruitmentStatesForRegions() {
-  // Get all regions except Wanderer
+  // Get all regions that have recruitment info to display
   const regions = await Regions.findAll({
     where: {
-      name: { [Op.ne]: 'Wanderer' }
+      recruitmentId: { [Op.ne]: null }
     }
   });
 

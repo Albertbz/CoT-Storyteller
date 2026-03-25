@@ -1,7 +1,8 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Relationships, Worlds, PlayableChildren, Deceased } = require('../../dbObjects.js');
 const { Op, Sequelize } = require('sequelize');
-const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase, addVassalToDatabase, addPlayableChildToDatabase, addRegionToDatabase } = require('../../misc.js')
+const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase, addVassalToDatabase, addPlayableChildToDatabase, addRegionToDatabase } = require('../../misc.js');
+const { WANDERER_REGION_ID } = require('../../constants.js');
 
 
 module.exports = {
@@ -346,7 +347,7 @@ module.exports = {
 
       // All regions except for the Wanderer region, since the Wanderer region cannot be a vassal or liege
       const regions = await Regions.findAll({
-        where: { name: { [Op.startsWith]: focusedValue }, name: { [Op.not]: 'Wanderer' } },
+        where: { name: { [Op.startsWith]: focusedValue }, id: { [Op.not]: WANDERER_REGION_ID } },
         attributes: ['name', 'id'],
         limit: 25
       });
