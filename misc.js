@@ -1533,6 +1533,11 @@ async function changeRegionInDatabase(storyteller, region, { newName = null, new
     const oldValue = oldRegionValues[key];
 
     switch (key) {
+      case 'name': {
+        logInfoChanges.push({ key: 'name', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Name**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
       case 'roleId': {
         logInfoChanges.push({ key: 'roleId', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
         formattedInfoChanges.push({ key: '**Role ID**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
