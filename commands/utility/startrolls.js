@@ -64,7 +64,7 @@ module.exports = {
   async execute(interaction) {
     await interaction.deferReply();
 
-    const world = await Worlds.findOne({ where: { name: 'Elstrand' } })
+    const world = await Worlds.findByPk('World')
 
     // Do offspring rolls
     if (interaction.options.getSubcommand() === 'offspring') {

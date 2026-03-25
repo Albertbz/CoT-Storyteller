@@ -26,6 +26,19 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true
     },
+    logInfo: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        return (
+          `id: \`${this.id}\`\n` +
+          `name: \`${this.name}\`\n` +
+          `rulingHouseId: \`${this.rulingHouseId ? this.rulingHouseId : '-'}\`\n` +
+          `roleId: \`${this.roleId}\`\n` +
+          `recruitmentId: \`${this.recruitmentId ? this.recruitmentId : '-'}\`\n` +
+          `generalChannelId: \`${this.generalChannelId ? this.generalChannelId : '-'}\``
+        )
+      }
+    },
     formattedInfo: {
       type: DataTypes.VIRTUAL,
       async get() {

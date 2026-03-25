@@ -11,7 +11,9 @@ async function sendCharacterJoinMessage(player, character, region) {
 
   // Get emoji for ruling house to include in message
   const guild = await client.guilds.fetch(guildId);
-  const rulingHouseEmoji = guild.emojis.cache.find(emoji => emoji.name === rulingHouse.emojiName);
+  const rulingHouseEmojiCustom = guild.emojis.cache.find(emoji => emoji.name === rulingHouse.emojiName);
+
+  const rulingHouseEmojiText = rulingHouseEmojiCustom ? rulingHouseEmojiCustom.toString() : `:${rulingHouse.emojiName}:`;
 
   const regionChannel = client.channels.cache.get(region.generalChannelId);
   // const regionChannel = client.channels.cache.get('1465003174418055168'); // TEMPORARY: hardcoded for testing purposes
@@ -20,7 +22,7 @@ async function sendCharacterJoinMessage(player, character, region) {
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
           // `## Character joined House ${rulingHouse.name}\n` +
-          `### *${character.name}*, played by <@${player.id}>, has joined ${rulingHouseEmoji.toString()}House ${rulingHouse.name}${rulingHouseEmoji.toString()}! Welcome!\n` +
+          `### *${character.name}*, played by <@${player.id}>, has joined ${rulingHouseEmojiText}House ${rulingHouse.name}${rulingHouseEmojiText}! Welcome!\n` +
           `-# This is OOC information.`
         ))
       .setAccentColor(0x00A300);

@@ -146,7 +146,7 @@ module.exports = {
     await interaction.deferReply();
 
     // Set up shared variables
-    const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+    const world = await Worlds.findByPk('World');
 
     const interactionUser = interaction.user;
     const collectorFilter = i => i.user.id === interactionUser.id;

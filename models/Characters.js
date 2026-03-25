@@ -137,7 +137,7 @@ module.exports = (sequelize, DataTypes) => {
         // Show all info for non-commoners and wanderers
         if (this.socialClassName !== 'Commoner' || (region && region.name === 'Wanderer')) {
 
-          const world = await sequelize.models.worlds.findOne({ where: { name: 'Elstrand' } });
+          const world = await sequelize.models.worlds.findByPk('World');
 
           const deceasedRecord = await sequelize.models.deceased.findOne({ where: { characterId: this.id } });
           const isDeceased = !!deceasedRecord;

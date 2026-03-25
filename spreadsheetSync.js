@@ -7,11 +7,11 @@ async function syncSpreadsheetsToDatabase() {
   // Check if citizensDoc or offspringDoc is null, which would indicate that spreadsheet IDs were not provided in configs/spreadsheets.json
   if (citizensDoc === null || offspringDoc === null) {
     console.log('Cannot sync spreadsheets to database because spreadsheet IDs were not provided in configs/spreadsheets.json');
-    throw new Error('Spreadsheet IDs not provided in configs/spreadsheets.json');
+    return;
   }
 
   // Load world
-  const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+  const world = await Worlds.findByPk('World');
 
   // Load all of the data in case it is changed during the sync, so that
   // everything is taken from the same point in time.

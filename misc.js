@@ -1,4 +1,4 @@
-const { EmbedBuilder, userMention, inlineCode, MessageFlags, ContainerBuilder, TextDisplayBuilder, hyperlink, time, bold, italic, strikethrough, TimestampStyles, AttachmentBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
+const { EmbedBuilder, userMention, inlineCode, MessageFlags, ContainerBuilder, TextDisplayBuilder, hyperlink, time, bold, italic, strikethrough, TimestampStyles, AttachmentBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, roleMention } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts, DiscordChannels, Recruitments, DiscordRoles } = require('./dbObjects.js');
 const { guildId } = require('./configs/config.json');
 const { Op } = require('sequelize');
@@ -79,7 +79,7 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
     throw new Error('storyteller is required');
   }
 
-  const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+  const world = await Worlds.findByPk('World');
 
   // If yearOfMaturity is null (not provided), set it to current year
   yearOfMaturity = yearOfMaturity === null ? world.currentYear : yearOfMaturity;
@@ -535,7 +535,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     // If playable child, make sure that is mature
     const playableChild = await PlayableChildren.findOne({ where: { characterId: characterId } });
     if (playableChild) {
-      const currentYear = (await Worlds.findOne({ where: { name: 'Elstrand' } })).currentYear;
+      const currentYear = (await Worlds.findByPk('World')).currentYear;
       if (character.yearOfMaturity > currentYear) {
         notAssignedEmbed
           .setDescription(inlineCode(character.name) + ' is a playable child and is not yet mature.');
@@ -1849,6 +1849,68 @@ async function changePlayableChildInDatabase(storyteller, playableChild, { newCo
   return { playableChild, embed: playableChildChangedEmbed }
 }
 
+async function changeSocialClassInDatabase(storyteller, socialClass, { newRoleId = null } = {}) {
+  const socialClassNotChangedEmbed = new EmbedBuilder()
+    .setTitle('Social Class Not Changed')
+    .setColor(COLORS.RED);
+
+  if (!socialClass) {
+    socialClassNotChangedEmbed
+      .setDescription('Social Class does not exist in the database.');
+    return { socialClass: null, embed: socialClassNotChangedEmbed };
+  }
+
+  let newValues = {};
+  let oldValues = {};
+
+  // Save all old and new values for the values that are changing
+  if (newRoleId !== null && newRoleId !== socialClass.roleId) newValues.roleId = newRoleId; oldValues.roleId = socialClass.roleId;
+
+  // Check if anything is actually changing
+  if (Object.keys(newValues).length === 0) {
+    socialClassNotChangedEmbed
+      .setDescription('No changes were provided.');
+    return { socialClass: null, embed: socialClassNotChangedEmbed };
+  }
+
+  // All checks passed, proceed with update
+  await socialClass.update(newValues);
+
+  // Post in log channel
+  const logInfoChanges = [];
+  const formattedInfoChanges = [];
+  for (const [key, newValue] of Object.entries(newValues)) {
+    const oldValue = oldValues[key];
+
+    switch (key) {
+      case 'roleId': {
+        logInfoChanges.push({ key: 'role', oldValue: oldValue ? roleMention(oldValue) : '`-`', newValue: newValue ? roleMention(newValue) : '`-`' });
+        formattedInfoChanges.push({ key: '**Role**', oldValue: oldValue ? roleMention(oldValue) : '-', newValue: newValue ? roleMention(newValue) : '-' });
+        break;
+      }
+    }
+  }
+
+  await postInLogChannel(
+    'Social Class Changed',
+    `**Changed by: ${userMention(storyteller.id)}**\n\n` +
+    `Social Class: ${inlineCode(socialClass.name)} (${inlineCode(socialClass.id)})\n\n` +
+    logInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n'),
+    COLORS.ORANGE
+  );
+
+  // Make an embed for social class change to return
+  const socialClassChangedEmbed = new EmbedBuilder()
+    .setTitle('Social Class Changed')
+    .setDescription(
+      `**Social Class**: ${socialClass.name}\n\n` +
+      formattedInfoChanges.map(change => `${change.key}: ${change.oldValue} → ${change.newValue}`).join('\n')
+    )
+    .setColor(COLORS.ORANGE);
+
+  return { socialClass, embed: socialClassChangedEmbed }
+}
+
 async function changeRelationshipInDatabase(storyteller, relationship, { newIsCommitted = null, newInheritedTitle = null, newBearingCharacterId = null, newConceivingCharacterId = null } = {}) {
   const relationshipNotChangedEmbed = new EmbedBuilder()
     .setTitle('Relationship Not Changed')
@@ -2581,6 +2643,7 @@ module.exports = {
   changeDeceasedInDatabase,
   changePlayableChildInDatabase,
   changeRelationshipInDatabase,
+  changeSocialClassInDatabase,
   assignSteelbearerToRegion,
   syncMemberRolesWithCharacter,
   updateRecruitmentPost,

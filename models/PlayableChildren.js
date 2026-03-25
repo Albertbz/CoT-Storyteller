@@ -51,7 +51,7 @@ module.exports = (sequelize, DataTypes) => {
         const character = await this.getCharacter();
         const region = await character.getRegion();
         const house = await character.getHouse();
-        const world = await sequelize.models.worlds.findOne({ where: { name: 'Elstrand' } });
+        const world = await sequelize.models.worlds.findByPk('World');
         const parents = [];
         const parent1 = await character.getParent1();
         const parent2 = await character.getParent2();

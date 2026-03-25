@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Client } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Deceased, Duchies } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
-const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter, changeDuchyInDatabase, changeDeceasedInDatabase } = require('../../misc.js');
+const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter, changeDuchyInDatabase, changeDeceasedInDatabase, changeSocialClassInDatabase } = require('../../misc.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -165,10 +165,10 @@ module.exports = {
             .setDescription('The new ruling house of the region.')
             .setAutocomplete(true)
         )
-        .addStringOption(option =>
+        .addRoleOption(option =>
           option
-            .setName('roleid_new')
-            .setDescription('The new role ID of the region. This should technically never change.')
+            .setName('role_new')
+            .setDescription('The new role that is given to characters in the region.')
         )
         .addStringOption(option =>
           option
@@ -503,6 +503,23 @@ module.exports = {
             .setDescription('The new player who played the character.')
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('socialclass')
+        .setDescription('Change something about a social class.')
+        .addStringOption(option =>
+          option
+            .setName('socialclass')
+            .setDescription('The social class to change something about.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addRoleOption(option =>
+          option
+            .setName('role_new')
+            .setDescription('The new role for the social class.')
+        )
+    )
   ,
   async autocomplete(interaction) {
     let choices = [];
@@ -806,6 +823,18 @@ module.exports = {
       choices = characters.map(deceased => ({ name: deceased.character ? deceased.character.name : 'Unknown', value: deceased.id }));
     }
 
+    if (subcommand === 'socialclass') {
+      const focusedValue = interaction.options.getFocused();
+
+      const socialClasses = await SocialClasses.findAll({
+        where: { name: { [Op.startsWith]: focusedValue } },
+        attributes: ['name', 'roleId'],
+        limit: 25
+      });
+
+      choices = socialClasses.map(socialClass => ({ name: socialClass.name, value: socialClass.name }));
+    }
+
     await interaction.respond(choices);
   },
 
@@ -904,7 +933,7 @@ module.exports = {
       const newYear = interaction.options.getNumber('year_new');
 
       // First, update the world's current year
-      const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+      const world = await Worlds.findByPk('World');
 
       const oldYear = world.currentYear;
       await world.update({ currentYear: newYear });
@@ -1225,7 +1254,7 @@ module.exports = {
       const regionId = interaction.options.getString('region');
       const newName = interaction.options.getString('name_new');
       const newRulingHouseId = interaction.options.getString('rulinghouse_new');
-      const newRoleId = interaction.options.getString('roleid_new');
+      const newRole = interaction.options.getRole('role_new');
       const newRole1 = interaction.options.getString('role1_new');
       const newRole2 = interaction.options.getString('role2_new');
       const newRole3 = interaction.options.getString('role3_new');
@@ -1240,7 +1269,7 @@ module.exports = {
       try {
         const { region: updatedRegion, embed: regionChangedEmbed } = await changeRegionInDatabase(interaction.user, region, {
           newName: newName,
-          newRoleId: newRoleId,
+          newRoleId: newRole ? newRole.id : null,
           newRulingHouseId: newRulingHouseId,
           newRole1: newRole1,
           newRole2: newRole2,
@@ -1501,6 +1530,31 @@ module.exports = {
           .setDescription(`An error occurred while trying to change the deceased entry: ${error.message}`)
           .setColor(COLORS.RED);
         return interaction.editReply({ embeds: [deceasedNotChangedEmbed], flags: MessageFlags.Ephemeral });
+      }
+    }
+
+    /**
+     * Handle changing social class info
+     */
+    if (subcommand === 'socialclass') {
+      const socialClassName = interaction.options.getString('socialclass');
+      const newRole = interaction.options.getRole('role_new');
+
+      const socialClass = await SocialClasses.findByPk(socialClassName);
+
+      try {
+        const { socialClass: updatedSocialClass, embed: socialClassChangedEmbed } = await changeSocialClassInDatabase(interaction.user, socialClass, {
+          newRoleId: newRole ? newRole.id : null
+        });
+        return interaction.editReply({ embeds: [socialClassChangedEmbed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        const socialClassNotChangedEmbed = new EmbedBuilder()
+          .setTitle('Social Class Not Changed')
+          .setDescription(`An error occurred while trying to change the social class: ${error.message}`)
+          .setColor(COLORS.RED);
+        return interaction.editReply({ embeds: [socialClassNotChangedEmbed], flags: MessageFlags.Ephemeral });
       }
     }
 

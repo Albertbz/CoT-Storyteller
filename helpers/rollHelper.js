@@ -52,7 +52,7 @@ function calculateOffspringRoll({ age1, age2 = 0, isBastardRoll = false } = {}) 
 }
 
 async function getFertilityModifier(yearOfMaturity1, yearOfMaturity2 = undefined) {
-  const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+  const world = await Worlds.findByPk('World');
 
   const age1 = world.currentYear - yearOfMaturity1;
   const age2 = yearOfMaturity2 === undefined ? 1 : world.currentYear - yearOfMaturity2;

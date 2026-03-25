@@ -412,7 +412,7 @@ module.exports = {
             // Update the database to remove the characters of the affected players
             await replyMessage.edit({ content: messageLines.join('\n') + '\n\n*Updating characters in database... please wait...*' });
 
-            const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+            const world = await Worlds.findByPk('World');
             for (const player of playersToUpdate) {
               if (!player.character) continue;
 

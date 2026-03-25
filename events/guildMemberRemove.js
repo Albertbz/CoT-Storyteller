@@ -21,7 +21,7 @@ module.exports = {
             COLORS.RED
           );
 
-          const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+          const world = await Worlds.findByPk('World');
 
           // Set character as deceased
           const { deceased, embed } = await addDeceasedToDatabase(client.user, false, { characterId: character.id, yearOfDeath: world.currentYear, monthOfDeath: 'January', dayOfDeath: 1, causeOfDeath: 'Left the continent', playedById: player.id })
