@@ -474,30 +474,37 @@ module.exports = {
       }
 
       if (confirmInteraction.customId === 'confirm_remove') {
+        const logInfo = await toRemove.logInfo;
+        const formattedInfo = await toRemove.formattedInfo;
+
+        await toRemove.destroy();
+
         await postInLogChannel(
           embedTitle,
           `The ${entityName} was removed from the database by ${userMention(interactionUserId)}.
           
-          ${(await toRemove.logInfo)}`,
+          ${(logInfo)}`,
           COLORS.RED
         );
 
         const confirmationEmbed = new EmbedBuilder()
           .setTitle(embedTitle)
-          .setDescription(`The ${entityName} has been successfully removed from the database:\n\n${(await toRemove.formattedInfo)}`)
+          .setDescription(`The ${entityName} has been successfully removed from the database:\n\n${(formattedInfo)}`)
           .setColor(COLORS.GREEN);
 
-        await toRemove.destroy();
 
-        await interaction.editReply({ embeds: [confirmationEmbed], components: [] });
+        return interaction.editReply({ embeds: [confirmationEmbed], components: [] });
       }
     }
     catch (error) {
       if (error.code === 'InteractionCollectorError') {
         return interaction.editReply({ content: `No response received. Cancelled removal of the ${entityName}.`, components: [], embeds: [] });
       }
+      else if (error.code === 'WandererRegionDeletionError') {
+        return interaction.editReply({ content: `The ${entityName} cannot be removed because it is necessary for the bot to function properly.`, components: [], embeds: [] });
+      }
       console.error('Error removing entity:', error);
-      return interaction.editReply({ content: `There was an error removing the ${entityName} from the database.`, components: [], embeds: [] });
+      return interaction.editReply({ content: `There was an error removing the ${entityName} from the database: ${error.message}`, components: [], embeds: [] });
     }
   }
 }
