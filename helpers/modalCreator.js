@@ -56,7 +56,7 @@ async function characterCreateModal({ characterName = null, regionId = null, not
     const selectMenuOption = new StringSelectMenuOptionBuilder()
       .setLabel(region.name === 'Wanderer' ? 'None' : region.name)
       .setValue(region.id)
-      .setDescription(`${region.name === 'Wanderer' ? 'Your character will be a wanderer' : 'House ' + region.rulingHouse.name}`);
+      .setDescription(`${region.name === 'Wanderer' ? 'Your character will be a wanderer' : region.rulingHouse ? 'House ' + region.rulingHouse.name : 'No ruling house'}`);
 
     // Find emoji for this region's ruling house
     if (region.rulingHouse) {

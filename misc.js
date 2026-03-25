@@ -972,7 +972,12 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
     const steelbearerRoleEntry = await DiscordRoles.findByPk('steelbearer');
     const steelbearerRoleId = steelbearerRoleEntry ? steelbearerRoleEntry.roleId : null;
 
-    const rolesToRemove = [regionRoleIds, socialClassRoleIds, steelbearerRoleId];
+    const rolesToRemove = [];
+    rolesToRemove.push(...regionRoleIds);
+    rolesToRemove.push(...socialClassRoleIds);
+    if (steelbearerRoleId) {
+      rolesToRemove.push(steelbearerRoleId);
+    }
 
     if (player) {
       const guild = await client.guilds.fetch(guildId);

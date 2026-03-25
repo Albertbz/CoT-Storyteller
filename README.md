@@ -103,6 +103,9 @@ CoT-Storyteller is a comprehensive Discord bot that handles character creation, 
 8. Register channels and roles:
     - Use the `/register channel` and `/register role` Discord commands to register the channels and roles required for the bot to run properly. If any are not registered, errors may occur and will be posted in the console.
 
+9. OPTIONAL: Update roles for social classes and Wanderer region:
+    - Using `/change region` and `/change socialclass`, set the roles for the Wanderer and social classes, so that these are given to those that are playing characters as a Wanderer or as one of the social classes.
+
 ## Key Commands
 
 ### Player & Character Management
