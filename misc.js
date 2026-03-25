@@ -2321,9 +2321,14 @@ async function createRecruitmentPostMessage() {
   let housesText = ''
   for (const region of regions) {
     const house = await region.getRulingHouse();
-    const houseEmoji = guildEmojis.find(emoji => emoji.name === house.emojiName);
+    let houseEmojiText = '';
+    if (house && house.emojiName) {
+      const houseEmojiCustom = guildEmojis.find(emoji => emoji.name === house.emojiName);
+      houseEmojiText = houseEmojiCustom ? houseEmojiCustom.toString() : `:${house.emojiName}:`;
+    }
+
     const regionText = region.name;
-    const houseText = `${houseEmoji.toString()}${bold('House ' + house.name)}${houseEmoji.toString()} | Population: ${await region.population}`;
+    const houseText = `${house ? `${houseEmojiText}${bold('House ' + house.name)}${houseEmojiText} | ` : '*No Ruling House* | '}Population: ${await region.population}`;
     const recruitment = await region.getRecruitment();
     const validRoles = [recruitment.role1, recruitment.role2, recruitment.role3].filter(role => role && role !== 'None');
     const formatter = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' });

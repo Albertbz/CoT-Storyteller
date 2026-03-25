@@ -4,16 +4,16 @@ const { guildId } = require('../configs/config.json');
 async function sendCharacterJoinMessage(player, character, region) {
   // Get ruling house of new region to include in message
   const rulingHouse = await region.getRulingHouse();
-  if (!rulingHouse) {
-    console.error(`Region ${region.name} does not have a ruling house! Cannot send character join message to region channel.`);
-    return;
-  }
 
   // Get emoji for ruling house to include in message
   const guild = await client.guilds.fetch(guildId);
-  const rulingHouseEmojiCustom = guild.emojis.cache.find(emoji => emoji.name === rulingHouse.emojiName);
+  const guildEmojis = await guild.emojis.fetch();
 
-  const rulingHouseEmojiText = rulingHouseEmojiCustom ? rulingHouseEmojiCustom.toString() : `:${rulingHouse.emojiName}:`;
+  let rulingHouseEmojiText = '';
+  if (rulingHouse && rulingHouse.emojiName) {
+    const rulingHouseEmojiCustom = guildEmojis.find(emoji => emoji.name === rulingHouse.emojiName);
+    rulingHouseEmojiText = rulingHouseEmojiCustom ? rulingHouseEmojiCustom.toString() : `:${rulingHouse.emojiName}:`;
+  }
 
   const regionChannel = client.channels.cache.get(region.generalChannelId);
   // const regionChannel = client.channels.cache.get('1465003174418055168'); // TEMPORARY: hardcoded for testing purposes
@@ -22,7 +22,7 @@ async function sendCharacterJoinMessage(player, character, region) {
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
           // `## Character joined House ${rulingHouse.name}\n` +
-          `### *${character.name}*, played by <@${player.id}>, has joined ${rulingHouseEmojiText}House ${rulingHouse.name}${rulingHouseEmojiText}! Welcome!\n` +
+          `### *${character.name}*, played by <@${player.id}>, has joined ${rulingHouse ? `${rulingHouseEmojiText}House ${rulingHouse.name}${rulingHouseEmojiText}` : region.name}! Welcome!\n` +
           `-# This is OOC information.`
         ))
       .setAccentColor(0x00A300);
