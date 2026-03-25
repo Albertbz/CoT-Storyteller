@@ -9,7 +9,7 @@ module.exports = {
     const offspringId = interaction.customId.split(':')[1]
     const offspring = await PlayableChildren.findByPk(offspringId);
     const offspringCharacter = await offspring.getCharacter();
-    const world = await Worlds.findByPk('Elstrand');
+    const world = await Worlds.findByPk('World');
 
     // Check whether the offspring has been born yet, and if not, return an error
     // message to the user
