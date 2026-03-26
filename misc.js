@@ -138,7 +138,8 @@ async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = und
       yearOfMaturity: yearOfMaturity,
       yearOfCreation: yearOfCreation,
       parent1Id: parent1Id,
-      parent2Id: parent2Id
+      parent2Id: parent2Id,
+      livesUpdatedAt: Date.now()
     })
 
     await postInLogChannel(
