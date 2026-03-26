@@ -55,6 +55,7 @@ async function characterPveDeathConfirm(interaction) {
 async function playerTimeCheck(interaction) {
 
   const player = await Players.findByPk(interaction.user.id);
+  const character = await player.getCharacter();
   // Check if player's account is less than 3 days old (1000ms x 60sec x 60min x 72hrs = 259200000 milliseconds)
   if ((Date.now() - (Date.parse(player.createdAt))) <= 259200000) {
     const container = new ContainerBuilder()
