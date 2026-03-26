@@ -68,8 +68,9 @@ async function playerTimeCheck(interaction) {
     return true
   }
     await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
-    //mitigate PvE death if last death occurred within 1 hour (1000ms x 60sec x 60min = 3600000 milliseconds)
-    if ((Date.now() - (Date.parse(player.livesUpdatedAt))) <= 3600000) {
+    // mitigate PvE death if last death occurred within 1 hour (1000ms x 60sec x 60min = 3600000 milliseconds)
+    // testing with 1 minute (1000ms x 60sec = 60000 milliseconds)
+    if ((Date.now() - (Date.parse(player.livesUpdatedAt))) <= 60000) {
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
