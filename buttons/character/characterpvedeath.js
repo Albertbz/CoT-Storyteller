@@ -66,12 +66,13 @@ async function playerTimeCheck(interaction) {
           `You can continue to manage your character using the Character Manager GUI above.`
         )
       );
-    return true
-  }
     await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+
+    return true  
+  }
     // mitigate PvE death if last death occurred within 1 hour (1000ms x 60sec x 60min = 3600000 milliseconds)
     // testing with 1 minute (1000ms x 60sec = 60000 milliseconds)
-    if ((Date.now() - (Date.parse(character.livesUpdatedAt))) <= 60000) {
+  if ((Date.now() - (Date.parse(character.livesUpdatedAt))) <= 60000) {
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
@@ -80,6 +81,8 @@ async function playerTimeCheck(interaction) {
           `You can continue to manage your character using the Character Manager GUI above.`
         )
       );
+    await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+
     return true
   }
   else {
