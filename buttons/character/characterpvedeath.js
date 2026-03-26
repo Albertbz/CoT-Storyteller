@@ -65,8 +65,19 @@ async function playerTimeCheck(interaction) {
           `You can continue to manage your character using the Character Manager GUI above.`
         )
       );
+    return true
+  }
     await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
-
+    //mitigate PvE death if last death occurred within 1 hour (1000ms x 60sec x 60min = 3600000 milliseconds)
+    if ((Date.now() - (Date.parse(player.livesUpdatedAt))) <= 3600000) {
+    const container = new ContainerBuilder()
+      .addTextDisplayComponents((textDisplay) =>
+        textDisplay.setContent(
+          `# PvE death mitigated\n` +
+          `PvE deaths within the same hour of last PvE death do not count towards your character.\n` +
+          `You can continue to manage your character using the Character Manager GUI above.`
+        )
+      );
     return true
   }
   else {

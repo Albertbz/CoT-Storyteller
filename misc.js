@@ -1062,6 +1062,8 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   if (newPveDeaths !== null && newPveDeaths !== character.pveDeaths) {
     newValues.pveDeaths = newPveDeaths;
     oldValues.pveDeaths = character.pveDeaths;
+    newValues.livesUpdatedAt = Date.now();
+    oldValues.livesUpdatedAt = new Date(character.livesUpdatedAt).getTime();
   }
   if (newComments !== null && newComments !== character.comments) {
     newValues.comments = newComments;
