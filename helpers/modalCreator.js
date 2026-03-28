@@ -645,6 +645,50 @@ function denyChangeModal(modalCustomId, title) {
   return modal;
 }
 
+async function offspringChangeInheritanceModal(offspring) {
+  const modal = new ModalBuilder()
+    .setCustomId('offspring-change-inheritance-modal:' + offspring.id)
+    .setTitle('Change Offspring Inheritance');
+
+  const offspringCharacter = await offspring.getCharacter();
+
+  // Create textdisplay to explain what changing the inheritance of the offspring means
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing the inheritance of the offspring **${offspringCharacter.name}**.\n` +
+      `Please specify whether this offspring is inheriting nobility or not.`
+    );
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  // Create string select menu to specify "Inheriting Nobility" or "Not Inheriting Nobility", prefilled with the current inheritance status of the offspring
+  const inheritanceSelectMenu = new StringSelectMenuBuilder()
+    .setCustomId('offspring-change-inheritance-select')
+    .setPlaceholder('Select the new inheritance status of the offspring')
+    .setRequired(true)
+    .addOptions(
+      new StringSelectMenuOptionBuilder()
+        .setLabel('Inheriting Nobility')
+        .setValue('inheriting')
+        .setDescription('The offspring is inheriting nobility.')
+        .setDefault(offspringCharacter.socialClassName === 'Notable' ? false : true),
+      new StringSelectMenuOptionBuilder()
+        .setLabel('Not Inheriting Nobility')
+        .setValue('not_inheriting')
+        .setDescription('The offspring is not inheriting nobility.')
+        .setDefault(offspringCharacter.socialClassName === 'Notable' ? true : false)
+    );
+
+  const inheritanceLabel = new LabelBuilder()
+    .setLabel('Is the offspring inheriting nobility or not?')
+    .setDescription('This will affect the social class of the offspring character.')
+    .setStringSelectMenuComponent(inheritanceSelectMenu);
+
+  modal.addLabelComponents(inheritanceLabel);
+
+  return modal;
+}
+
 module.exports = {
   characterCreateModal,
   finalDeathModal,
@@ -654,5 +698,6 @@ module.exports = {
   changeRegionModal,
   offspringLegitimiseModal,
   offspringChangeNameModal,
+  offspringChangeInheritanceModal,
   denyChangeModal
 }
