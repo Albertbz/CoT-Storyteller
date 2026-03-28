@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize');
-const { WANDERER_REGION_ID } = require('./constants.js');
+const { WANDERER_REGION_ID, WORLD_ID } = require('./constants.js');
 
 // Create connection to database
 const sequelize = new Sequelize('database', 'user', 'password', {
@@ -32,7 +32,8 @@ require('./models/DiscordRoles.js')(sequelize, Sequelize.DataTypes);
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 
 sequelize.sync({ force }).then(async () => {
-  await Worlds.create({ name: 'World' });
+  // Create the default world if it doesn't exist
+  await Worlds.create({ id: WORLD_ID, name: 'World' });
 
   // Create the default region, Wanderer, which will be used for characters without a specified region
   await Regions.create({

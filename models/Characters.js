@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const { sendCharacterJoinMessage } = require('../helpers/messageSender');
-const { WANDERER_REGION_ID } = require('../constants');
+const { WANDERER_REGION_ID, WORLD_ID } = require('../constants');
 
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('characters', {
@@ -138,7 +138,7 @@ module.exports = (sequelize, DataTypes) => {
         // Show all info for non-commoners and wanderers
         if (this.socialClassName !== 'Commoner' || (region && region.id === WANDERER_REGION_ID)) {
 
-          const world = await sequelize.models.worlds.findByPk('World');
+          const world = await sequelize.models.worlds.findByPk(WORLD_ID);
 
           const deceasedRecord = await sequelize.models.deceased.findOne({ where: { characterId: this.id } });
           const isDeceased = !!deceasedRecord;

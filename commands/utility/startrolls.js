@@ -2,7 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
 const { postInLogChannel, ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
 const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathRollResultToDatabase, makeDeathRollsSummaryMessages, buildOffspringChanceEmbed } = require('../../helpers/rollHelper.js');
-const { WANDERER_REGION_ID } = require('../../constants.js');
+const { WANDERER_REGION_ID, WORLD_ID } = require('../../constants.js');
 
 // Centralized messages
 const CANCEL_CONTAINER = new ContainerBuilder()
@@ -65,7 +65,7 @@ module.exports = {
   async execute(interaction) {
     await interaction.deferReply();
 
-    const world = await Worlds.findByPk('World')
+    const world = await Worlds.findByPk(WORLD_ID)
 
     // Do offspring rolls
     if (interaction.options.getSubcommand() === 'offspring') {

@@ -1,4 +1,4 @@
-const { WANDERER_REGION_ID } = require("../constants");
+const { WANDERER_REGION_ID, WORLD_ID } = require("../constants");
 
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('playablechildren', {
@@ -53,7 +53,7 @@ module.exports = (sequelize, DataTypes) => {
         const character = await this.getCharacter();
         const region = await character.getRegion();
         const house = await character.getHouse();
-        const world = await sequelize.models.worlds.findByPk('World');
+        const world = await sequelize.models.worlds.findByPk(WORLD_ID);
         const parents = [];
         const parent1 = await character.getParent1();
         const parent2 = await character.getParent2();

@@ -2,7 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Regions, Houses, SocialClasses, Relationships, Worlds, PlayableChildren, Deceased } = require('../../dbObjects.js');
 const { Op, Sequelize } = require('sequelize');
 const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase, addVassalToDatabase, addPlayableChildToDatabase, addRegionToDatabase } = require('../../misc.js');
-const { WANDERER_REGION_ID } = require('../../constants.js');
+const { WANDERER_REGION_ID, WORLD_ID } = require('../../constants.js');
 
 
 module.exports = {
@@ -275,7 +275,7 @@ module.exports = {
     if (subcommand === 'child') {
       const focusedValue = interaction.options.getFocused();
 
-      const world = await Worlds.findByPk('World');
+      const world = await Worlds.findByPk(WORLD_ID);
 
       // Get all characters that are less than 4 years old, are not already a
       // playable child (exists in the PlayableChildren table), are not dead 

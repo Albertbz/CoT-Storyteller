@@ -2,7 +2,7 @@ const { Players, Characters, Worlds, Regions, Houses, Deceased, Relationships, P
 const { citizensDoc, offspringDoc } = require('./sheets.js');
 const { getFertilityModifier } = require('./helpers/rollHelper.js');
 const { postInLogChannel, COLORS } = require('./misc.js');
-const { WANDERER_REGION_ID } = require('./constants.js');
+const { WANDERER_REGION_ID, WORLD_ID } = require('./constants.js');
 
 async function syncSpreadsheetsToDatabase() {
   // Check if citizensDoc or offspringDoc is null, which would indicate that spreadsheet IDs were not provided in configs/spreadsheets.json
@@ -12,7 +12,7 @@ async function syncSpreadsheetsToDatabase() {
   }
 
   // Load world
-  const world = await Worlds.findByPk('World');
+  const world = await Worlds.findByPk(WORLD_ID);
 
   // Load all of the data in case it is changed during the sync, so that
   // everything is taken from the same point in time.

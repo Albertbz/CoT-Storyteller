@@ -2,6 +2,7 @@ const { Players, DeathRollDeaths, Characters, Worlds } = require('../dbObjects.j
 const { ageToFertilityModifier, changeCharacterInDatabase, postInLogChannel } = require('../misc.js');
 const { inlineCode, bold, italic, userMention, EmbedBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { COLORS } = require('../misc.js');
+const { WORLD_ID } = require('../constants.js');
 
 const MAX_EMBED_DESCRIPTION_LENGTH = 3000;
 
@@ -52,7 +53,7 @@ function calculateOffspringRoll({ age1, age2 = 0, isBastardRoll = false } = {}) 
 }
 
 async function getFertilityModifier(yearOfMaturity1, yearOfMaturity2 = undefined) {
-  const world = await Worlds.findByPk('World');
+  const world = await Worlds.findByPk(WORLD_ID);
 
   const age1 = world.currentYear - yearOfMaturity1;
   const age2 = yearOfMaturity2 === undefined ? 1 : world.currentYear - yearOfMaturity2;

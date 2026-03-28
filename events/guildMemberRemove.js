@@ -1,6 +1,7 @@
 const { Events } = require('discord.js');
 const { Deceased, Players, Characters, Worlds } = require('../dbObjects.js');
 const { postInLogChannel, COLORS, addDeceasedToDatabase } = require('../misc');
+const { WORLD_ID } = require('../constants.js');
 
 module.exports = {
   name: Events.GuildMemberRemove,
@@ -21,7 +22,7 @@ module.exports = {
             COLORS.RED
           );
 
-          const world = await Worlds.findByPk('World');
+          const world = await Worlds.findByPk(WORLD_ID);
 
           // Set character as deceased
           const { deceased, embed } = await addDeceasedToDatabase(client.user, false, { characterId: character.id, yearOfDeath: world.currentYear, monthOfDeath: 'January', dayOfDeath: 1, causeOfDeath: 'Left the continent', playedById: player.id })
