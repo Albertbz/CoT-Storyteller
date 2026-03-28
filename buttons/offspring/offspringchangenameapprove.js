@@ -1,22 +1,24 @@
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require("discord.js");
-const { changePlayableChildInDatabase, COLORS } = require("../../misc");
 const { PlayableChildren } = require("../../dbObjects");
+const { changeCharacterInDatabase, COLORS } = require("../../misc");
 
 module.exports = {
-  customId: 'offspring-legitimise-approve',
+  customId: 'offspring-change-name-approve',
   async execute(interaction) {
     // Defer update to allow time to process
     await interaction.deferUpdate();
 
-    // Get the offspring from the customId, which is split by a :
-    const offspringId = interaction.customId.split(':')[1]
+    // Get the offspring ID and new name from the customId, which is split by a :
+    const [_, offspringId, newName] = interaction.customId.split(':');
     const offspring = await PlayableChildren.findByPk(offspringId);
     const offspringCharacter = await offspring.getCharacter();
 
-    // Change the legitimacy of the offspring to Legitimised
-    await changePlayableChildInDatabase(interaction.user, offspring, { newLegitimacy: 'Legitimised' });
+    const oldName = offspringCharacter.name;
 
-    // Send a message to the contacts of the offspring to inform them of the legitimisation being approved
+    // Change the name of the offspring in the database
+    await changeCharacterInDatabase(interaction.user, offspringCharacter, true, { newName: newName });
+
+    // Send a message to the contacts of the offspring to inform them of the name change
     const contacts = new Set();
     if (offspring.contact1Snowflake) contacts.add(offspring.contact1Snowflake);
     if (offspring.contact2Snowflake) contacts.add(offspring.contact2Snowflake);
@@ -24,8 +26,8 @@ module.exports = {
     const approvalContainer = new ContainerBuilder()
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `# Offspring Legitimisation Approved\n` +
-          `The legitimisation request for the offspring **${offspringCharacter.name}** has been approved by staff. **${offspringCharacter.name}** is now legitimised.`
+          `# Offspring Name Change Approved\n` +
+          `The name change request for the offspring **${oldName}** has been approved by staff. The name of **${oldName}** has now been changed to **${newName}**.`
         )
       )
       .setAccentColor(COLORS.GREEN);
@@ -36,11 +38,11 @@ module.exports = {
         await user.send({ components: [approvalContainer], flags: [MessageFlags.IsComponentsV2] });
       }
       catch (error) {
-        console.log(`Could not send DM to contact with id ${contact} for offspring legitimisation approval.`, error);
+        console.log(`Could not send DM to contact with id ${contact} for offspring name change approval.`, error);
       }
     }
 
     await interaction.deleteReply();
-    return interaction.followUp({ content: `You have approved the legitimisation request for **${offspringCharacter.name}**.`, flags: [MessageFlags.Ephemeral] });
+    return interaction.followUp({ content: `You have approved the name change request for **${oldName}**. The name has now been changed to **${newName}**.`, flags: [MessageFlags.Ephemeral] });
   }
 }

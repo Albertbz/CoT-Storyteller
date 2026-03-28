@@ -670,7 +670,7 @@ module.exports = {
           }
 
           return ({
-            name: (child.character.name.substring(0, 30) + ' | ' + parentNames.join(' & ')),
+            name: (child.character.name.substring(0, 30) + ' | ' + (parentNames.join(' & ') || 'Unknown Parents')),
             value: child.id
           })
         }
