@@ -1,6 +1,7 @@
 const { MessageFlags } = require("discord.js");
 const { PlayableChildren, Worlds } = require("../../dbObjects")
 const { offspringLegitimiseModal } = require("../../helpers/modalCreator");
+const { WORLD_ID } = require("../../constants");
 
 module.exports = {
   customId: 'offspring-legitimise',
@@ -9,7 +10,7 @@ module.exports = {
     const offspringId = interaction.customId.split(':')[1]
     const offspring = await PlayableChildren.findByPk(offspringId);
     const offspringCharacter = await offspring.getCharacter();
-    const world = await Worlds.findByPk('Elstrand');
+    const world = await Worlds.findByPk(WORLD_ID);
 
     // Check whether the offspring has been born yet, and if not, return an error
     // message to the user

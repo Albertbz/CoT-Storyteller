@@ -2,6 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, inlineCode, b
 const { addDeceasedToDatabase, changePlayerInDatabase } = require('../../misc.js');
 const { Players, Characters, Worlds, DiscordRoles } = require('../../dbObjects.js');
 const DiscordChannels = require('../../models/DiscordChannels.js');
+const { WORLD_ID } = require('../../constants.js');
 
 
 module.exports = {
@@ -412,7 +413,7 @@ module.exports = {
             // Update the database to remove the characters of the affected players
             await replyMessage.edit({ content: messageLines.join('\n') + '\n\n*Updating characters in database... please wait...*' });
 
-            const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+            const world = await Worlds.findByPk(WORLD_ID);
             for (const player of playersToUpdate) {
               if (!player.character) continue;
 

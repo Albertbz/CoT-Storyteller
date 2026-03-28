@@ -3,6 +3,7 @@ const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationshi
 const { Op } = require('sequelize');
 const { ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
 const { calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringChanceEmbed, getFertilityModifier, rollDeathAndGetResult, saveDeathRollResultToDatabase } = require('../../helpers/rollHelper.js');
+const { WORLD_ID } = require('../../constants.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -146,7 +147,7 @@ module.exports = {
     await interaction.deferReply();
 
     // Set up shared variables
-    const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+    const world = await Worlds.findByPk(WORLD_ID);
 
     const interactionUser = interaction.user;
     const collectorFilter = i => i.user.id === interactionUser.id;

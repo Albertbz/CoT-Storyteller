@@ -1,6 +1,7 @@
 const { ContainerBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
 const { Players, Characters, PlayableChildren, Worlds } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
+const { WORLD_ID } = require('../../constants.js');
 
 module.exports = {
   customId: 'character-play-own-offspring-button',
@@ -14,7 +15,7 @@ module.exports = {
     // Get the player that invoked the interaction
     const player = await Players.findByPk(interaction.user.id);
     // Get the world to have current year
-    const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+    const world = await Worlds.findByPk(WORLD_ID);
     // Get all playable children for this player where either contact1Snowflake
     // or contact2Snowflake matches the player's id, and where the character's
     // yearOfMaturity is less than or equal to the current year in the world

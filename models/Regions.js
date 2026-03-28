@@ -1,3 +1,5 @@
+const { WANDERER_REGION_ID } = require("../constants");
+
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('regions', {
     id: {
@@ -25,6 +27,19 @@ module.exports = (sequelize, DataTypes) => {
     generalChannelId: {
       type: DataTypes.STRING,
       allowNull: true
+    },
+    logInfo: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        return (
+          `id: \`${this.id}\`\n` +
+          `name: \`${this.name}\`\n` +
+          `rulingHouseId: \`${this.rulingHouseId ? this.rulingHouseId : '-'}\`\n` +
+          `roleId: \`${this.roleId}\`\n` +
+          `recruitmentId: \`${this.recruitmentId ? this.recruitmentId : '-'}\`\n` +
+          `generalChannelId: \`${this.generalChannelId ? this.generalChannelId : '-'}\``
+        )
+      }
     },
     formattedInfo: {
       type: DataTypes.VIRTUAL,
@@ -97,5 +112,19 @@ module.exports = (sequelize, DataTypes) => {
         throw new Error('Do not try to set the `population` value!');
       }
     }
-  });
+  }, {
+    hooks: {
+      beforeDestroy: async (instance, options) => {
+        // If the region being deleted has the id of the wanderer region,
+        // prevent deletion and log an error since the wanderer region is 
+        // necessary for the bot to function properly
+        if (instance.id === WANDERER_REGION_ID) {
+          const error = new Error('The wanderer region cannot be deleted.');
+          error.code = 'WandererRegionDeletionError';
+          throw error;
+        }
+      }
+    }
+  }
+  );
 }

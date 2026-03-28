@@ -1,7 +1,34 @@
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { JWT } = require('google-auth-library');
-const creds = require('./configs/googleserviceaccount.json');
-const { citizensSpreadsheetId, offspringSpreadsheetId } = require('./configs/spreadsheets.json');
+
+let creds;
+try {
+  creds = require('./configs/googleserviceaccount.json');
+}
+catch (error) {
+  if (error.code === 'MODULE_NOT_FOUND') {
+    console.log('Google service account credentials not found in configs/googleserviceaccount.json. Spreadsheets will not be synced to the database.');
+    module.exports = { citizensDoc: null, offspringDoc: null };
+    return;
+  } else {
+    throw error;
+  }
+}
+
+let citizensSpreadsheetId, offspringSpreadsheetId;
+try {
+  const spreadsheetsConfig = require('./configs/spreadsheets.json');
+  citizensSpreadsheetId = spreadsheetsConfig.citizensSpreadsheetId;
+  offspringSpreadsheetId = spreadsheetsConfig.offspringSpreadsheetId;
+} catch (error) {
+  if (error.code === 'MODULE_NOT_FOUND') {
+    console.log('Spreadsheet configuration not found in configs/spreadsheets.json. Spreadsheets will not be synced to the database.');
+    module.exports = { citizensDoc: null, offspringDoc: null };
+    return;
+  } else {
+    throw error;
+  }
+}
 
 // Initialize auth - see https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication
 const serviceAccountAuth = new JWT({
@@ -11,13 +38,6 @@ const serviceAccountAuth = new JWT({
   key: creds.private_key,
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
-
-// If spreadsheet IDs are not provided, set citizensDoc and offspringDoc to null to prevent errors when trying to access them
-if (!citizensSpreadsheetId || !offspringSpreadsheetId) {
-  console.log('Spreadsheet IDs not provided in configs/spreadsheets.json. Spreadsheets will not be synced to the database.');
-  module.exports = { citizensDoc: null, offspringDoc: null };
-  return;
-}
 
 // Initialize the GoogleSpreadsheet objects for both spreadsheets
 const citizensDoc = new GoogleSpreadsheet(citizensSpreadsheetId, serviceAccountAuth);

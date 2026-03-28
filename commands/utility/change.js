@@ -1,7 +1,8 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Client } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Deceased, Duchies } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
-const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter, changeDuchyInDatabase, changeDeceasedInDatabase } = require('../../misc.js');
+const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter, changeDuchyInDatabase, changeDeceasedInDatabase, changeSocialClassInDatabase, changeWorldInDatabase } = require('../../misc.js');
+const { WANDERER_REGION_ID, WORLD_ID } = require('../../constants.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -134,13 +135,17 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
-        .setName('year')
-        .setDescription('Change the current year.')
-        .addNumberOption(option =>
+        .setName('world')
+        .setDescription('Change something about the world.')
+        .addStringOption(option =>
           option
-            .setName('year_new')
-            .setDescription('The new year.')
-            .setRequired(true)
+            .setName('name_new')
+            .setDescription('The new name of the world.')
+        )
+        .addIntegerOption(option =>
+          option
+            .setName('currentyear_new')
+            .setDescription('The new current year of the world.')
         )
     )
     .addSubcommand(subcommand =>
@@ -165,10 +170,10 @@ module.exports = {
             .setDescription('The new ruling house of the region.')
             .setAutocomplete(true)
         )
-        .addStringOption(option =>
+        .addRoleOption(option =>
           option
-            .setName('roleid_new')
-            .setDescription('The new role ID of the region. This should technically never change.')
+            .setName('role_new')
+            .setDescription('The new role that is given to characters in the region.')
         )
         .addStringOption(option =>
           option
@@ -503,6 +508,23 @@ module.exports = {
             .setDescription('The new player who played the character.')
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('socialclass')
+        .setDescription('Change something about a social class.')
+        .addStringOption(option =>
+          option
+            .setName('socialclass')
+            .setDescription('The social class to change something about.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addRoleOption(option =>
+          option
+            .setName('role_new')
+            .setDescription('The new role for the social class.')
+        )
+    )
   ,
   async autocomplete(interaction) {
     let choices = [];
@@ -806,6 +828,18 @@ module.exports = {
       choices = characters.map(deceased => ({ name: deceased.character ? deceased.character.name : 'Unknown', value: deceased.id }));
     }
 
+    if (subcommand === 'socialclass') {
+      const focusedValue = interaction.options.getFocused();
+
+      const socialClasses = await SocialClasses.findAll({
+        where: { name: { [Op.startsWith]: focusedValue } },
+        attributes: ['name', 'roleId'],
+        limit: 25
+      });
+
+      choices = socialClasses.map(socialClass => ({ name: socialClass.name, value: socialClass.name }));
+    }
+
     await interaction.respond(choices);
   },
 
@@ -897,325 +931,29 @@ module.exports = {
     }
 
     /**
-     * Handle changing current year
+     * Handle changing world info
      */
-    if (subcommand === 'year') {
-      const embeds = [];
-      const newYear = interaction.options.getNumber('year_new');
+    if (subcommand === 'world') {
+      const newName = interaction.options.getString('name_new');
+      const newCurrentYear = interaction.options.getInteger('currentyear_new');
 
-      // First, update the world's current year
-      const world = await Worlds.findOne({ where: { name: 'Elstrand' } });
+      const world = await Worlds.findByPk(WORLD_ID);
 
-      const oldYear = world.currentYear;
-      await world.update({ currentYear: newYear });
-
-      await postInLogChannel(
-        'Current Year Changed',
-        '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
-        'Year: ' + inlineCode(oldYear) + ' -> ' + inlineCode(newYear),
-        COLORS.ORANGE
-      )
-
-      // Make embed to return
-      const yearChangedEmbed = new EmbedBuilder()
-        .setTitle('Current Year Changed')
-        .setDescription(`**Year**: ${oldYear} -> ${newYear}`)
-        .setColor(COLORS.ORANGE)
-      embeds.push(yearChangedEmbed);
-
-      // First, fetch playable children that are turning 4, remove them as playable
-      // and set their characters as deceased as they have now expired
-      const playableChildrenTurningFour = await PlayableChildren.findAll({
-        include: { model: Characters, as: 'character', where: { yearOfMaturity: newYear - 4 } }
-      });
-
-      const deceasedChildrenTextFormatted = [];
-      const deceasedChildrenTextLog = [];
-      for (const child of playableChildrenTurningFour) {
-        const deceasedChildTextLog = `${inlineCode(child.character.name)} (${inlineCode(child.character.id)})`;
-        deceasedChildrenTextLog.push(deceasedChildTextLog);
-        const deceasedChildTextFormatted = `${child.character.name}`;
-        deceasedChildrenTextFormatted.push(deceasedChildTextFormatted);
-        // Set character as deceased
-        await Deceased.create({
-          characterId: child.character.id,
-          yearOfDeath: newYear,
-          monthOfDeath: 'January',
-          dayOfDeath: 1,
-          causeOfDeath: 'Expired Child'
+      try {
+        const { world: updatedWorld, embeds: embeds } = await changeWorldInDatabase(interaction.user, world, {
+          newName: newName,
+          newCurrentYear: newCurrentYear
         });
-
-        // Remove playable child entry
-        await child.destroy();
+        return interaction.editReply({ embeds: embeds, flags: MessageFlags.Ephemeral });
       }
-
-      if (deceasedChildrenTextFormatted.length > 0) {
-        // Post to log channel
-        await postInLogChannel(
-          'Playable Children Expired',
-          '**Expired by:** ' + userMention(interaction.user.id) + '\n\n' +
-          deceasedChildrenTextLog.join('\n'),
-          COLORS.RED
-        );
-
-        // Create embed for deceased children
-        const deceasedChildrenEmbed = new EmbedBuilder()
-          .setTitle('Playable Children Expired')
-          .setDescription(deceasedChildrenTextFormatted.join('\n'))
+      catch (error) {
+        console.log(error);
+        const worldNotChangedEmbed = new EmbedBuilder()
+          .setTitle('World Not Changed')
+          .setDescription(`An error occured while trying to change the world: ${error.message}`)
           .setColor(COLORS.RED);
-        embeds.push(deceasedChildrenEmbed);
+        return interaction.editReply({ embeds: [worldNotChangedEmbed], flags: MessageFlags.Ephemeral });
       }
-
-      // Then, check whether any relationships and bastard rolls need to be 
-      // removed due to death
-      const relationships = await Relationships.findAll({
-        include: [
-          { model: Characters, as: 'bearingCharacter' },
-          { model: Characters, as: 'conceivingCharacter' }
-        ]
-      });
-
-      // Filter relationships where partner(s) died previous year
-      const relationshipsToRemove = [];
-      for (const rel of relationships) {
-        const deceasedPartner = await Deceased.findOne({
-          where: {
-            [Op.or]: [
-              {
-                characterId: rel.bearingCharacterId,
-                yearOfDeath: world.currentYear - 1
-              },
-              {
-                characterId: rel.conceivingCharacterId,
-                yearOfDeath: world.currentYear - 1
-              }
-            ]
-          }
-        });
-
-        if (deceasedPartner) {
-          relationshipsToRemove.push(rel);
-        }
-      }
-
-      // Remove the relationships and save text for embed
-      const removedRelationshipsTextFormatted = [];
-      const removedRelationshipsTextLog = [];
-      for (const rel of relationshipsToRemove) {
-        const removedRelationshipTextLog = `Relationship between ${inlineCode(rel.bearingCharacter.name)} and ${inlineCode(rel.conceivingCharacter.name)} (${inlineCode(rel.id)})`;
-        removedRelationshipsTextLog.push(removedRelationshipTextLog);
-        const removedRelationshipTextFormatted = `Relationship between ${rel.bearingCharacter.name} and ${rel.conceivingCharacter.name}`;
-        removedRelationshipsTextFormatted.push(removedRelationshipTextFormatted);
-        await rel.destroy();
-      }
-      if (removedRelationshipsTextFormatted.length > 0) {
-        // Post to log channel
-        await postInLogChannel(
-          'Relationships Removed Due to Death',
-          '**Removed by:** ' + userMention(interaction.user.id) + '\n\n' +
-          removedRelationshipsTextLog.join('\n'),
-          COLORS.RED
-        );
-
-        // Create embed for removed relationships
-        const relationshipsRemovedEmbed = new EmbedBuilder()
-          .setTitle('Relationships Removed Due to Death')
-          .setDescription(removedRelationshipsTextFormatted.join('\n'))
-          .setColor(COLORS.RED);
-        embeds.push(relationshipsRemovedEmbed);
-      }
-
-      // Remove bastard rolls for characters who died previous year by setting
-      // isRollingForBastards to false
-      const charactersRollingForBastards = await Characters.findAll({
-        where: { isRollingForBastards: true }
-      });
-
-      const deceasedCharactersRollingForBastards = [];
-      for (const char of charactersRollingForBastards) {
-        const deceasedChar = await Deceased.findOne({
-          where: { characterId: char.id, yearOfDeath: world.currentYear - 1 }
-        });
-        if (deceasedChar) {
-          deceasedCharactersRollingForBastards.push(char);
-        }
-      }
-
-      const removedBastardRollsTextFormatted = [];
-      const removedBastardRollsTextLog = [];
-      for (const char of deceasedCharactersRollingForBastards) {
-        const removedBastardRollTextLog = `${inlineCode(char.name)} (${inlineCode(char.id)})`;
-        removedBastardRollsTextLog.push(removedBastardRollTextLog);
-        const removedBastardRollTextFormatted = `${char.name}`;
-        removedBastardRollsTextFormatted.push(removedBastardRollTextFormatted);
-        await char.update({ isRollingForBastards: false });
-      }
-      if (removedBastardRollsTextFormatted.length > 0) {
-        // Post to log channel
-        await postInLogChannel(
-          'NPC Bastard Rolls Removed Due to Death',
-          '**Removed by:** ' + userMention(interaction.user.id) + '\n\n' +
-          removedBastardRollsTextLog.join('\n'),
-          COLORS.RED
-        );
-
-        // Create embed for removed bastard rolls
-        const bastardRollsRemovedEmbed = new EmbedBuilder()
-          .setTitle('NPC Bastard Rolls Removed Due to Death')
-          .setDescription(removedBastardRollsTextFormatted.join('\n'))
-          .setColor(COLORS.RED);
-        embeds.push(bastardRollsRemovedEmbed);
-      }
-
-      // Go through commoner characters and make notable if their year of
-      // creation is the new current year plus 2. If not a wanderer, set their
-      // year of maturity to year of creation plus 1. If wanderer, set year of
-      // maturity to year of creation (should already be the case normally).
-      const commonerCharactersToPromote = await Characters.findAll({
-        where: {
-          socialClassName: 'Commoner',
-          yearOfCreation: world.currentYear - 2
-        },
-        include: [
-          { model: Regions, as: 'region', where: { name: { [Op.ne]: 'Wanderer' } } }
-        ]
-      });
-
-      const promotedCommonerCharactersTextFormatted = [];
-      const promotedCommonerCharactersTextLog = [];
-
-      for (const char of commonerCharactersToPromote) {
-        const promotedCommonerCharacterTextLog = `${inlineCode(char.name)} (${inlineCode(char.id)})`;
-        promotedCommonerCharactersTextLog.push(promotedCommonerCharacterTextLog);
-        const promotedCommonerCharacterTextFormatted = `${char.name}`;
-        promotedCommonerCharactersTextFormatted.push(promotedCommonerCharacterTextFormatted);
-
-        await char.update({ socialClassName: 'Notable', yearOfMaturity: char.yearOfCreation + 1 });
-        const charPlayer = await char.getPlayer();
-        if (charPlayer) {
-          await syncMemberRolesWithCharacter(charPlayer, char);
-        }
-      }
-
-      if (promotedCommonerCharactersTextFormatted.length > 0) {
-        // Post to log channel
-        await postInLogChannel(
-          'Commoner Characters Changed to Notable for Year ' + world.currentYear,
-          '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
-          promotedCommonerCharactersTextLog.join('\n'),
-          COLORS.ORANGE
-        );
-
-        // Create embed for promoted commoner characters
-        const promotedCommonerCharactersEmbed = new EmbedBuilder()
-          .setTitle('Commoner Characters Changed to Notable for Year ' + world.currentYear)
-          .setDescription(promotedCommonerCharactersTextFormatted.join('\n'))
-          .setColor(COLORS.ORANGE);
-        embeds.push(promotedCommonerCharactersEmbed);
-      }
-
-      const wandererCharactersToPromote = await Characters.findAll({
-        where: {
-          socialClassName: 'Commoner',
-          yearOfCreation: world.currentYear - 2
-        },
-        include: [
-          { model: Regions, as: 'region', where: { name: 'Wanderer' } }
-        ]
-      });
-
-      const promotedWandererCharactersTextFormatted = [];
-      const promotedWandererCharactersTextLog = [];
-
-      for (const char of wandererCharactersToPromote) {
-        const promotedWandererCharacterTextLog = `${inlineCode(char.name)} (${inlineCode(char.id)})`;
-        promotedWandererCharactersTextLog.push(promotedWandererCharacterTextLog);
-        const promotedWandererCharacterTextFormatted = `${char.name}`;
-        promotedWandererCharactersTextFormatted.push(promotedWandererCharacterTextFormatted);
-
-        await char.update({ socialClassName: 'Notable', yearOfMaturity: char.yearOfCreation });
-        const charPlayer = await char.getPlayer();
-        if (charPlayer) {
-          await syncMemberRolesWithCharacter(charPlayer, char);
-        }
-      }
-
-      if (promotedWandererCharactersTextFormatted.length > 0) {
-        // Post to log channel
-        await postInLogChannel(
-          'Wanderer Characters Changed to Notable for Year ' + world.currentYear,
-          '**Changed by:** ' + userMention(interaction.user.id) + '\n\n' +
-          promotedWandererCharactersTextLog.join('\n'),
-          COLORS.ORANGE
-        );
-
-        // Create embed for promoted wanderer characters
-        const promotedWandererCharactersEmbed = new EmbedBuilder()
-          .setTitle('Wanderer Characters Changed to Notable for Year ' + world.currentYear)
-          .setDescription(promotedWandererCharactersTextFormatted.join('\n'))
-          .setColor(COLORS.ORANGE);
-        embeds.push(promotedWandererCharactersEmbed);
-      }
-
-      /**
-       * Send a DM to players of characters that were promoted from commoner to 
-       * notable to let them know they are now notable and have to start 
-       * tracking PvE deaths, and that they are now aging. 
-       * Also send a DM to players of characters that were promoted from wanderer 
-       * to notable to let them know they are now notable, but that not much has 
-       * changed for them otherwise.
-       */
-      // Create the message to be sent to commoners that have been promoted to notable
-      const commonerContainer = new ContainerBuilder()
-        .addTextDisplayComponents(
-          new TextDisplayBuilder()
-            .setContent(
-              `### The character you are playing on the Chronicles of Time Vintage Story server has been promoted from commoner to notable due to the passage of time.\n` +
-              `Hi! Your character was created two in-game years ago and has therefore automatically been promoted to notable. This means that your character is no longer a commoner, and is now a notable character in the world. This also means that your character is now mortal, and you must start tracking any PvE deaths. Additionally, your character will now start aging, and due to your character previously being a commoner, it will start at age 1. Welcome to mortality!\n` +
-              `-# If you believe this to be a mistake, please contact the staff team through a ticket.`
-            )
-        )
-      const commonerMessage = { components: [commonerContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] };
-
-      for (const char of commonerCharactersToPromote) {
-        const charPlayer = await char.getPlayer();
-        if (charPlayer) {
-          try {
-            const user = await interaction.client.users.fetch(charPlayer.id);
-            await user.send(commonerMessage);
-          }
-          catch (error) {
-            console.log(`Could not send DM to user ${charPlayer.id} for character ${char.name}:`, error);
-          }
-        }
-      }
-
-      // Then, wanderers
-      const wandererContainer = new ContainerBuilder()
-        .addTextDisplayComponents(
-          new TextDisplayBuilder()
-            .setContent(
-              `### The character you are playing on the Chronicles of Time Vintage Story server has been promoted from non-notable wanderer to notable wanderer due to the passage of time.\n` +
-              `Hi! Your character was created two in-game years ago and has therefore automatically been promoted to notable. This means that your character is no longer a non-notable wanderer, and is now a notable character in the world. However, not much has changed for you otherwise, as wanderers are already mortal and have to track PvE deaths. Welcome to being a notable wanderer!\n` +
-              `-# If you believe this to be a mistake, please contact the staff team through a ticket.`
-            )
-        )
-      const wandererMessage = { components: [wandererContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] };
-
-      for (const char of wandererCharactersToPromote) {
-        const charPlayer = await char.getPlayer();
-        if (charPlayer) {
-          try {
-            const user = await interaction.client.users.fetch(charPlayer.id);
-            await user.send(wandererMessage);
-          }
-          catch (error) {
-            console.log(`Could not send DM to user ${charPlayer.id} for character ${char.name}:`, error);
-          }
-        }
-      }
-
-      return interaction.editReply({ embeds: embeds, flags: MessageFlags.Ephemeral });
     }
 
     /**
@@ -1225,7 +963,7 @@ module.exports = {
       const regionId = interaction.options.getString('region');
       const newName = interaction.options.getString('name_new');
       const newRulingHouseId = interaction.options.getString('rulinghouse_new');
-      const newRoleId = interaction.options.getString('roleid_new');
+      const newRole = interaction.options.getRole('role_new');
       const newRole1 = interaction.options.getString('role1_new');
       const newRole2 = interaction.options.getString('role2_new');
       const newRole3 = interaction.options.getString('role3_new');
@@ -1240,7 +978,7 @@ module.exports = {
       try {
         const { region: updatedRegion, embed: regionChangedEmbed } = await changeRegionInDatabase(interaction.user, region, {
           newName: newName,
-          newRoleId: newRoleId,
+          newRoleId: newRole ? newRole.id : null,
           newRulingHouseId: newRulingHouseId,
           newRole1: newRole1,
           newRole2: newRole2,
@@ -1501,6 +1239,31 @@ module.exports = {
           .setDescription(`An error occurred while trying to change the deceased entry: ${error.message}`)
           .setColor(COLORS.RED);
         return interaction.editReply({ embeds: [deceasedNotChangedEmbed], flags: MessageFlags.Ephemeral });
+      }
+    }
+
+    /**
+     * Handle changing social class info
+     */
+    if (subcommand === 'socialclass') {
+      const socialClassName = interaction.options.getString('socialclass');
+      const newRole = interaction.options.getRole('role_new');
+
+      const socialClass = await SocialClasses.findByPk(socialClassName);
+
+      try {
+        const { socialClass: updatedSocialClass, embed: socialClassChangedEmbed } = await changeSocialClassInDatabase(interaction.user, socialClass, {
+          newRoleId: newRole ? newRole.id : null
+        });
+        return interaction.editReply({ embeds: [socialClassChangedEmbed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        const socialClassNotChangedEmbed = new EmbedBuilder()
+          .setTitle('Social Class Not Changed')
+          .setDescription(`An error occurred while trying to change the social class: ${error.message}`)
+          .setColor(COLORS.RED);
+        return interaction.editReply({ embeds: [socialClassNotChangedEmbed], flags: MessageFlags.Ephemeral });
       }
     }
 

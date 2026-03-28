@@ -63,7 +63,11 @@ CoT-Storyteller is a comprehensive Discord bot that handles character creation, 
    npm install
    ```
 
-3. Configure the bot:
+3. Give your application/bot the correct intents and invite to your server:
+   - Go to your bot on the Discord Developer Portal, and click on the "Bot" tab. Toggle on "Server Members Intent" and "Message Content Intent".
+   - Go to the "OAuth2" tab, scroll down to the URL generator, and toggle the "bot" and "applications.commands" scopes on. Then, in the "Bot Permissions" that show up, toggle on "Administrator". Copy the URL and paste it in your browser, then add the bot to the server you want to add it to.
+
+4. Update/create the config files:
    - Create `configs/config.json` with your Discord credentials:
      ```json
      {
@@ -72,8 +76,8 @@ CoT-Storyteller is a comprehensive Discord bot that handles character creation, 
        "guildId": "YOUR_GUILD_ID"
      }
      ```
-   - Place your Google Service Account JSON in `configs/` and rename the file `googleserviceaccount.json`
-   - Create `configs/spreadsheets.json` with the IDs of the citizen and offspring spreadsheets:
+   - OPTIONAL: Place your Google Service Account JSON in `configs/` and rename the file `googleserviceaccount.json`
+   - OPTIONAL: Create `configs/spreadsheets.json` with the IDs of the citizen and offspring spreadsheets:
      ```json
      {
        "citizensSpreadsheetId": "CITIZEN_SPREADSHEET_ID",
@@ -81,23 +85,26 @@ CoT-Storyteller is a comprehensive Discord bot that handles character creation, 
      }
      ```
 
-4. Initialize the database:
+5. Initialize the database:
    ```bash
    node dbInit.js --force
    ```
 
-5. Deploy slash commands:
+6. Deploy slash commands:
    ```bash
    node deploy-commands.js
    ```
 
-6. Start the bot:
+7. Start the bot:
    ```bash
    node index.js
    ```
 
-7. Register channels and roles:
-  - Use the `/register channel` and `/register role` Discord commands to register the channels and roles required for the bot to run properly. If any are not registered, errors may occur and will be posted in the console.
+8. Register channels and roles:
+    - Use the `/register channel` and `/register role` Discord commands to register the channels and roles required for the bot to run properly. If any are not registered, errors may occur and will be posted in the console.
+
+9. OPTIONAL: Update roles for social classes and Wanderer region:
+    - Using `/change region` and `/change socialclass`, set the roles for the Wanderer and social classes, so that these are given to those that are playing characters as a Wanderer or as one of the social classes.
 
 ## Key Commands
 
