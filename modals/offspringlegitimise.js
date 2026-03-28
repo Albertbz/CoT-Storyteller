@@ -63,12 +63,7 @@ async function offspringLegitimiseConfirm(interaction, offspring, screenshot) {
         `# Offspring Legitimisation Request\n` +
         `Request sent in by <@${interaction.user.id}> for the legitimisation of the offspring **${offspringCharacter.name}**. Please review the screenshot provided and approve or deny the request using the buttons below.\n` +
         `## Offspring Details\n` +
-        offspringInfo
-      )
-    )
-    .addSeparatorComponents((separator) => separator)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
+        offspringInfo + `\n` +
         `## Screenshot Provided`
       )
     )
@@ -99,7 +94,7 @@ async function offspringLegitimiseConfirm(interaction, offspring, screenshot) {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `# Offspring Legitimisation Request Sent\n` +
-        `Your request to legitimise the offspring ${offspringCharacter.name} has been sent to Staff for review. You will be notified of the outcome of the request once it has been reviewed. Please allow some time for Staff to review the request and get back to you.`
+        `Your request to legitimise the offspring ${offspringCharacter.name} has been sent to Staff for review. You will be notified of the outcome of the request once it has been reviewed. Please allow some time for Staff to review your request. You will be notified of the outcome of your request once it has been reviewed.`
       )
     )
 

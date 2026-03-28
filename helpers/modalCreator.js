@@ -574,6 +574,121 @@ async function offspringLegitimiseModal(offspring) {
   return modal;
 }
 
+async function offspringChangeNameModal(offspring, { nameValue = null } = {}) {
+  const modal = new ModalBuilder()
+    .setCustomId('offspring-change-name-modal:' + offspring.id)
+    .setTitle('Change Name of Offspring');
+
+  const offspringCharacter = await offspring.getCharacter();
+
+  // Create textdisplay to explain what changing the name of the offspring means
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing the name of the offspring **${offspringCharacter.name}**.\n` +
+      `Please enter the new name for this offspring, and provide a screenshot of the chiseled child with its name shown. It has to be made into a tabletop piece to be valid.`
+    );
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  // Create a text input for the new name of the offspring, prefilled with the current name
+  const nameInput = new TextInputBuilder()
+    .setCustomId('offspring-change-name-input')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('Enter new name for the offspring')
+    .setMaxLength(50);
+
+  if (nameValue) {
+    nameInput.setValue(nameValue);
+  }
+  else {
+    nameInput.setValue(offspringCharacter.name);
+  }
+
+  const nameLabel = new LabelBuilder()
+    .setLabel('What is the new name of the offspring?')
+    .setDescription('Numbers, usernames, and references to real-life are not allowed.')
+    .setTextInputComponent(nameInput);
+
+  // Create a file upload input for the screenshot of the chiseled child with its name shown
+  const screenshotInput = new FileUploadBuilder()
+    .setCustomId('offspring-change-name-screenshot')
+
+  const screenshotLabel = new LabelBuilder()
+    .setLabel('Upload screenshot of chiseled child')
+    .setDescription('Make sure the screenshot includes the things mentioned in the instructions above.')
+    .setFileUploadComponent(screenshotInput);
+
+  modal.addLabelComponents(nameLabel, screenshotLabel);
+
+  return modal;
+}
+
+function denyChangeModal(modalCustomId, title) {
+  const modal = new ModalBuilder()
+    .setCustomId(modalCustomId)
+    .setTitle(title);
+
+  const reasonInput = new TextInputBuilder()
+    .setCustomId('reason')
+    .setStyle(TextInputStyle.Paragraph)
+    .setPlaceholder('Enter the reason for denying this request here...')
+    .setRequired(true);
+
+  const reasonLabel = new LabelBuilder()
+    .setLabel('Reason for denying this request')
+    .setDescription('This reason will be sent to the user who made the request.')
+    .setTextInputComponent(reasonInput);
+
+  modal.addLabelComponents(reasonLabel);
+
+  return modal;
+}
+
+async function offspringChangeInheritanceModal(offspring) {
+  const modal = new ModalBuilder()
+    .setCustomId('offspring-change-inheritance-modal:' + offspring.id)
+    .setTitle('Change Offspring Inheritance');
+
+  const offspringCharacter = await offspring.getCharacter();
+
+  // Create textdisplay to explain what changing the inheritance of the offspring means
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing the inheritance of the offspring **${offspringCharacter.name}**.\n` +
+      `Please specify whether this offspring is inheriting nobility or not.`
+    );
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  // Create string select menu to specify "Inheriting Nobility" or "Not Inheriting Nobility", prefilled with the current inheritance status of the offspring
+  const inheritanceSelectMenu = new StringSelectMenuBuilder()
+    .setCustomId('offspring-change-inheritance-select')
+    .setPlaceholder('Select the new inheritance status of the offspring')
+    .setRequired(true)
+    .addOptions(
+      new StringSelectMenuOptionBuilder()
+        .setLabel('Inheriting Nobility')
+        .setValue('inheriting')
+        .setDescription('The offspring is inheriting nobility.')
+        .setDefault(offspringCharacter.socialClassName === 'Notable' ? false : true),
+      new StringSelectMenuOptionBuilder()
+        .setLabel('Not Inheriting Nobility')
+        .setValue('not_inheriting')
+        .setDescription('The offspring is not inheriting nobility.')
+        .setDefault(offspringCharacter.socialClassName === 'Notable' ? true : false)
+    );
+
+  const inheritanceLabel = new LabelBuilder()
+    .setLabel('Is the offspring inheriting nobility or not?')
+    .setDescription('This will affect the social class of the offspring character.')
+    .setStringSelectMenuComponent(inheritanceSelectMenu);
+
+  modal.addLabelComponents(inheritanceLabel);
+
+  return modal;
+}
+
 module.exports = {
   characterCreateModal,
   finalDeathModal,
@@ -581,5 +696,8 @@ module.exports = {
   intercharacterRollCreateModal,
   intercharacterRollEditModal,
   changeRegionModal,
-  offspringLegitimiseModal
+  offspringLegitimiseModal,
+  offspringChangeNameModal,
+  offspringChangeInheritanceModal,
+  denyChangeModal
 }

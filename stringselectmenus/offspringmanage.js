@@ -48,7 +48,7 @@ module.exports = {
           .setEmoji('🏠'),
       )
 
-    if (hasNobleOrRulerParent && (offspring.legitimacy !== 'Illegitimate')) {
+    if ((hasNobleOrRulerParent && (offspring.legitimacy !== 'Illegitimate')) || offspring.character.socialClassName === 'Noble' || offspring.character.socialClassName === 'Ruler') {
       conditionalActionRow.addComponents(
         new ButtonBuilder()
           .setCustomId('offspring-change-inheritance:' + offspring.id)
