@@ -273,7 +273,14 @@ module.exports = {
 }
 
 async function getPlayerInfoEmbed(player) {
-  const user = client.users.cache.get(player.id);
+  let user = client.users.cache.get(player.id);
+  if (!user) {
+    try {
+      user = await client.users.fetch(player.id);
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
+  }
 
   return new EmbedBuilder()
     .setTitle(`Player Info: ${user.username}`)
