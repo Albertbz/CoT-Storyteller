@@ -200,6 +200,12 @@ module.exports = {
         return interaction.editReply({ content: 'That character does not exist.', flags: MessageFlags.Ephemeral });
       }
 
+      const characterPlayer = await character.getPlayer();
+      if (characterPlayer) {
+        const playerInfoEmbed = await getPlayerInfoEmbed(characterPlayer);
+        infoEmbeds.push(playerInfoEmbed);
+      }
+
       const characterInfoEmbed = await getCharacterInfoEmbed(character);
       infoEmbeds.push(characterInfoEmbed);
     }
