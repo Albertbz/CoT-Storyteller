@@ -91,6 +91,7 @@ async function offspringLegitimiseConfirm(interaction, offspring, screenshot) {
       .setStyle(ButtonStyle.Danger)
   )
 
+  ueontue
   uenothunteo
 
   await approvalChannel.send({ components: [approvalContainer, responseRow], flags: [MessageFlags.IsComponentsV2] });
