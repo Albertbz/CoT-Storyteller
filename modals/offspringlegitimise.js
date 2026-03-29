@@ -91,6 +91,8 @@ async function offspringLegitimiseConfirm(interaction, offspring, screenshot) {
       .setStyle(ButtonStyle.Danger)
   )
 
+  uenothunteo
+
   await approvalChannel.send({ components: [approvalContainer, responseRow], flags: [MessageFlags.IsComponentsV2] });
 
   // Edit the message to say that the request has been sent to Staff for review
