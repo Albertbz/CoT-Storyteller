@@ -30,6 +30,9 @@ module.exports = {
         }
       });
 
+
+      enotuheontu
+
       for (const deceased of deceaseds) {
         // If character died before year 25, check the region and house and
         // update the region if house is not null and region is Wanderer
