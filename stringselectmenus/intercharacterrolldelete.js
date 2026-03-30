@@ -86,8 +86,7 @@ async function intercharacterRollDeleteConfirm(interaction, roll) {
   }
 
   const otherPlayer = bearingPlayer.id === interaction.user.id ? conceivingPlayer : bearingPlayer;
-  // const otherUser = await interaction.client.users.fetch(otherPlayer.id);
-  const otherUser = await interaction.client.users.fetch('249586641402986497'); // TEMPORARY HARDCODED USER ID FOR TESTING - REPLACE WITH OTHER PLAYER ID WHEN DONE TESTING
+  const otherUser = await interaction.client.users.fetch(otherPlayer.id);
 
   try {
     const container = new ContainerBuilder()

@@ -66,8 +66,7 @@ async function intercharacterRollCreateConfirm(interaction, bearingCharacter, co
     );
 
   // Send the confirmation message to the other player's DMs
-  // const otherUser = await interaction.client.users.fetch(otherPlayer.id);
-  const otherUser = await interaction.client.users.fetch('249586641402986497'); // TEMPORARY - FETCH ALBERT FOR TESTING
+  const otherUser = await interaction.client.users.fetch(otherPlayer.id);
   let response = null;
   try {
     response = await otherUser.send({
@@ -162,7 +161,7 @@ async function intercharacterRollCreateConfirm(interaction, bearingCharacter, co
     }
   });
 
-  collector.on('end', async (collected, reason) => {
+  collector.on('end', async (_collected, reason) => {
     if (reason === 'time') {
       // Inform the user who initiated the intercharacter roll creation that their request timed out by editing the original ephemeral message sent to them
       // and edit the confirmation message sent to the other player to indicate that the request timed out

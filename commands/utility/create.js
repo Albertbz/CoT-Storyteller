@@ -405,7 +405,7 @@ module.exports = {
         if (!character) return interaction.editReply({ embeds: [playerCreatedEmbed, characterCreatedEmbed], flags: MessageFlags.Ephemeral });
 
         // And lastly assign the character to the player
-        const assignedEmbed = await assignCharacterToPlayer(character.id, player.id, interaction.user);
+        const { success, embed: assignedEmbed } = await assignCharacterToPlayer(character.id, player.id, interaction.user);
 
         return interaction.editReply({ embeds: [playerCreatedEmbed, characterCreatedEmbed, assignedEmbed], flags: MessageFlags.Ephemeral });
       }
@@ -451,7 +451,7 @@ module.exports = {
         if (!linkToUser) return interaction.editReply({ embeds: [characterCreatedEmbed], flags: MessageFlags.Ephemeral });
 
         try {
-          const assignedEmbed = await assignCharacterToPlayer(character.id, user.id, interaction.user);
+          const { success, embed: assignedEmbed } = await assignCharacterToPlayer(character.id, user.id, interaction.user);
           return interaction.editReply({ embeds: [characterCreatedEmbed, assignedEmbed], flags: MessageFlags.Ephemeral })
         }
         catch (error) {

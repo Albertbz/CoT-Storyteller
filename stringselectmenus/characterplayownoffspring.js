@@ -3,6 +3,38 @@ const { PlayableChildren } = require('../dbObjects.js');
 const { askForConfirmation } = require('../helpers/confirmations.js');
 const { assignCharacterToPlayer } = require('../misc.js');
 
+module.exports = {
+  customId: 'character-play-own-offspring-select',
+  async execute(interaction) {
+    // Defer the update to allow time to process
+    await interaction.deferUpdate();
+
+    /**
+     * Get the selected offspring character and create confirmation message.
+     */
+    // Get the selected offspring ID from the select menu
+    const selectedOffspringId = interaction.values[0];
+    // Find the playable child record for the selected offspring ID
+    const playableChild = await PlayableChildren.findByPk(selectedOffspringId);
+    const character = await playableChild.getCharacter();
+    const playableChildInfo = await playableChild.formattedInfo;
+
+    // Ask for confirmation to play as the selected offspring character, showing character info in the confirmation message
+    return askForConfirmation(
+      interaction,
+      [
+        new TextDisplayBuilder().setContent(
+          `# Confirm Playing as Offspring Character\n` +
+          `You are about to play as the offspring character **${inlineCode(character.name)}**, with the following details:\n\n` +
+          playableChildInfo
+        )
+      ],
+      'character-manager-return-button',
+      (interaction) => characterPlayOwnOffspringConfirm(interaction, character)
+    )
+  }
+}
+
 async function characterPlayOwnOffspringConfirm(interaction, character) {
   // Defer the update to allow time to process
   await interaction.deferUpdate();
@@ -39,36 +71,4 @@ async function characterPlayOwnOffspringConfirm(interaction, character) {
     );
 
   return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
-}
-
-module.exports = {
-  customId: 'character-play-own-offspring-select',
-  async execute(interaction) {
-    // Defer the update to allow time to process
-    await interaction.deferUpdate();
-
-    /**
-     * Get the selected offspring character and create confirmation message.
-     */
-    // Get the selected offspring ID from the select menu
-    const selectedOffspringId = interaction.values[0];
-    // Find the playable child record for the selected offspring ID
-    const playableChild = await PlayableChildren.findByPk(selectedOffspringId);
-    const character = await playableChild.getCharacter();
-    const playableChildInfo = await playableChild.formattedInfo;
-
-    // Ask for confirmation to play as the selected offspring character, showing character info in the confirmation message
-    return askForConfirmation(
-      interaction,
-      [
-        new TextDisplayBuilder().setContent(
-          `# Confirm Playing as Offspring Character\n` +
-          `You are about to play as the offspring character **${inlineCode(character.name)}**, with the following details:\n\n` +
-          playableChildInfo
-        )
-      ],
-      'character-manager-return-button',
-      (interaction) => characterPlayOwnOffspringConfirm(interaction, character)
-    )
-  }
 }

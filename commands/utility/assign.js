@@ -170,7 +170,7 @@ module.exports = {
       try {
         const character = await Characters.findByPk(characterId);
 
-        const assignedEmbed = await assignCharacterToPlayer(character.id, user.id, interaction.user);
+        const { success, embed: assignedEmbed } = await assignCharacterToPlayer(character.id, user.id, interaction.user);
 
         return interaction.editReply({ embeds: [assignedEmbed], flags: MessageFlags.Ephemeral });
       }

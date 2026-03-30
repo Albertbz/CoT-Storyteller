@@ -10,7 +10,6 @@ module.exports = {
     // the storyteller log and set the character as deceased in the database.
     try {
       const user = await client.users.fetch(member.id);
-      console.log(`Member ${user} has left the server.`);
       const player = await Players.findByPk(user.id);
       if (player) {
         const character = await player.getCharacter();
