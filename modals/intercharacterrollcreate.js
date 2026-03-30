@@ -162,7 +162,7 @@ async function intercharacterRollCreateConfirm(interaction, bearingCharacter, co
     }
   });
 
-  collector.on('end', async (collected, reason) => {
+  collector.on('end', async (_collected, reason) => {
     if (reason === 'time') {
       // Inform the user who initiated the intercharacter roll creation that their request timed out by editing the original ephemeral message sent to them
       // and edit the confirmation message sent to the other player to indicate that the request timed out

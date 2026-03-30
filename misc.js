@@ -489,7 +489,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     if (!character) {
       notAssignedEmbed
         .setDescription('Character not found in database.');
-      return notAssignedEmbed;
+      return { success: false, embed: notAssignedEmbed };
     }
 
     // Check whether player exists in database
@@ -498,7 +498,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     if (!player) {
       notAssignedEmbed
         .setDescription(userMention(member.id) + ' does not exist in the database, so they cannot be assigned a character.');
-      return notAssignedEmbed;
+      return { success: false, embed: notAssignedEmbed };
     }
 
     // Check whether character is deceased
@@ -509,7 +509,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     if (foundDeceasedRecord) {
       notAssignedEmbed
         .setDescription(inlineCode(character.name) + ' is deceased and cannot be assigned to a player.');
-      return notAssignedEmbed;
+      return { success: false, embed: notAssignedEmbed };
     }
 
     // Check whether a character is already assigned to the player
@@ -517,7 +517,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     if (existingCharacter) {
       notAssignedEmbed
         .setDescription(userMention(member.id) + ' is already playing a character.');
-      return notAssignedEmbed;
+      return { success: false, embed: notAssignedEmbed };
     }
 
     // Check whether already being played by another player
@@ -528,7 +528,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
     if (existingPlayer) {
       notAssignedEmbed
         .setDescription(inlineCode(character.name) + ' is already assigned to another player.');
-      return notAssignedEmbed;
+      return { success: false, embed: notAssignedEmbed };
     }
 
     // If playable child, make sure that is mature
@@ -538,7 +538,7 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       if (character.yearOfMaturity > currentYear) {
         notAssignedEmbed
           .setDescription(inlineCode(character.name) + ' is a playable child and is not yet mature.');
-        return notAssignedEmbed;
+        return { success: false, embed: notAssignedEmbed };
       }
     }
 
@@ -579,13 +579,13 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
       )
       .setColor(COLORS.BLUE);
 
-    return assignedEmbed;
+    return { success: true, embed: assignedEmbed };
   }
   catch (error) {
     console.log(error);
     notAssignedEmbed
       .setDescription(`An error occurred while trying to assign the character: ${error.message}`);
-    return notAssignedEmbed;
+    return { success: false, embed: notAssignedEmbed };
   }
 }
 
