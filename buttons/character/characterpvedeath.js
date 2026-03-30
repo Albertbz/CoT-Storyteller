@@ -55,6 +55,7 @@ async function characterPveDeathConfirm(interaction) {
 async function playerTimeCheck(interaction) {
 
   const player = await Players.findByPk(interaction.user.id);
+  const character = await player.getCharacter();
   // Check if player's account is less than 3 days old (1000ms x 60sec x 60min x 72hrs = 259200000 milliseconds)
   if ((Date.now() - (Date.parse(player.createdAt))) <= 259200000) {
     const container = new ContainerBuilder()
@@ -62,6 +63,21 @@ async function playerTimeCheck(interaction) {
         textDisplay.setContent(
           `# PvE death mitigated\n` +
           `PvE deaths within the first 3 days of server playtime do not count towards your first character.\n` +
+          `You can continue to manage your character using the Character Manager GUI above.`
+        )
+      );
+    await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+
+    return true  
+  }
+    // mitigate PvE death if last death occurred within 1 hour (1000ms x 60sec x 60min = 3600000 milliseconds)
+    // testing with 1 minute (1000ms x 60sec = 60000 milliseconds)
+  if ((Date.now() - (Date.parse(character.livesUpdatedAt))) <= 60000) {
+    const container = new ContainerBuilder()
+      .addTextDisplayComponents((textDisplay) =>
+        textDisplay.setContent(
+          `# PvE death mitigated\n` +
+          `PvE deaths within the same hour of last PvE death do not count towards your character.\n` +
           `You can continue to manage your character using the Character Manager GUI above.`
         )
       );
