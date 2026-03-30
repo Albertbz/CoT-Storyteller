@@ -66,8 +66,7 @@ async function intercharacterRollCreateConfirm(interaction, bearingCharacter, co
     );
 
   // Send the confirmation message to the other player's DMs
-  // const otherUser = await interaction.client.users.fetch(otherPlayer.id);
-  const otherUser = await interaction.client.users.fetch('249586641402986497'); // TEMPORARY - FETCH ALBERT FOR TESTING
+  const otherUser = await interaction.client.users.fetch(otherPlayer.id);
   let response = null;
   try {
     response = await otherUser.send({

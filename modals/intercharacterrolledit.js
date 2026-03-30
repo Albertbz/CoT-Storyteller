@@ -58,8 +58,7 @@ async function intercharacterRollEditConfirm(interaction, roll, newBearingCharac
   }
 
   const otherPlayer = bearingCharacterPlayer.id === interaction.user.id ? conceivingCharacterPlayer : bearingCharacterPlayer;
-  // const otherUser = await interaction.client.users.fetch(otherPlayer.id);
-  const otherUser = await interaction.client.users.fetch('249586641402986497'); // TEMPORARY HARDCODED USER ID FOR TESTING - REPLACE WITH OTHER PLAYER ID WHEN DONE TESTING
+  const otherUser = await interaction.client.users.fetch(otherPlayer.id);
 
   try {
     const container = new ContainerBuilder()

@@ -16,7 +16,6 @@ async function sendCharacterJoinMessage(player, character, region) {
   }
 
   const regionChannel = client.channels.cache.get(region.generalChannelId);
-  // const regionChannel = client.channels.cache.get('1465003174418055168'); // TEMPORARY: hardcoded for testing purposes
   if (regionChannel) {
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>

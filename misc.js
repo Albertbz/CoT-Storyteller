@@ -2972,8 +2972,7 @@ async function addDeathPostToDatabase(deceased, note) {
     deathPost = await DeathPosts.create({
       deceasedId: deceased.id,
       note: note,
-      // scheduledPostTime: Date.now() + (2 * 60 * 60 * 1000), // adds 2 hours
-      scheduledPostTime: Date.now() + (2 * 60 * 1000), // TEMPORARY: adds 2 minutes for testing
+      scheduledPostTime: Date.now() + (2 * 60 * 60 * 1000), // adds 2 hours
     });
 
     const character = await deceased.getCharacter();
