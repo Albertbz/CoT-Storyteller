@@ -25,6 +25,11 @@ module.exports = {
       return interaction.followUp({ content: 'The new surname is the same as the current surname. Please enter a different surname to change it.', flags: MessageFlags.Ephemeral });
     }
 
+    const existingCharacterWithName = await character.constructor.findOne({ where: { name: newName } });
+    if (existingCharacterWithName) {
+      return interaction.followUp({ content: 'The new name that would be created with the surname you entered is already taken by another character. Please enter a different surname to change it.', flags: MessageFlags.Ephemeral });
+    }
+
     // Ask for confirmation of surname change
     return askForConfirmation(
       interaction,
