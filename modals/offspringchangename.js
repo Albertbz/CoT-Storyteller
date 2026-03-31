@@ -46,6 +46,18 @@ module.exports = {
     // Get the screenshot from the file upload
     const screenshot = interaction.fields.getUploadedFiles('offspring-change-name-screenshot').first();
 
+    // Get the image URL from the attachment, ensure that it is an image file
+    if (!screenshot || !screenshot.contentType.startsWith('image/')) {
+      const invalidFileContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Invalid File Uploaded\n` +
+            `The file you uploaded is not a valid image. Please upload a screenshot of the chiseled child as a tabletop piece to proceed with the name change request.`
+          )
+        );
+      return interaction.followUp({ components: [invalidFileContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+
     // Ask for confirmation
     return askForConfirmation(
       interaction,

@@ -18,6 +18,18 @@ module.exports = {
     // Get the attachment from the modal submission
     const screenshot = interaction.fields.getUploadedFiles('offspring-legitimise-screenshot').first();
 
+    // Check if the attachment is an image
+    if (!screenshot || !screenshot.contentType.startsWith('image/')) {
+      const invalidFileContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Invalid File Uploaded\n` +
+            `The file you uploaded is not a valid image. Please upload a screenshot of a signed piece of parchment with the offspring's name on it to proceed with the legitimisation request.`
+          )
+        );
+      return interaction.editReply({ components: [invalidFileContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+
     // Ask for confirmation
     return askForConfirmation(
       interaction,
