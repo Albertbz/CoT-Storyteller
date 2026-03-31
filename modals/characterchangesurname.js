@@ -4,7 +4,44 @@ const { Players } = require('../dbObjects');
 const { askForConfirmation } = require('../helpers/confirmations.js');
 const { characterSurnameModal } = require('../helpers/modalCreator.js');
 
-async function characterChangeSurnameConfirm(interaction, newSurname) {
+module.exports = {
+  customId: 'character-change-surname-modal',
+  async execute(interaction) {
+    // Defer reply to allow time to process
+    await interaction.deferUpdate();
+
+    // Extract new surname from the modal input
+    const newSurname = interaction.fields.getTextInputValue('character-surname-input');
+
+    // Get the player's character to check the current name and ensure the new name is different
+    const player = await Players.findByPk(interaction.user.id);
+    const character = await player.getCharacter();
+
+    const firstNameSeparator = character.name.indexOf(' ');
+    const firstName = firstNameSeparator !== -1 ? character.name.substring(0, firstNameSeparator) : character.name;
+    const newName = `${firstName} ${newSurname}`;
+
+    if (character.name === newName) {
+      return interaction.followUp({ content: 'The new surname is the same as the current surname. Please enter a different surname to change it.', flags: MessageFlags.Ephemeral });
+    }
+
+    // Ask for confirmation of surname change
+    return askForConfirmation(
+      interaction,
+      [
+        new TextDisplayBuilder().setContent(
+          `# Change Character Surname\n` +
+          `You are currently changing the surname of your character to **${inlineCode(newSurname)}**. This will change your character's name to **${inlineCode(newName)}**.`
+        )
+      ],
+      'character-manager-return-button',
+      (interaction) => characterChangeSurnameConfirm(interaction, newName),
+      (interaction) => characterChangeSurnameEdit(interaction, newSurname)
+    );
+  }
+}
+
+async function characterChangeSurnameConfirm(interaction, newName) {
   // Defer reply to allow time to process
   await interaction.deferUpdate();
 
@@ -28,10 +65,6 @@ async function characterChangeSurnameConfirm(interaction, newSurname) {
   const player = await Players.findByPk(interaction.user.id);
   const character = await player.getCharacter();
 
-  const firstNameSeparator = character.name.indexOf(' ');
-  const firstName = firstNameSeparator !== -1 ? character.name.substring(0, firstNameSeparator) : character.name;
-  const newName = `${firstName} ${newSurname}`;
-
   const { character: updatedCharacter, _ } = await changeCharacterInDatabase(interaction.user.id, character, true, { newName: newName });
   if (!updatedCharacter) {
     await interaction.followUp({ content: 'There was an error when changing the surname. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
@@ -47,7 +80,7 @@ async function characterChangeSurnameConfirm(interaction, newSurname) {
     .addTextDisplayComponents((textDisplay) =>
       textDisplay.setContent(
         `# Character Surname Changed\n` +
-        `Your character has now successfully had their surname changed to **${inlineCode(newSurname)}**.\n` +
+        `Your character has now successfully had their name changed to **${inlineCode(newName)}**.\n` +
         `You can continue to manage your character using the Character Manager GUI above.`
       )
     )
@@ -62,30 +95,4 @@ async function characterChangeSurnameEdit(interaction, newSurname) {
 
   const modal = await characterSurnameModal(character, { surnameValue: newSurname });
   return interaction.showModal(modal);
-}
-
-module.exports = {
-  customId: 'character-change-surname-modal',
-  async execute(interaction) {
-    // Defer reply to allow time to process
-    await interaction.deferUpdate();
-
-    // Extract new surname from the modal input
-    const newSurname = interaction.fields.getTextInputValue('character-surname-input');
-
-
-    // Ask for confirmation of surname change
-    return askForConfirmation(
-      interaction,
-      [
-        new TextDisplayBuilder().setContent(
-          `# Change Character Surname\n` +
-          `You are currently changing the surname of your character to **${inlineCode(newSurname)}**.`
-        )
-      ],
-      'character-manager-return-button',
-      (interaction) => characterChangeSurnameConfirm(interaction, newSurname),
-      (interaction) => characterChangeSurnameEdit(interaction, newSurname)
-    );
-  }
 }
