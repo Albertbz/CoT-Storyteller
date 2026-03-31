@@ -21,8 +21,14 @@ async function changeRegionConfirm(interaction, character, regionId) {
   // Update the character's region in the database
   const { character: updatedCharacter, embed } = await changeCharacterInDatabase(interaction.user, character, true, { newRegionId: regionId });
   if (!updatedCharacter) {
-    await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    return;
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Changing Character Region\n` +
+          `There was an error changing the character's region. Please contact a storyteller for assistance.`
+        )
+      )
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
   // Notify the user of successful region change
@@ -51,8 +57,15 @@ async function changeRegion(interaction, cancelId) {
 
   // Check whether the character is already in the selected region
   if (character.regionId === regionId) {
-    await interaction.followUp({ content: `The character **${character.name}** is already in the region of **${region.name}**. Please select a different region to change to.`, flags: MessageFlags.Ephemeral });
-    return;
+    const inRegionContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Character Already in Region\n` +
+          `The character **${character.name}** is already part of the region **${region.name}**.\n` +
+          `Please select a different region to change to.`
+        )
+      )
+    return interaction.followUp({ components: [inRegionContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
   // Ask for confirmation of region change

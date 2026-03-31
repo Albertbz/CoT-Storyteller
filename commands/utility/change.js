@@ -1004,10 +1004,7 @@ module.exports = {
                   .setStyle(ButtonStyle.Success)
               )
             )
-          return interaction.followUp({
-            components: [container],
-            flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2]
-          });
+          return interaction.followUp({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
         }
         return;
       }

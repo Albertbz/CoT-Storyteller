@@ -44,16 +44,35 @@ async function offspringLegitimiseConfirm(interaction, offspring, screenshot) {
 
   const offspringCharacter = await offspring.getCharacter();
 
-
   // Create a message to be sent in the approval channel with the details of the
   // request and the screenshot, and buttons to approve or deny the request
   const approvalChannelEntry = await DiscordChannels.findByPk('approval');
   if (!approvalChannelEntry) {
     console.error('Approval channel not found in database.');
-    return interaction.followUp({ content: 'Approval channel not found. Please contact a member of staff.', flags: [MessageFlags.Ephemeral] });
+    const channelNotFoundContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Approval Channel Not Found\n` +
+          `The approval channel could not be found in the database. Please contact a member of staff to resolve this issue.`
+        )
+      );
+    return interaction.editReply({ components: [channelNotFoundContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
   const approvalChannel = interaction.client.channels.cache.get(approvalChannelEntry.channelId);
+  // Check if the channel exists
+  if (!approvalChannel) {
+    console.log('Approval channel not found in client cache.');
+    const channelNotFoundContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Approval Channel Not Found\n` +
+          `The approval channel could not be found in the client cache. Please contact a member of staff to resolve this issue.`
+        )
+      );
+    return interaction.editReply({ components: [channelNotFoundContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  }
+
 
   const offspringInfo = await offspring.formattedInfo;
 

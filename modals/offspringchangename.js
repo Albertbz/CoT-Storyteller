@@ -1,6 +1,6 @@
 const { TextDisplayBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags, ContainerBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { askForConfirmation } = require("../helpers/confirmations");
-const { DiscordChannels, PlayableChildren } = require("../dbObjects");
+const { DiscordChannels, PlayableChildren, Characters } = require("../dbObjects");
 const { COLORS } = require("../misc");
 const { offspringChangeNameModal } = require("../helpers/modalCreator");
 
@@ -20,7 +20,27 @@ module.exports = {
 
     // Check if the name is actually different
     if (offspringCharacter.name === newName) {
-      return interaction.followUp({ content: 'The new name is the same as the current name.', flags: [MessageFlags.Ephemeral] });
+      const noChangesContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# No Changes Detected\n` +
+            `The new name you entered is the same as the current name of the offspring, **${offspringCharacter.name}**. Please enter a different name to change it.`
+          )
+        );
+      return interaction.followUp({ components: [noChangesContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+
+    // Check if the name is already taken by another character
+    const existingCharacter = await Characters.findOne({ where: { name: newName } });
+    if (existingCharacter) {
+      const nameTakenContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Name Already Taken\n` +
+            `The name **${newName}** is already taken by another character. Please enter a different name to change it.`
+          )
+        );
+      return interaction.followUp({ components: [nameTakenContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     // Get the screenshot from the file upload
@@ -56,11 +76,31 @@ async function offspringChangeNameConfirm(interaction, offspring, newName, scree
   // request and the screenshot, and buttons to approve or deny the request
   const approvalChannelEntry = await DiscordChannels.findByPk('approval');
   if (!approvalChannelEntry) {
-    console.error('Approval channel not found in database.');
-    return interaction.followUp({ content: 'Approval channel not found. Please contact a member of staff.', flags: [MessageFlags.Ephemeral] });
+    console.log('Approval channel not found in database.');
+    const channelNotFoundContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Approval Channel Not Found\n` +
+          `The approval channel could not be found in the database. Please contact a member of staff to resolve this issue.`
+        )
+      );
+    return interaction.editReply({ components: [channelNotFoundContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
   const approvalChannel = interaction.client.channels.cache.get(approvalChannelEntry.channelId);
+  // Check if the channel exists
+  if (!approvalChannel) {
+    console.log('Approval channel not found in client cache.');
+    const channelNotFoundContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Approval Channel Not Found\n` +
+          `The approval channel could not be found in the client cache. Please contact a member of staff to resolve this issue.`
+        )
+      );
+    return interaction.editReply({ components: [channelNotFoundContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  }
+
 
   const offspringInfo = await offspring.formattedInfo;
 

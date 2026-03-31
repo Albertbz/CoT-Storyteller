@@ -1,4 +1,4 @@
-const { MessageFlags } = require("discord.js");
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require("discord.js");
 const { Players, Relationships } = require("../dbObjects");
 const { Op } = require("sequelize");
 const { intercharacterRollCreateModal } = require("../helpers/modalCreator");
@@ -11,23 +11,51 @@ module.exports = {
 
     // If the selected player is the same as the user, return an error message
     if (selectedUserId === interaction.user.id) {
-      return interaction.reply({ content: 'You cannot create an intercharacter roll with yourself. Please select a different player.', flags: [MessageFlags.Ephemeral] });
+      const selfSelectContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Cannot Select Yourself\n` +
+            `You cannot create an intercharacter roll with yourself. Please select a different player.`
+          )
+        )
+      return interaction.reply({ components: [selfSelectContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     const selectedPlayer = await Players.findByPk(selectedUserId);
     // Make sure that the selected player is in the database and has a character
     if (!selectedPlayer) {
-      return interaction.reply({ content: 'The selected player does not exist in the database. Please select a valid player.', flags: [MessageFlags.Ephemeral] });
+      const noPlayerContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Player Not Found\n` +
+            `The selected player does not exist in the database. Please select a valid player.`
+          )
+        )
+      return interaction.reply({ components: [noPlayerContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
     const selectedCharacter = await selectedPlayer.getCharacter();
     if (!selectedCharacter) {
-      return interaction.reply({ content: 'The selected player does not have a character. Please select a player with a character.', flags: [MessageFlags.Ephemeral] });
+      const noCharacterContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# No Character Found\n` +
+            `The selected player does not have a character. Please select a player with a character.`
+          )
+        )
+      return interaction.reply({ components: [noCharacterContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     // Make sure that the selected character is not a commoner (since commoners
     // cannot take part in the offspring system)
     if (selectedCharacter.socialClassName === 'Commoner') {
-      return interaction.reply({ content: 'The character of the selected player is a commoner and cannot take part in intercharacter rolls. Please select a different player or have the player opt their character in to notability.', flags: [MessageFlags.Ephemeral] });
+      const commonerContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Commoner Selected\n` +
+            `The character of the selected player is a commoner and cannot take part in intercharacter rolls. Please select a different player or have the player opt their character in to notability.`
+          )
+        )
+      return interaction.reply({ components: [commonerContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     // Make sure that the selected character and the character of the user are
@@ -44,7 +72,14 @@ module.exports = {
     });
 
     if (existingRollWithSelectedCharacter) {
-      return interaction.reply({ content: `The character of the selected player is already in an intercharacter roll with your character. Please select a different player.`, flags: [MessageFlags.Ephemeral] });
+      const existingRollContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Existing Intercharacter Roll\n` +
+            `The character of the selected player is already in an intercharacter roll with your character. Please select a different player.`
+          )
+        )
+      return interaction.reply({ components: [existingRollContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     // Make sure that the selected character and the user character are not both
@@ -63,7 +98,14 @@ module.exports = {
       });
 
       if (selectedCharacterBearingRoll) {
-        return interaction.reply({ content: `The character of the selected player is already a bearing partner in another intercharacter roll while your character is also a bearing partner in another intercharacter roll. Please select a different player.`, flags: [MessageFlags.Ephemeral] });
+        const bearingPartnerContainer = new ContainerBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `# Bearing Partner Conflict\n` +
+              `The character of the selected player is already a bearing partner in another intercharacter roll while your character is also a bearing partner in another intercharacter roll. Please select a different player.`
+            )
+          )
+        return interaction.reply({ components: [bearingPartnerContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
       }
     }
 
@@ -81,7 +123,14 @@ module.exports = {
       });
 
       if (selectedCharacterConceivingRoll) {
-        return interaction.reply({ content: `The character of the selected player is already a conceiving partner in another intercharacter roll while your character is also a conceiving partner in another intercharacter roll. Please select a different player.`, flags: [MessageFlags.Ephemeral] });
+        const conceivingPartnerContainer = new ContainerBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `# Conceiving Partner Conflict\n` +
+              `The character of the selected player is already a conceiving partner in another intercharacter roll while your character is also a conceiving partner in another intercharacter roll. Please select a different player.`
+            )
+          )
+        return interaction.reply({ components: [conceivingPartnerContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
       }
     }
 

@@ -43,6 +43,16 @@ module.exports = {
     }
 
     await interaction.deleteReply();
-    return interaction.followUp({ content: `You have denied the legitimisation request for **${offspringCharacter.name}**.`, flags: [MessageFlags.Ephemeral] });
+    const deniedReasonContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Offspring Legitimisation Denied\n` +
+          `You have denied the legitimisation request for **${offspringCharacter.name}**.\n` +
+          `**Reason for denial:**\n` +
+          `> ${reason}`
+        )
+      )
+      .setAccentColor(COLORS.RED);
+    return interaction.followUp({ components: [deniedReasonContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 }

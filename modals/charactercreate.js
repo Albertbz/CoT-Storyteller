@@ -19,7 +19,15 @@ module.exports = {
     // Check whether a character with this name already exists
     const existingCharacter = await Characters.findOne({ where: { name: characterName } });
     if (existingCharacter) {
-      return interaction.followUp({ content: `A character with the name **${characterName}** already exists. Please choose a different name or add/change the surname.`, flags: MessageFlags.Ephemeral });
+      const nameTakenContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Name Already Taken\n` +
+            `A character with the name **${characterName}** already exists.\n` +
+            `Please choose a different name, add a surname, or change the current surname.`
+          )
+        )
+      return interaction.followUp({ components: [nameTakenContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     const region = await Regions.findByPk(regionId);
@@ -63,12 +71,28 @@ async function characterCreateConfirm(interaction, characterName, regionId, nota
   /**
    * Create the character in the database and assign to the player
    */
-  const { character, embed: _ } = await addCharacterToDatabase(interaction.user, { name: characterName, regionId: regionId, socialClassName: notabilityChoice === 'yes' ? 'Notable' : 'Commoner' });
+  const { character } = await addCharacterToDatabase(interaction.user, { name: characterName, regionId: regionId, socialClassName: notabilityChoice === 'yes' ? 'Notable' : 'Commoner' });
   if (!character) {
-    await interaction.followUp({ content: 'There was an error creating your character. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
-    return;
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Creating Character\n` +
+          `There was an error creating your character. Please contact a storyteller for assistance.`
+        )
+      )
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
-  await assignCharacterToPlayer(character.id, interaction.user.id, interaction.user);
+  const { success } = await assignCharacterToPlayer(character.id, interaction.user.id, interaction.user);
+  if (!success) {
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Assigning Character\n` +
+          `Your character was created but there was an error assigning it to you. Please contact a storyteller for assistance.`
+        )
+      )
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  }
 
   /**
    * Notify the user of successful character creation

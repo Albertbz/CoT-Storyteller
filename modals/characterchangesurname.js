@@ -22,12 +22,28 @@ module.exports = {
     const newName = `${firstName} ${newSurname}`;
 
     if (character.name === newName) {
-      return interaction.followUp({ content: 'The new surname is the same as the current surname. Please enter a different surname to change it.', flags: MessageFlags.Ephemeral });
+      const sameNameContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# No Changes Detected\n` +
+            `The surname **${newSurname}** results in the same full name as your current name.\n` +
+            `Please enter a different surname to change it.`
+          )
+        )
+      return interaction.followUp({ components: [sameNameContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     const existingCharacterWithName = await character.constructor.findOne({ where: { name: newName } });
     if (existingCharacterWithName) {
-      return interaction.followUp({ content: 'The new name that would be created with the surname you entered is already taken by another character. Please enter a different surname to change it.', flags: MessageFlags.Ephemeral });
+      const nameTakenContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Name Already Taken\n` +
+            `The new name, **${newName}**, that would be created with the surname you entered is already taken by another character.\n` +
+            `Please enter a different surname to change it.`
+          )
+        )
+      return interaction.followUp({ components: [nameTakenContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     // Ask for confirmation of surname change
@@ -72,8 +88,14 @@ async function characterChangeSurnameConfirm(interaction, newName) {
 
   const { character: updatedCharacter, _ } = await changeCharacterInDatabase(interaction.user, character, true, { newName: newName });
   if (!updatedCharacter) {
-    await interaction.followUp({ content: 'There was an error when changing the surname. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
-    return;
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Changing Character Surname\n` +
+          `There was an error changing the character's surname. Please contact a storyteller for assistance.`
+        )
+      )
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
   /**

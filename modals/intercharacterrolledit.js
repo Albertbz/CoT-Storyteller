@@ -35,7 +35,14 @@ module.exports = {
     });
 
     if (!roll) {
-      return interaction.followUp({ content: 'The intercharacter roll you are trying to edit does not exist. Please try again.', flags: [MessageFlags.Ephemeral] });
+      const errorContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Intercharacter Roll Not Found\n` +
+            `The intercharacter roll you are trying to edit does not exist. Please try again.`
+          )
+        )
+      return interaction.followUp({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     // Check if anything is actually changing, and if not, return a message saying so
@@ -52,7 +59,14 @@ module.exports = {
       await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 
       // Inform the user that no changes were made since the values they submitted are the same as the current values
-      return interaction.followUp({ content: 'No changes were provided to the intercharacter roll. Please make some changes before submitting.', flags: [MessageFlags.Ephemeral] });
+      const noChangesContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# No Changes Detected\n` +
+            `The values you submitted are the same as the current values of the intercharacter roll. Please make some changes before submitting.`
+          )
+        )
+      return interaction.followUp({ components: [noChangesContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     // Ask for confirmation
@@ -90,7 +104,7 @@ async function intercharacterRollEditConfirm(interaction, roll, newBearingCharac
   await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 
   // Update the intercharacter roll in the database with the new values
-  const { relationship: updatedRelationship, embed: _ } = await changeRelationshipInDatabase(
+  const { relationship: updatedRelationship } = await changeRelationshipInDatabase(
     interaction.user,
     roll,
     {
@@ -101,8 +115,14 @@ async function intercharacterRollEditConfirm(interaction, roll, newBearingCharac
     }
   );
   if (!updatedRelationship) {
-    await interaction.followUp({ content: 'There was an error while editing the intercharacter roll. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
-    return;
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Editing Intercharacter Roll\n` +
+          `There was an error while editing the intercharacter roll. Please contact a storyteller for assistance.`
+        )
+      );
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
   // Notify the user of successful edit
@@ -149,9 +169,15 @@ async function intercharacterRollEditConfirm(interaction, roll, newBearingCharac
     await otherUser.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
   }
   catch (error) {
-    console.error(`Could not send intercharacter roll edit notification to other player: ${error}`);
-    await interaction.followUp({ content: 'There was an error sending a notification about the edit to the other player. This may be because they have DMs disabled. However, the intercharacter roll has been updated.', flags: [MessageFlags.Ephemeral] });
+    console.log(`Could not send intercharacter roll edit notification to other player: ${error}`);
+    const noDmContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Could Not Notify Other Player\n` +
+          `The intercharacter roll was successfully edited, but there was an error sending a DM to the other player to notify them of the changes. This may be because they have DMs disabled. Please ask them to enable DMs so they can be notified of important updates like this in the future.`
+        )
+      );
+    await interaction.followUp({ components: [noDmContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
-
   return;
 }
