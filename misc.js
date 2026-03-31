@@ -2955,13 +2955,6 @@ async function postInLogChannel(title, description, color) {
   await logChannel.send({ embeds: [logEmbed] });
 }
 
-function ageToFertilityModifier(age) {
-  if (age >= 7) return 0;
-  if (age >= 6) return 0.3;
-  if (age >= 5) return 0.5;
-  if (age < 5) return 1;
-}
-
 async function addDeathPostToDatabase(deceased, note) {
   const postNotCreatedEmbed = new EmbedBuilder()
     .setTitle('Death Post Not Created')
@@ -3009,7 +3002,6 @@ module.exports = {
   assignCharacterToPlayer,
   unassignCharacterFromPlayer,
   postInLogChannel,
-  ageToFertilityModifier,
   addRelationshipToDatabase,
   addHouseToDatabase,
   addVassalToDatabase,

@@ -1,5 +1,5 @@
-const { ContainerBuilder, ButtonBuilder, ButtonStyle, inlineCode, StringSelectMenuOptionBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
-const { PlayableChildren, Characters } = require('../dbObjects');
+const { ContainerBuilder, ButtonBuilder, ButtonStyle, inlineCode, StringSelectMenuOptionBuilder, ActionRowBuilder, StringSelectMenuBuilder, TextDisplayBuilder } = require('discord.js');
+const { PlayableChildren, Characters, Relationships } = require('../dbObjects');
 const { Op } = require('sequelize');
 
 async function getCharacterManagerContainer(character) {
@@ -160,7 +160,114 @@ async function getOffspringManagerContainer(player) {
   return container;
 }
 
+async function getIntercharacterRollManagerContainer(character) {
+  // Get the intercharacter rolls (relationships) that the character is rolling in
+  const intercharacterRolls = await Relationships.findAll({
+    where: {
+      [Op.or]: [
+        { bearingCharacterId: character.id },
+        { conceivingCharacterId: character.id }
+      ]
+    },
+    include: [
+      { model: Characters, as: 'bearingCharacter' },
+      { model: Characters, as: 'conceivingCharacter' }
+    ]
+  });
+
+  const container = new ContainerBuilder();
+
+  // Create the text display component that explains what intercharacter rolls 
+  // are and add it to the container
+  const icRollsInfoTextDisplay = new TextDisplayBuilder().setContent(
+    `# Manage Intercharacter Rolls\n` +
+    `Intercharacter rolls are rolls that involve two characters in a relationship. These rolls can result in legitimate or illegitimate children, depending on if the two characters are married or not. In the case of legitimate children, they can also inherit noble titles from their parents.`
+  );
+  container.addTextDisplayComponents(icRollsInfoTextDisplay);
+
+  // Add a separator
+  container.addSeparatorComponents((separator) => separator);
+
+
+  // Create either a text display component with the fact that the character
+  // is not currently rolling in any intercharacter rolls, or a text display
+  // component saying that the character is currently part of some rolls, and
+  // that to edit them, they should choose them in the select menu below, and
+  // add it to the container
+  if (intercharacterRolls.length === 0) {
+    const notRollingTextDisplay = new TextDisplayBuilder().setContent(
+      `Your character is currently not rolling in any intercharacter rolls.`
+    );
+    container.addTextDisplayComponents(notRollingTextDisplay);
+  } else {
+    const rollingTextDisplay = new TextDisplayBuilder().setContent(
+      `Your character is currently rolling in one or more intercharacter rolls. To edit an intercharacter roll, please select the one that you want to edit in the select menu below. To create a new intercharacter roll, click the 'Create Roll' button. To delete an intercharacter roll, click the 'Delete Roll' button.`
+    );
+
+    container.addTextDisplayComponents(rollingTextDisplay);
+
+    const options = []
+    for (const roll of intercharacterRolls) {
+      const label = `${roll.bearingCharacter.name} & ${roll.conceivingCharacter.name}`;
+      const description = `Bearing: ${roll.bearingCharacter.name} | ${roll.isCommitted ? `Committed` : `Not Committed`} | ${roll.inheritedTitle !== 'None' ? `Inherited Title: ${roll.inheritedTitle}` : `No Inherited Title`} | Fertility: ${(await roll.bearingCharacter.fertility) * (await roll.conceivingCharacter.fertility) * 100}%`;
+
+      const option = new StringSelectMenuOptionBuilder()
+        .setLabel(label)
+        .setValue(roll.id)
+        .setDescription(description);
+
+      options.push(option);
+    }
+
+    // Create the select menu to edit existing intercharacter rolls and add it to the container
+    const editSelectMenu = new StringSelectMenuBuilder()
+      .setCustomId('intercharacter-roll-edit-select')
+      .setPlaceholder('Select an intercharacter roll to edit')
+      .addOptions(options);
+
+    const editSelectMenuActionRow = new ActionRowBuilder()
+      .setComponents(editSelectMenu);
+
+    container.addActionRowComponents(editSelectMenuActionRow);
+  }
+
+  // Create the button to create a new intercharacter roll
+  const createButton = new ButtonBuilder()
+    .setCustomId('intercharacter-roll-create-button')
+    .setLabel('Create Roll')
+    .setEmoji('❤️')
+    .setStyle(ButtonStyle.Secondary);
+
+  // Delete button that only shows if there are existing intercharacter rolls
+  const deleteButton = new ButtonBuilder()
+    .setCustomId('intercharacter-roll-delete-button')
+    .setLabel('Delete Roll')
+    .setEmoji('🗑️')
+    .setStyle(ButtonStyle.Secondary);
+
+  // Create the button to cancel and return to the character manager
+  const cancelButton = new ButtonBuilder()
+    .setCustomId('character-manager-return-button')
+    .setLabel('Cancel')
+    .setStyle(ButtonStyle.Danger);
+
+  // Create the action row for the buttons
+  const actionRow = new ActionRowBuilder()
+    .addComponents(createButton)
+
+  if (intercharacterRolls.length > 0) {
+    actionRow.addComponents(deleteButton);
+  }
+
+  actionRow.addComponents(cancelButton);
+
+  container.addActionRowComponents(actionRow);
+
+  return container;
+}
+
 module.exports = {
   getCharacterManagerContainer,
-  getOffspringManagerContainer
+  getOffspringManagerContainer,
+  getIntercharacterRollManagerContainer
 }

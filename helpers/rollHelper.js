@@ -1,10 +1,9 @@
 const { Players, DeathRollDeaths, Characters, Worlds } = require('../dbObjects.js');
-const { ageToFertilityModifier, changeCharacterInDatabase, postInLogChannel } = require('../misc.js');
+const { changeCharacterInDatabase, postInLogChannel } = require('../misc.js');
+const { ageToFertilityModifier } = require('./fertility.js');
 const { inlineCode, bold, italic, userMention, EmbedBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { COLORS } = require('../misc.js');
 const { WORLD_ID } = require('../constants.js');
-
-const MAX_EMBED_DESCRIPTION_LENGTH = 3000;
 
 // Returns a random integer between 1 and max (inclusive)
 function randomInteger(max) {

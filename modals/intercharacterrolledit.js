@@ -1,7 +1,78 @@
-const { Relationships, Characters } = require("../dbObjects");
+const { Relationships, Characters, Players } = require("../dbObjects");
 const { askForConfirmation } = require("../helpers/confirmations");
+const { getIntercharacterRollManagerContainer } = require("../helpers/containerCreator");
 const { changeRelationshipInDatabase } = require("../misc");
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require("discord.js");
+
+module.exports = {
+  customId: 'intercharacter-roll-edit-modal',
+  async execute(interaction) {
+    // Defer reply to allow time to process
+    await interaction.deferUpdate();
+
+    // Get the values from the modal submission
+    const bearingValue = interaction.fields.getStringSelectValues('intercharacter-roll-bearing-select')[0];
+    const committedValue = interaction.fields.getStringSelectValues('intercharacter-roll-committed-select')[0];
+    const conditionalSelectMenu = interaction.fields.fields.get('intercharacter-roll-inherit-titles-select');
+    const inheritedTitleValue = conditionalSelectMenu ? interaction.fields.getStringSelectValues('intercharacter-roll-inherit-titles-select')[0] : null;
+
+    // Convert to values that can be used
+    const [bearingCharacterId, conceivingCharacterId] = bearingValue.split(':');
+    const bearingCharacter = await Characters.findByPk(bearingCharacterId);
+    const conceivingCharacter = await Characters.findByPk(conceivingCharacterId);
+    const committed = committedValue === 'true' ? true : false;
+    const inheritedTitle = inheritedTitleValue === 'true' ? (committed ? 'Nobility' : 'None') : 'None';
+
+    // Get the intercharacter roll id from the custom id of the modal
+    const rollId = interaction.customId.split(':')[1];
+
+    // Get the intercharacter roll from the database
+    const roll = await Relationships.findByPk(rollId, {
+      include: [
+        { model: Characters, as: 'bearingCharacter' },
+        { model: Characters, as: 'conceivingCharacter' }
+      ]
+    });
+
+    if (!roll) {
+      return interaction.followUp({ content: 'The intercharacter roll you are trying to edit does not exist. Please try again.', flags: [MessageFlags.Ephemeral] });
+    }
+
+    // Check if anything is actually changing, and if not, return a message saying so
+    if (
+      roll.bearingCharacterId === bearingCharacterId &&
+      roll.conceivingCharacterId === conceivingCharacterId &&
+      roll.isCommitted === committed &&
+      roll.inheritedTitle === inheritedTitle
+    ) {
+      // Reset the container so that the user can choose the same value from the select menu if they wish
+      const player = await Players.findByPk(interaction.user.id);
+      const character = await player.getCharacter();
+      const container = await getIntercharacterRollManagerContainer(character);
+      await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+
+      // Inform the user that no changes were made since the values they submitted are the same as the current values
+      return interaction.followUp({ content: 'No changes were provided to the intercharacter roll. Please make some changes before submitting.', flags: [MessageFlags.Ephemeral] });
+    }
+
+    // Ask for confirmation
+    return askForConfirmation(
+      interaction,
+      [
+        new TextDisplayBuilder().setContent(
+          `# Confirm Intercharacter Roll Edit\n` +
+          `Please confirm that you want to edit the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}** to the following values:\n\n` +
+          `**Bearing Character:** ${bearingCharacter.name}\n` +
+          `**Conceiving Character:** ${conceivingCharacter.name}\n` +
+          `**Married:** ${committed ? 'Yes' : 'No'}\n` +
+          `**Inherited Title:** ${inheritedTitle}`
+        )
+      ],
+      'character-manager-return-button',
+      (interaction) => intercharacterRollEditConfirm(interaction, roll, bearingCharacter, conceivingCharacter, committed, inheritedTitle)
+    )
+  }
+}
 
 async function intercharacterRollEditConfirm(interaction, roll, newBearingCharacter, newConceivingCharacter, newCommitted, newInheritedTitle) {
   // Defer the reply to allow time to process
@@ -83,68 +154,4 @@ async function intercharacterRollEditConfirm(interaction, roll, newBearingCharac
   }
 
   return;
-}
-
-module.exports = {
-  customId: 'intercharacter-roll-edit-modal',
-  async execute(interaction) {
-    // Defer reply to allow time to process
-    await interaction.deferUpdate();
-
-    // Get the values from the modal submission
-    const bearingValue = interaction.fields.getStringSelectValues('intercharacter-roll-bearing-select')[0];
-    const committedValue = interaction.fields.getStringSelectValues('intercharacter-roll-committed-select')[0];
-    const conditionalSelectMenu = interaction.fields.fields.get('intercharacter-roll-inherit-titles-select');
-    const inheritedTitleValue = conditionalSelectMenu ? interaction.fields.getStringSelectValues('intercharacter-roll-inherit-titles-select')[0] : null;
-
-    // Convert to values that can be used
-    const [bearingCharacterId, conceivingCharacterId] = bearingValue.split(':');
-    const bearingCharacter = await Characters.findByPk(bearingCharacterId);
-    const conceivingCharacter = await Characters.findByPk(conceivingCharacterId);
-    const committed = committedValue === 'true' ? true : false;
-    const inheritedTitle = inheritedTitleValue === 'true' ? (committed ? 'Nobility' : 'None') : 'None';
-
-    // Get the intercharacter roll id from the custom id of the modal
-    const rollId = interaction.customId.split(':')[1];
-
-    // Get the intercharacter roll from the database
-    const roll = await Relationships.findByPk(rollId, {
-      include: [
-        { model: Characters, as: 'bearingCharacter' },
-        { model: Characters, as: 'conceivingCharacter' }
-      ]
-    });
-
-    if (!roll) {
-      return interaction.followUp({ content: 'The intercharacter roll you are trying to edit does not exist. Please try again.', flags: [MessageFlags.Ephemeral] });
-    }
-
-    // Check if anything is actually changing, and if not, return a message saying so
-    if (
-      roll.bearingCharacterId === bearingCharacterId &&
-      roll.conceivingCharacterId === conceivingCharacterId &&
-      roll.isCommitted === committed &&
-      roll.inheritedTitle === inheritedTitle
-    ) {
-      return interaction.followUp({ content: 'No changes were provided to the intercharacter roll. Please make some changes before submitting.', flags: [MessageFlags.Ephemeral] });
-    }
-
-
-    // Ask for confirmation
-    return askForConfirmation(
-      interaction,
-      [
-        new TextDisplayBuilder().setContent(
-          `# Confirm Intercharacter Roll Edit\n` +
-          `Please confirm that you want to edit the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}** to the following values:\n\n` +
-          `**Bearing Character:** ${bearingCharacter.name}\n` +
-          `**Conceiving Character:** ${conceivingCharacter.name}\n` +
-          `**Married:** ${committed ? 'Yes' : 'No'}\n` +
-          `**Inherited Title:** ${inheritedTitle}`
-        )
-      ],
-      'character-manager-return-button',
-      (interaction) => intercharacterRollEditConfirm(interaction, roll, bearingCharacter, conceivingCharacter, committed, inheritedTitle)
-    )
-  }
 }
