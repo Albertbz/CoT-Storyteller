@@ -65,7 +65,7 @@ module.exports = {
       if (parent2) parents.push(parent2.name);
       const parentsString = parents.length > 0 ? parents.join(' & ') : 'Unknown';
       const descriptionString =
-        `${child.legitimacy} ${character.sex === 'Male' ? 'Son' : 'Daughter'} of ${parentsString} | ` +
+        `${child.legitimacy} ${character.sex ? character.sex === 'Male' ? 'Son' : 'Daughter' : 'Child'} of ${parentsString} | ` +
         `Age: ${age}`;
 
       const option = new StringSelectMenuOptionBuilder()

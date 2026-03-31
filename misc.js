@@ -70,7 +70,7 @@ async function addPlayerToDatabase(storyteller, { id, ign, timezone = null } = {
   }
 }
 
-async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = undefined, regionId = null, houseId = null, socialClassName = 'Commoner', yearOfMaturity = null, parent1Id = null, parent2Id = null, yearOfCreation = null } = {}) {
+async function addCharacterToDatabase(storyteller, { name = 'Unnamed', sex = null, regionId = null, houseId = null, socialClassName = 'Commoner', yearOfMaturity = null, parent1Id = null, parent2Id = null, yearOfCreation = null } = {}) {
   const characterNotCreatedEmbed = new EmbedBuilder()
     .setTitle('Character Not Created')
     .setColor(COLORS.RED);
@@ -1031,7 +1031,7 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
     oldValues.name = character.name;
   }
   if (newSex !== null && newSex !== character.sex) {
-    newValues.sex = newSex;
+    newValues.sex = newSex === 'Undefined' ? null : newSex;
     oldValues.sex = character.sex;
   }
   if (newRegionId !== null && newRegionId !== character.regionId) {
@@ -1207,8 +1207,8 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
         break;
       }
       case 'sex': {
-        logInfoChanges.push({ key: 'sex', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
-        formattedInfoChanges.push({ key: '**Sex**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
+        logInfoChanges.push({ key: 'sex', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Sex**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
         break;
       }
       case 'regionId': {

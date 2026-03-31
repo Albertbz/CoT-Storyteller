@@ -17,7 +17,6 @@ module.exports = (sequelize, DataTypes) => {
     },
     sex: {
       type: DataTypes.STRING,
-      defaultValue: 'Undefined',
     },
     regionId: {
       type: DataTypes.UUID,
@@ -105,7 +104,7 @@ module.exports = (sequelize, DataTypes) => {
           `id: \`${this.id}\`\n` +
           `\n` +
           `name: \`${this.name}\`\n` +
-          `sex: \`${this.sex}\`\n` +
+          `sex: \`${this.sex ? this.sex : '-'}\`\n` +
           `region: ${region ? `\`${region.name}\` (\`${this.regionId}\`)` : '`-`'}\n` +
           `house: ${house ? `\`${house.name}\` (\`${this.houseId}\`)` : '`-`'}\n` +
           `socialClass: \`${this.socialClassName}\`\n` +
@@ -137,7 +136,7 @@ module.exports = (sequelize, DataTypes) => {
 
         const generalInfo = (
           `**Name:** ${this.name}\n` +
-          `${this.sex !== 'Undefined' ? `**Sex:** ${this.sex}\n` : ''}` +
+          `${this.sex ? `**Sex:** ${this.sex}\n` : ''}` +
           `**Year of Creation:** ${this.yearOfCreation}\n` +
           `**Region:** ${region ? region.name : `-`}\n` +
           `${region && region.id === WANDERER_REGION_ID ? `` : `**House:** ${house ? house.name : `-`}\n`}` +

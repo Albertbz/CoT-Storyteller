@@ -161,7 +161,7 @@ async function syncSpreadsheetsToDatabase() {
     nameCell.value = playableChild.character.name;
     yearOfMaturityCell.value = playableChild.character.yearOfMaturity;
     ageCell.value = world.currentYear - playableChild.character.yearOfMaturity;
-    sexCell.value = playableChild.character.sex;
+    sexCell.value = playableChild.character.sex ? playableChild.character.sex : '';
 
     const region = playableChild.character.region;
     let affiliationToWrite = null;

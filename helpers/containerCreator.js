@@ -128,7 +128,7 @@ async function getOffspringManagerContainer(player) {
       return new StringSelectMenuOptionBuilder()
         .setLabel(offspring.character ? offspring.character.name : `Offspring ${offspring.id}`)
         .setValue(offspring.id)
-        .setDescription(`${offspring.legitimacy} ${offspring.character.sex === `Male` ? 'son' : 'daughter'} of ${parentNames || 'Unknown Parents'}`);
+        .setDescription(`${offspring.legitimacy} ${offspring.character.sex ? offspring.character.sex === `Male` ? 'son' : 'daughter' : 'child'} of ${parentNames || 'Unknown Parents'}`);
     });
 
     container

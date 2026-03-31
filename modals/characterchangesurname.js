@@ -70,7 +70,7 @@ async function characterChangeSurnameConfirm(interaction, newName) {
   const player = await Players.findByPk(interaction.user.id);
   const character = await player.getCharacter();
 
-  const { character: updatedCharacter, _ } = await changeCharacterInDatabase(interaction.user.id, character, true, { newName: newName });
+  const { character: updatedCharacter, _ } = await changeCharacterInDatabase(interaction.user, character, true, { newName: newName });
   if (!updatedCharacter) {
     await interaction.followUp({ content: 'There was an error when changing the surname. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
     return;
