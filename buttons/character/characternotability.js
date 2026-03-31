@@ -27,8 +27,14 @@ async function characterNotabilityConfirm(interaction) {
   const character = await player.getCharacter();
   const { character: changedCharacter, embed: _ } = await changeCharacterInDatabase(interaction.user, character, true, { newSocialClassName: 'Notable' });
   if (!changedCharacter) {
-    await interaction.followUp({ content: 'There was an error updating your character to be notable. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
-    return;
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Updating Character Notability\n` +
+          `There was an error updating your character to be notable. Please contact a storyteller for assistance.`
+        )
+      )
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
   /**

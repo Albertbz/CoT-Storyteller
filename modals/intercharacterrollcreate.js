@@ -75,10 +75,16 @@ async function intercharacterRollCreateConfirm(interaction, bearingCharacter, co
     });
   }
   catch (error) {
-    console.error('Error sending DM to other player for intercharacter roll confirmation:', error);
+    console.log('Error sending DM to other player for intercharacter roll confirmation:', error);
     // If there was an error sending the DM (e.g. because the other player has DMs disabled), inform the user who initiated the intercharacter roll creation and return
-    await interaction.followUp({ content: 'There was an error sending a DM to the other player for confirmation. This may be because they have DMs disabled. Please ask them to enable DMs and try again.', flags: [MessageFlags.Ephemeral] });
-    return;
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Sending Confirmation DM\n` +
+          `There was an error sending a DM to the other player for confirmation. This may be because they have DMs disabled. Please ask them to enable DMs and try again.`
+        )
+      )
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
   /**

@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { sendCharacterJoinMessage } = require('../helpers/messageSender');
 const { WANDERER_REGION_ID, WORLD_ID } = require('../constants');
+const { ageToFertilityModifier } = require('../helpers/fertility');
 
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('characters', {
@@ -16,7 +17,6 @@ module.exports = (sequelize, DataTypes) => {
     },
     sex: {
       type: DataTypes.STRING,
-      defaultValue: 'Undefined',
     },
     regionId: {
       type: DataTypes.UUID,
@@ -82,6 +82,17 @@ module.exports = (sequelize, DataTypes) => {
         throw new Error('Do not try to set the isMortal value!')
       }
     },
+    fertility: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        const world = await sequelize.models.worlds.findByPk(WORLD_ID);
+        const age = world.currentYear - this.yearOfMaturity;
+        return ageToFertilityModifier(age);
+      },
+      set(value) {
+        throw new Error('Do not try to set the fertility value!')
+      }
+    },
     logInfo: {
       type: DataTypes.VIRTUAL,
       async get() {
@@ -93,7 +104,7 @@ module.exports = (sequelize, DataTypes) => {
           `id: \`${this.id}\`\n` +
           `\n` +
           `name: \`${this.name}\`\n` +
-          `sex: \`${this.sex}\`\n` +
+          `sex: \`${this.sex ? this.sex : '-'}\`\n` +
           `region: ${region ? `\`${region.name}\` (\`${this.regionId}\`)` : '`-`'}\n` +
           `house: ${house ? `\`${house.name}\` (\`${this.houseId}\`)` : '`-`'}\n` +
           `socialClass: \`${this.socialClassName}\`\n` +
@@ -125,8 +136,8 @@ module.exports = (sequelize, DataTypes) => {
 
         const generalInfo = (
           `**Name:** ${this.name}\n` +
+          `${this.sex ? `**Sex:** ${this.sex}\n` : ''}` +
           `**Year of Creation:** ${this.yearOfCreation}\n` +
-          // `**Sex:** ${this.sex}\n` +
           `**Region:** ${region ? region.name : `-`}\n` +
           `${region && region.id === WANDERER_REGION_ID ? `` : `**House:** ${house ? house.name : `-`}\n`}` +
           `**Social Class:** ${this.socialClassName}\n` +
@@ -151,10 +162,12 @@ module.exports = (sequelize, DataTypes) => {
             }
           }
 
+          const age = world.currentYear - this.yearOfMaturity;
+
           const agingInfo = (
             `### Aging Info\n` +
             `**Year of Maturity:** ${this.yearOfMaturity}\n` +
-            (!isDeceased ? `**Current Age:** ${world.currentYear - this.yearOfMaturity}\n` : '') +
+            (!isDeceased ? `**Current Age:** ${age}\n` : '') +
             `**PvE Deaths:** ${this.pveDeaths}\n` +
             `**Death rolls:** ${deathRollStrings.length === 0 ? `None` : `\n` + deathRollStrings.join('\n')}`
           );
@@ -210,6 +223,7 @@ module.exports = (sequelize, DataTypes) => {
               `### Offspring Info\n` +
               `**Parents:** ${parents.length > 0 ? parents.join(', ') : `Unknown`}\n` +
               `**Children:** ${children.length > 0 ? children.map(child => `\`${child.name}\``).join(', ') : `None`}\n` +
+              `**Fertility:** ${await this.fertility * 100}%\n` +
               `**Opted in to NPC rolls:** ${this.isRollingForBastards ? `Yes` : `No`}\n` +
               `**Intercharacter Rolls:** ${relationshipList.length > 0 ? `\n- ${relationshipList.join('\n- ')}` : `None`}`
             )

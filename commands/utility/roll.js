@@ -1,7 +1,8 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, subtext, EmbedBuilder, italic, bold } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationships, PlayableChildren } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
-const { ageToFertilityModifier, addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
+const { addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
+const { ageToFertilityModifier } = require('../../helpers/fertility.js');
 const { calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringChanceEmbed, getFertilityModifier, rollDeathAndGetResult, saveDeathRollResultToDatabase } = require('../../helpers/rollHelper.js');
 const { WORLD_ID } = require('../../constants.js');
 

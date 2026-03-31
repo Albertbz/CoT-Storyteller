@@ -65,15 +65,27 @@ async function finalDeathConfirm(interaction, day, month, year, cause, note) {
   const player = await Players.findByPk(interaction.user.id);
   const character = await player.getCharacter();
 
-  const { deceased, embed: deceasedCreatedEmbed } = await addDeceasedToDatabase(interaction.user, true, { characterId: character.id, yearOfDeath: year, monthOfDeath: month, dayOfDeath: day, causeOfDeath: cause, playedById: player.id });
+  const { deceased } = await addDeceasedToDatabase(interaction.user, true, { characterId: character.id, yearOfDeath: year, monthOfDeath: month, dayOfDeath: day, causeOfDeath: cause, playedById: player.id });
   if (!deceased) {
-    await interaction.followUp({ content: 'There was an error marking your character as deceased. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
-    return;
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Registering Character Death\n` +
+          `There was an error marking your character as deceased. Please contact a storyteller for assistance.`
+        )
+      )
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
-  const { deathPost, embed: postCreatedEmbed } = await addDeathPostToDatabase(deceased, note);
+  const { deathPost } = await addDeathPostToDatabase(deceased, note);
   if (!deathPost) {
-    await interaction.followUp({ content: 'There was an error adding your Graveyard post. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
-    return;
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Adding Graveyard Post\n` +
+          `Your character has been marked as deceased, but there was an error adding their death post to the database. Please contact a storyteller for assistance.`
+        )
+      )
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
   await schedulePost(deathPost);
 

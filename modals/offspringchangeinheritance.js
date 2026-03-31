@@ -22,7 +22,14 @@ module.exports = {
 
     // Check if the offspring already has the new social class
     if (offspringCharacter.socialClassName === newSocialClassName) {
-      return interaction.followUp({ content: `The offspring **${offspringCharacter.name}** is already ${isInheriting ? 'inheriting nobility' : 'not inheriting nobility'}. No changes have been made.`, flags: [MessageFlags.Ephemeral] });
+      const noChangeContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# No Changes Detected\n` +
+            `The offspring **${offspringCharacter.name}** is already ${isInheriting ? 'inheriting nobility' : 'not inheriting nobility'}. Please select a different inheritance status to change it.`
+          )
+        );
+      return interaction.followUp({ components: [noChangeContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     // Ask for confirmation

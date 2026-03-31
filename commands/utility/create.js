@@ -382,7 +382,7 @@ module.exports = {
 
       let givenCharacterValues = {};
       if (name) givenCharacterValues.name = name;
-      if (sex) givenCharacterValues.sex = sex;
+      if (sex) givenCharacterValues.sex = sex === 'Undefined' ? null : sex;
       if (regionId) givenCharacterValues.regionId = regionId;
       if (houseId) givenCharacterValues.houseId = houseId;
       if (socialClassName) givenCharacterValues.socialClassName = socialClassName;
@@ -423,7 +423,7 @@ module.exports = {
 
       let givenValues = {}
       if (name) givenValues.name = name;
-      if (sex) givenValues.sex = sex;
+      if (sex) givenValues.sex = sex === 'Undefined' ? null : sex;
       if (regionId) givenValues.regionId = regionId;
       if (houseId) givenValues.houseId = houseId;
       if (socialClassName) givenValues.socialClassName = socialClassName;

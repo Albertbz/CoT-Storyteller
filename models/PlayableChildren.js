@@ -64,7 +64,7 @@ module.exports = (sequelize, DataTypes) => {
         if (this.contact2Snowflake) contacts.push(`<@${this.contact2Snowflake}>`);
         return (
           `**Name:** ${character ? character.name : '-'}\n` +
-          `**Sex:** ${character ? character.sex : '-'}\n` +
+          `**Sex:** ${character ? character.sex ? character.sex : '-' : '-'}\n` +
           `**Region:** ${region ? region.name : '-'}\n` +
           `${region && region.id === WANDERER_REGION_ID ? `` : `**House:** ${house ? house.name : `-`}\n`}` +
           `**Social Class:** ${character ? character.socialClassName : '-'}\n\n` +

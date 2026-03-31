@@ -41,6 +41,14 @@ module.exports = {
     }
 
     await interaction.deleteReply();
-    return interaction.followUp({ content: `You have approved the legitimisation request for **${offspringCharacter.name}**.`, flags: [MessageFlags.Ephemeral] });
+    const successContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Offspring Legitimisation Approved\n` +
+          `You have approved the legitimisation request for **${offspringCharacter.name}**. The offspring is now legitimised.`
+        )
+      )
+      .setAccentColor(COLORS.GREEN);
+    return interaction.followUp({ components: [successContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 }

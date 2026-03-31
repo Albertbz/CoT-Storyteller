@@ -34,6 +34,7 @@ function regionChangedCheck(character) {
   }
 
   // Check if character has changed region within the last 3 days (1000 * 60 * 60 * 24 * 3 = 259200000 milliseconds)
+  // if ((Date.now() - new Date(character.regionUpdatedAt).getTime()) <= 259200000) {
   if ((Date.now() - new Date(character.regionUpdatedAt).getTime()) <= 10) {
     return true;
   }

@@ -47,8 +47,14 @@ async function toggleHiddenConfirm(interaction, offspring) {
 
   const { playableChild: updatedOffspring, _ } = await changePlayableChildInDatabase(interaction.user, offspring, { newHidden: !offspring.hidden });
   if (!updatedOffspring) {
-    await interaction.followUp({ content: `There was an error ${offspring.hidden ? 'unhiding' : 'hiding'} the offspring. Please contact a storyteller for assistance.`, flags: MessageFlags.Ephemeral });
-    return;
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error ${offspring.hidden ? 'Unhiding' : 'Hiding'} Offspring\n` +
+          `There was an error ${offspring.hidden ? 'unhiding' : 'hiding'} the offspring. Please contact a storyteller for assistance.`
+        )
+      )
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
   // Update the container to say that it has been updated

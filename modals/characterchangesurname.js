@@ -4,7 +4,65 @@ const { Players } = require('../dbObjects');
 const { askForConfirmation } = require('../helpers/confirmations.js');
 const { characterSurnameModal } = require('../helpers/modalCreator.js');
 
-async function characterChangeSurnameConfirm(interaction, newSurname) {
+module.exports = {
+  customId: 'character-change-surname-modal',
+  async execute(interaction) {
+    // Defer reply to allow time to process
+    await interaction.deferUpdate();
+
+    // Extract new surname from the modal input
+    const newSurname = interaction.fields.getTextInputValue('character-surname-input');
+
+    // Get the player's character to check the current name and ensure the new name is different
+    const player = await Players.findByPk(interaction.user.id);
+    const character = await player.getCharacter();
+
+    const firstNameSeparator = character.name.indexOf(' ');
+    const firstName = firstNameSeparator !== -1 ? character.name.substring(0, firstNameSeparator) : character.name;
+    const newName = `${firstName} ${newSurname}`;
+
+    if (character.name === newName) {
+      const sameNameContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# No Changes Detected\n` +
+            `The surname **${newSurname}** results in the same full name as your current name.\n` +
+            `Please enter a different surname to change it.`
+          )
+        )
+      return interaction.followUp({ components: [sameNameContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+
+    const existingCharacterWithName = await character.constructor.findOne({ where: { name: newName } });
+    if (existingCharacterWithName) {
+      const nameTakenContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Name Already Taken\n` +
+            `The new name, **${newName}**, that would be created with the surname you entered is already taken by another character.\n` +
+            `Please enter a different surname to change it.`
+          )
+        )
+      return interaction.followUp({ components: [nameTakenContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+
+    // Ask for confirmation of surname change
+    return askForConfirmation(
+      interaction,
+      [
+        new TextDisplayBuilder().setContent(
+          `# Change Character Surname\n` +
+          `You are currently changing the surname of your character to **${inlineCode(newSurname)}**. This will change your character's name to **${inlineCode(newName)}**.`
+        )
+      ],
+      'character-manager-return-button',
+      (interaction) => characterChangeSurnameConfirm(interaction, newName),
+      (interaction) => characterChangeSurnameEdit(interaction, newSurname)
+    );
+  }
+}
+
+async function characterChangeSurnameConfirm(interaction, newName) {
   // Defer reply to allow time to process
   await interaction.deferUpdate();
 
@@ -28,14 +86,16 @@ async function characterChangeSurnameConfirm(interaction, newSurname) {
   const player = await Players.findByPk(interaction.user.id);
   const character = await player.getCharacter();
 
-  const firstNameSeparator = character.name.indexOf(' ');
-  const firstName = firstNameSeparator !== -1 ? character.name.substring(0, firstNameSeparator) : character.name;
-  const newName = `${firstName} ${newSurname}`;
-
-  const { character: updatedCharacter, _ } = await changeCharacterInDatabase(interaction.user.id, character, true, { newName: newName });
+  const { character: updatedCharacter, _ } = await changeCharacterInDatabase(interaction.user, character, true, { newName: newName });
   if (!updatedCharacter) {
-    await interaction.followUp({ content: 'There was an error when changing the surname. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
-    return;
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Changing Character Surname\n` +
+          `There was an error changing the character's surname. Please contact a storyteller for assistance.`
+        )
+      )
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
   /**
@@ -47,7 +107,7 @@ async function characterChangeSurnameConfirm(interaction, newSurname) {
     .addTextDisplayComponents((textDisplay) =>
       textDisplay.setContent(
         `# Character Surname Changed\n` +
-        `Your character has now successfully had their surname changed to **${inlineCode(newSurname)}**.\n` +
+        `Your character has now successfully had their name changed to **${inlineCode(newName)}**.\n` +
         `You can continue to manage your character using the Character Manager GUI above.`
       )
     )
@@ -62,30 +122,4 @@ async function characterChangeSurnameEdit(interaction, newSurname) {
 
   const modal = await characterSurnameModal(character, { surnameValue: newSurname });
   return interaction.showModal(modal);
-}
-
-module.exports = {
-  customId: 'character-change-surname-modal',
-  async execute(interaction) {
-    // Defer reply to allow time to process
-    await interaction.deferUpdate();
-
-    // Extract new surname from the modal input
-    const newSurname = interaction.fields.getTextInputValue('character-surname-input');
-
-
-    // Ask for confirmation of surname change
-    return askForConfirmation(
-      interaction,
-      [
-        new TextDisplayBuilder().setContent(
-          `# Change Character Surname\n` +
-          `You are currently changing the surname of your character to **${inlineCode(newSurname)}**.`
-        )
-      ],
-      'character-manager-return-button',
-      (interaction) => characterChangeSurnameConfirm(interaction, newSurname),
-      (interaction) => characterChangeSurnameEdit(interaction, newSurname)
-    );
-  }
 }

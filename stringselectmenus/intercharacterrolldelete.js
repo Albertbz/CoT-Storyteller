@@ -25,7 +25,14 @@ module.exports = {
     });
 
     if (!roll) {
-      return interaction.followUp({ content: 'The selected intercharacter roll does not exist. Please select a valid intercharacter roll.', flags: [MessageFlags.Ephemeral] });
+      const notFoundContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Intercharacter Roll Not Found\n` +
+            `The intercharacter roll you selected could not be found. Please select a valid intercharacter roll to delete.`
+          )
+        );
+      return interaction.followUp({ components: [notFoundContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     return askForConfirmation(
@@ -101,7 +108,14 @@ async function intercharacterRollDeleteConfirm(interaction, roll) {
   }
   catch (error) {
     console.error(`Error sending DM to player ${otherPlayer.id} about intercharacter roll deletion:`, error);
-    await interaction.followUp({ content: 'There was an error sending a notification about the deletion to the other player. This may be because they have DMs disabled. However, the intercharacter roll has been successfully deleted.', flags: [MessageFlags.Ephemeral] });
+    const noDmContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Could Not Notify Other Player\n` +
+          `The intercharacter roll was successfully deleted, but there was an error sending a DM to the other player to notify them of the deletion. This may be because they have DMs disabled. Please ask them to enable DMs so they can be notified of important updates like this in the future.`
+        )
+      );
+    await interaction.followUp({ components: [noDmContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
   return;
 }

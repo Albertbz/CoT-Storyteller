@@ -30,8 +30,14 @@ async function characterNPCRollsConfirm(interaction) {
    */
   const { character: changedCharacter, embed: _ } = await changeCharacterInDatabase(interaction.user, character, true, { newIsRollingForBastards: !character.isRollingForBastards });
   if (!changedCharacter) {
-    await interaction.followUp({ content: 'There was an error updating your character\'s NPC rolls opt-in/out status. Please contact a storyteller for assistance.', flags: MessageFlags.Ephemeral });
-    return;
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Updating NPC Rolls Opt-In/Out Status\n` +
+          `There was an error updating your character's NPC rolls opt-in/out status. Please contact a storyteller for assistance.`
+        )
+      )
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
   /**

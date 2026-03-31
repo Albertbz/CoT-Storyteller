@@ -1,4 +1,4 @@
-const { MessageFlags } = require("discord.js");
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require("discord.js");
 const { intercharacterRollCreateModal, intercharacterRollEditModal } = require("../helpers/modalCreator");
 const { Relationships, Characters } = require("../dbObjects");
 
@@ -15,7 +15,14 @@ module.exports = {
     });
 
     if (!roll) {
-      return interaction.reply({ content: 'The selected intercharacter roll does not exist. Please select a valid intercharacter roll.', flags: [MessageFlags.Ephemeral] });
+      const notFoundContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Intercharacter Roll Not Found\n` +
+            `The intercharacter roll you selected could not be found. Please select a valid intercharacter roll to edit.`
+          )
+        );
+      return interaction.reply({ components: [notFoundContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     // Create a modal to edit the relationship and show it to the user
