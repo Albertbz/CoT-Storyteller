@@ -345,6 +345,18 @@ module.exports = {
         )
         .addStringOption(option =>
           option
+            .setName('parent1_new')
+            .setDescription('The new first parent.')
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('parent2_new')
+            .setDescription('The new second parent.')
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
             .setName('hidden_new')
             .setDescription('The new hidden status of the child.')
             .addChoices(
@@ -675,6 +687,17 @@ module.exports = {
           })
         }
         );
+      }
+      if (focusedOption.name === 'parent1_new' || focusedOption.name === 'parent2_new') {
+        const focusedValue = interaction.options.getFocused();
+
+        const characters = await Characters.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
+          attributes: ['name', 'id'],
+          limit: 25
+        });
+
+        choices = characters.map(character => ({ name: character.name, value: character.id }));
       }
       else if (focusedOption.name === 'region_new') {
         const focusedValue = interaction.options.getFocused();
@@ -1060,6 +1083,8 @@ module.exports = {
       const newComments = interaction.options.getString('comments_new');
       const newContact1 = interaction.options.getUser('contact1_new');
       const newContact2 = interaction.options.getUser('contact2_new');
+      const newParent1Id = interaction.options.getString('parent1_new');
+      const newParent2Id = interaction.options.getString('parent2_new');
       const newHidden = interaction.options.getString('hidden_new') === null ? null : (interaction.options.getString('hidden_new') === 'Yes' ? true : false);
 
       const playableChild = await PlayableChildren.findByPk(playableChildId);
@@ -1075,6 +1100,8 @@ module.exports = {
           newName: newName,
           newSex: newSex,
           newYearOfMaturity: newYearOfMaturity,
+          newParent1Id: newParent1Id,
+          newParent2Id: newParent2Id,
           newRegionId: newRegionId,
           newHouseId: newHouseId,
           newSocialClassName: newInheritedTitle !== null ? newInheritedTitle === 'Noble' ? 'Noble' : 'Notable' : null,
