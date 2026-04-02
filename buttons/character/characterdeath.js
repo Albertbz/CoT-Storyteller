@@ -15,7 +15,7 @@ module.exports = {
         textDisplay.setContent(
           `# Registering Character Death\n` +
           `This is to be used when your character has experienced a PvE or Final death.\n` +
-          `Your character, **${inlineCode(character.name)}**, has currently experienced ${inlineCode(character.pveDeaths)} PvE deaths.`
+          `Your character, ***__${character.name}__***, has currently experienced **${character.pveDeaths}** PvE deaths.`
         )
       )
       .addSeparatorComponents((separator) => separator)

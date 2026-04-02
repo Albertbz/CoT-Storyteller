@@ -135,14 +135,15 @@ module.exports = (sequelize, DataTypes) => {
         const infoList = [];
 
         const generalInfo = (
+          `### General Info\n` +
           `**Name:** ${this.name}\n` +
           `${this.sex ? `**Sex:** ${this.sex}\n` : ''}` +
           `**Year of Creation:** ${this.yearOfCreation}\n` +
           `**Region:** ${region ? region.name : `-`}\n` +
           `${region && region.id === WANDERER_REGION_ID ? `` : `**House:** ${house ? house.name : `-`}\n`}` +
-          `**Social Class:** ${this.socialClassName}\n` +
-          `**Role:** ${this.role ? this.role : '-'}\n` +
-          `**Comments:** ${this.comments ? this.comments : '-'}`);
+          `**Social Class:** ${this.socialClassName}`);
+          //`**Role:** ${this.role ? this.role : '-'}\n` +
+          //`**Comments:** ${this.comments ? this.comments : '-'}`);
 
         infoList.push(generalInfo);
 
@@ -200,8 +201,8 @@ module.exports = (sequelize, DataTypes) => {
             const parent2 = await this.getParent2();
 
             const parents = [];
-            if (parent1) parents.push(`\`${parent1.name}\``);
-            if (parent2) parents.push(`\`${parent2.name}\``);
+            if (parent1) parents.push(`${parent1.name}`);
+            if (parent2) parents.push(`${parent2.name}`);
 
             const relationships = await sequelize.models.relationships.findAll({
               where: { [Op.or]: [{ bearingCharacterId: this.id }, { conceivingCharacterId: this.id }] }
@@ -222,7 +223,7 @@ module.exports = (sequelize, DataTypes) => {
             const offspringInfo = (
               `### Offspring Info\n` +
               `**Parents:** ${parents.length > 0 ? parents.join(', ') : `Unknown`}\n` +
-              `**Children:** ${children.length > 0 ? children.map(child => `\`${child.name}\``).join(', ') : `None`}\n` +
+              `**Children:** ${children.length > 0 ? children.map(child => `${child.name}`).join(', ') : `None`}\n` +
               `**Fertility:** ${await this.fertility * 100}%\n` +
               `**Opted in to NPC rolls:** ${this.isRollingForBastards ? `Yes` : `No`}\n` +
               `**Intercharacter Rolls:** ${relationshipList.length > 0 ? `\n- ${relationshipList.join('\n- ')}` : `None`}`

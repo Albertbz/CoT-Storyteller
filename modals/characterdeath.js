@@ -29,7 +29,7 @@ module.exports = {
       [
         new TextDisplayBuilder().setContent(
           `# Review Character Final Death\n` +
-          `Please review the final death information below and confirm that this is correct for the death of ${inlineCode(character.name)}.\n\n` +
+          `Please review the final death information below and confirm that this is correct for the death of ***__${character.name}__***.\n\n` +
           `**Date of Death:** ${month} ${day}, Year ${year}\n` +
           `**Cause of Death:** ${cause}\n` +
           `**Final Note:** ${note}\n`
@@ -98,7 +98,7 @@ async function finalDeathConfirm(interaction, day, month, year, cause, note) {
     .addTextDisplayComponents((textDisplay) =>
       textDisplay.setContent(
         `# Character Final Death Registered\n` +
-        `Your character, **${inlineCode(character.name)}**, has been successfully marked as deceased. This death will be posted in the graveyard channel in 2 hours.\n` +
+        `Your character, ***__${character.name}__***, has been successfully marked as deceased. This death will be posted in the graveyard channel in 2 hours.\n` +
         `You can now create a new character using the Character Manager GUI above.`
       )
     );
