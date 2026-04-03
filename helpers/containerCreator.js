@@ -10,8 +10,10 @@ async function getCharacterManagerContainer(character) {
 
     container
       .addTextDisplayComponents(
-        (textDisplay) => textDisplay.setContent(`# Manage your current character: ***__${character.name}__***`),
-        (textDisplay) => textDisplay.setContent(characterInfo)
+        new TextDisplayBuilder().setContent(
+          `# :bust_in_silhouette: Character Dashboard\n` +
+          characterInfo
+        ),
       )
       .addSeparatorComponents((separator) => separator)
       .addTextDisplayComponents((textDisplay) =>
@@ -131,11 +133,12 @@ async function getOffspringManagerContainer(player) {
     });
 
     container
-      .addTextDisplayComponents((textDisplay) =>
-        textDisplay.setContent(
-          `# Manage Offspring\n` +
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# :baby: Offspring Dashboard\n` +
           `You are listed as a contact for the following offspring. Select the one that you would like to manage to continue.`
-        ))
+        )
+      )
       .addActionRowComponents(
         new ActionRowBuilder()
           .setComponents(
@@ -148,9 +151,9 @@ async function getOffspringManagerContainer(player) {
   }
   else {
     container
-      .addTextDisplayComponents((textDisplay) =>
-        textDisplay.setContent(
-          `# Manage Offspring\n` +
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# :baby: Manage Offspring\n` +
           `You are not currently listed as a contact for any offspring. One of your characters must have had a child, or you must have adopted someone else's child in order to have offspring to manage.`
         )
       )

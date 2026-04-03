@@ -3,6 +3,9 @@ const { changeCharacterInDatabase } = require('../misc.js');
 const { Players } = require('../dbObjects');
 const { askForConfirmation } = require('../helpers/confirmations.js');
 const { characterSurnameModal } = require('../helpers/modalCreator.js');
+const { showMessageThenReturnToContainer } = require('../helpers/messageSender.js');
+const { formatCharacterName } = require('../helpers/formatters.js');
+const { getCharacterManagerContainer } = require('../helpers/containerCreator.js');
 
 module.exports = {
   customId: 'character-change-surname-modal',
@@ -101,18 +104,14 @@ async function characterChangeSurnameConfirm(interaction, newName) {
   /**
    * Notify the user of successful surname change
    */
-  container.spliceComponents(0, container.components.length);
-
-  container
-    .addTextDisplayComponents((textDisplay) =>
-      textDisplay.setContent(
-        `# Character Surname Changed\n` +
-        `Your character has now successfully had their name changed to **${inlineCode(newName)}**.\n` +
-        `You can continue to manage your character using the Character Manager GUI above.`
-      )
-    )
-
-  await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  return showMessageThenReturnToContainer(
+    interaction,
+    `# Character Surname Changed\n` +
+    `Your character has now successfully had their name changed to ${formatCharacterName(newName)}.`,
+    10000,
+    'Character Dashboard',
+    async () => getCharacterManagerContainer(updatedCharacter)
+  )
 }
 
 async function characterChangeSurnameEdit(interaction, newSurname) {

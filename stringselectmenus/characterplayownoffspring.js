@@ -2,6 +2,9 @@ const { ContainerBuilder, MessageFlags, ButtonBuilder, ButtonStyle, inlineCode, 
 const { PlayableChildren } = require('../dbObjects.js');
 const { askForConfirmation } = require('../helpers/confirmations.js');
 const { assignCharacterToPlayer } = require('../misc.js');
+const { showMessageThenReturnToContainer } = require('../helpers/messageSender.js');
+const { getCharacterManagerContainer } = require('../helpers/containerCreator.js');
+const { formatCharacterName } = require('../helpers/formatters.js');
 
 module.exports = {
   customId: 'character-play-own-offspring-select',
@@ -55,20 +58,28 @@ async function characterPlayOwnOffspringConfirm(interaction, character) {
   /**
    * Assign the character to the player
    */
-  await assignCharacterToPlayer(character.id, interaction.user.id, interaction.user);
+  const { success } = await assignCharacterToPlayer(character.id, interaction.user.id, interaction.user);
+  if (!success) {
+    const assignFailedContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Character Assignment Failed\n` +
+          `There was an error assigning the offspring character ${formatCharacterName(character.name)} to you. Please contact a storyteller for assistance.`
+        )
+      );
+
+    return interaction.editReply({ components: [assignFailedContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  }
 
   /**
    * Notify the player of successful character assignment
    */
-  container.spliceComponents(0, container.components.length); // Clear container components
-
-  container
-    .addTextDisplayComponents((textDisplay) =>
-      textDisplay.setContent(
-        `# Offspring Character Assigned\n` +
-        `You are now playing as the offspring character **${inlineCode(character.name)}**. You can manage your character using the Character Manager GUI above.`
-      )
-    );
-
-  return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  return showMessageThenReturnToContainer(
+    interaction,
+    `# Offspring Character Assigned\n` +
+    `You are now playing as the offspring character ${formatCharacterName(character.name)}.`,
+    10000,
+    `Character Dashboard`,
+    async () => getCharacterManagerContainer(character)
+  )
 }

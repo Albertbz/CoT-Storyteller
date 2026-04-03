@@ -1,7 +1,9 @@
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require("discord.js");
-const { Relationships, Characters } = require("../dbObjects");
+const { Relationships, Characters, Players } = require("../dbObjects");
 const { askForConfirmation } = require("../helpers/confirmations");
 const { removeRelationshipFromDatabase } = require("../misc");
+const { showMessageThenReturnToContainer } = require("../helpers/messageSender");
+const { getCharacterManagerContainer } = require("../helpers/containerCreator");
 
 module.exports = {
   customId: 'intercharacter-roll-delete-select',
@@ -59,7 +61,8 @@ async function intercharacterRollDeleteConfirm(interaction, roll) {
   const deletingContainer = new ContainerBuilder()
     .addTextDisplayComponents((textDisplay) =>
       textDisplay.setContent(
-        `# Deleting Intercharacter Roll\nDeleting the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}**. This may take a moment...`
+        `# Deleting Intercharacter Roll\n` +
+        `Deleting the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}**. This may take a moment...`
       )
     );
 
@@ -74,14 +77,16 @@ async function intercharacterRollDeleteConfirm(interaction, roll) {
   /**
    * Edit the message to say that the roll has been deleted
    */
-  const deletedContainer = new ContainerBuilder()
-    .addTextDisplayComponents((textDisplay) =>
-      textDisplay.setContent(
-        `# Intercharacter Roll Deleted\nThe intercharacter roll has been deleted.`
-      )
-    );
-
-  await interaction.editReply({ components: [deletedContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  const player = await Players.findByPk(interaction.user.id);
+  const character = await player.getCharacter();
+  await showMessageThenReturnToContainer(
+    interaction,
+    `# Intercharacter Roll Deleted\n` +
+    `The intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}** has been deleted.`,
+    10000,
+    `Character Dashboard`,
+    async () => getCharacterManagerContainer(character)
+  )
 
   // Send a DM to the other player to notify them that the intercharacter roll has been deleted
   const bearingPlayer = await roll.bearingCharacter.getPlayer();
@@ -99,7 +104,8 @@ async function intercharacterRollDeleteConfirm(interaction, roll) {
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
-          `# Intercharacter Roll Deleted\nThe intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}** has been deleted by ${interaction.user}.\n\n` +
+          `# Intercharacter Roll Deleted\n` +
+          `The intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}** has been deleted by ${interaction.user}.\n\n` +
           `${rollInfo}`
         )
       );

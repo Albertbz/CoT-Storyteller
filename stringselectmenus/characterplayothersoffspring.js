@@ -150,7 +150,7 @@ async function characterPlayOthersOffspringConfirm(interaction, offspring) {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Request Sent\n` +
-          `Your request to play as the offspring character **${offspring.character.name}** has been sent to their contact(s) for approval. Please wait for a response. You will be notified once a response is received.`
+          `Your request to play as the offspring character **${offspring.character.name}** has been sent to their contact(s) for approval. They have 10 minutes to respond. You will be notified once a response is received.`
         )
       );
 
@@ -186,7 +186,7 @@ async function characterPlayOthersOffspringConfirm(interaction, offspring) {
     if (i.customId === 'approve-play-others-offspring') {
 
       // Assign the character to the player
-      const { success, embed: assignedEmbed } = await assignCharacterToPlayer(offspring.character.id, interaction.user.id, i.user);
+      const { success } = await assignCharacterToPlayer(offspring.character.id, interaction.user.id, i.user);
       if (!success) {
         const assignFailedContainer = new ContainerBuilder()
           .addTextDisplayComponents(
@@ -207,7 +207,8 @@ async function characterPlayOthersOffspringConfirm(interaction, offspring) {
           .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
               `# Request Approved\n` +
-              `${interaction.user}, your request to play as the offspring character **${offspring.character.name}** has been approved by their contact(s). The character has been assigned to you.`
+              `${interaction.user}, your request to play as the offspring character **${offspring.character.name}** has been approved by their contact(s). The character has been assigned to you.\n` +
+              `You can now view the character in the Character Dashboard.`
             )
           )
 
@@ -240,8 +241,6 @@ async function characterPlayOthersOffspringConfirm(interaction, offspring) {
       if (!collector.ended) collector.stop('resolved');
     }
   }
-
-
 
   const handleEnd = async (_collected, reason) => {
     if (reason !== 'resolved') {

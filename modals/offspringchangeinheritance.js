@@ -1,7 +1,9 @@
 const { MessageFlags, TextDisplayBuilder, ContainerBuilder } = require("discord.js");
-const { PlayableChildren } = require("../dbObjects");
+const { PlayableChildren, Players } = require("../dbObjects");
 const { askForConfirmation } = require("../helpers/confirmations");
 const { changeCharacterInDatabase } = require("../misc");
+const { showMessageThenReturnToContainer } = require("../helpers/messageSender");
+const { getCharacterManagerContainer, getOffspringManagerContainer } = require("../helpers/containerCreator");
 
 module.exports = {
   customId: 'offspring-change-inheritance-modal',
@@ -57,7 +59,7 @@ async function offspringChangeInheritanceConfirm(interaction, offspring, newSoci
   const processingContainer = new ContainerBuilder()
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `# Offspring Inheritance Changing\n` +
+        `# Changing Offspring Inheritance\n` +
         `The inheritance status change for the offspring **${offspringCharacter.name}** is being processed. Please wait a moment...`
       )
     );
@@ -65,16 +67,26 @@ async function offspringChangeInheritanceConfirm(interaction, offspring, newSoci
   await interaction.editReply({ components: [processingContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 
   // Change the inheritance status of the offspring in the database
-  await changeCharacterInDatabase(interaction.user, offspringCharacter, true, { newSocialClassName: newSocialClassName });
+  const { character: updatedCharacter } = await changeCharacterInDatabase(interaction.user, offspringCharacter, true, { newSocialClassName: newSocialClassName });
+  if (!updatedCharacter) {
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Changing Offspring Inheritance\n` +
+          `There was an error changing the inheritance status of the offspring **${offspringCharacter.name}**. Please contact a storyteller for assistance.`
+        )
+      );
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  }
 
   // Edit the message to say that the change has been made
-  const successContainer = new ContainerBuilder()
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# Offspring Inheritance Changed\n` +
-        `The inheritance status of the offspring **${offspringCharacter.name}** has been changed to ${newSocialClassName}.`
-      )
-    );
-
-  return interaction.editReply({ components: [successContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  const player = await Players.findByPk(interaction.user.id);
+  return showMessageThenReturnToContainer(
+    interaction,
+    `# Offspring Inheritance Changed\n` +
+    `The inheritance status of the offspring **${offspringCharacter.name}** has been changed to ${newSocialClassName === 'Noble' ? 'inheriting nobility' : 'not inheriting nobility'}.`,
+    10000,
+    `Offspring Dashboard`,
+    async () => getOffspringManagerContainer(player)
+  )
 }

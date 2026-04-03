@@ -2,54 +2,33 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, ContainerBuil
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('sendmanagerguimessage')
-    .setDescription('Send a manager GUI message to the channel this command is used in.')
+    .setName('senddashboards')
+    .setDescription('Send a message with the dashboards to the channel this command is used in.')
     .setContexts(InteractionContextType.Guild)
     .setDefaultMemberPermissions(0)
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('character')
-        .setDescription('Send the character manager GUI message in this channel.')
-    )
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('region')
-        .setDescription('Send the region manager GUI message in this channel.')
-    )
   ,
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const subcommand = interaction.options.getSubcommand();
+    const message = await createDashboardMessage();
+    const sentMessage = await interaction.channel.send(message);
 
-    if (subcommand === 'character') {
-
-      const message = await createCharacterManagerMessage();
-      const sentMessage = await interaction.channel.send(message);
-
-      return interaction.editReply(`Character manager GUI message sent: ${sentMessage.url}.`);
-    }
-
-    if (subcommand === 'region') {
-      return interaction.editReply('Region manager GUI message not yet implemented.');
-    }
-
-    return interaction.editReply('Unknown subcommand.');
+    return interaction.editReply(`Dashboard message sent: ${sentMessage.url}.`);
   }
 }
 
 /**
- * Create and return the character manager GUI message.
+ * Create and return the dashboard message.
  */
-async function createCharacterManagerMessage() {
+async function createDashboardMessage() {
   // Components array to hold all the message components
   const components = [];
 
   const container = new ContainerBuilder()
     .addTextDisplayComponents((textDisplay) =>
       textDisplay.setContent(
-        `# Character Manager\n` +
-        `In this channel, you can manage your current character and any offspring that you are a contact for.`
+        `# Dashboards\n` +
+        `In this channel, you can manage your current character, any offspring that you are a contact of, as well as the region your character is in (assuming you have the appropriate permissions).`
       ))
     .addSeparatorComponents((separator) => separator)
     .addTextDisplayComponents((textDisplay) =>
@@ -69,6 +48,12 @@ async function createCharacterManagerMessage() {
           .setLabel('Offspring')
           .setStyle(ButtonStyle.Secondary)
           .setEmoji('👶')
+        ,
+        new ButtonBuilder()
+          .setCustomId('region-manager-button')
+          .setLabel('Region')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🗺️')
       )
     )
 

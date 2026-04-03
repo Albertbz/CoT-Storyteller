@@ -2,6 +2,30 @@ const { ContainerBuilder, MessageFlags, inlineCode, TextDisplayBuilder } = requi
 const { askForConfirmation } = require('../../helpers/confirmations');
 const { changeCharacterInDatabase } = require('../../misc');
 const { Players } = require('../../dbObjects');
+const { showMessageThenReturnToContainer } = require('../../helpers/messageSender');
+const { getCharacterManagerContainer } = require('../../helpers/containerCreator');
+const { formatCharacterName } = require('../../helpers/formatters');
+
+module.exports = {
+  customId: 'character-notability-button',
+  async execute(interaction) {
+    // Defer the update to allow time to process
+    await interaction.deferUpdate();
+
+    // Ask for confirmation to opt in to notability
+    return askForConfirmation(
+      interaction,
+      [
+        new TextDisplayBuilder().setContent(
+          `# Character Notability Opt-In\n` +
+          `By opting in to notability, your character will be made mortal and will begin aging. It will also be possible for your character to participate in the offspring system. It is not possible to later opt out of notability, so make sure that you want to proceed.\n\nYou are currently opting in to notability.`
+        )
+      ],
+      'character-manager-return-button',
+      (interaction) => characterNotabilityConfirm(interaction)
+    )
+  }
+}
 
 async function characterNotabilityConfirm(interaction) {
   // Defer the update to allow time to process
@@ -40,37 +64,12 @@ async function characterNotabilityConfirm(interaction) {
   /**
    * Notify the user of successful notability update
    */
-  container.spliceComponents(0, container.components.length); // Clear container components
-
-  container
-    .addTextDisplayComponents((textDisplay) =>
-      textDisplay.setContent(
-        `# Notability Opt-In Confirmed\n` +
-        `Your character, ***__${changedCharacter.name}__***, has been successfully updated to be notable. Your character is now mortal and has begun aging, and will be able to participate in the offspring system.\n` +
-        `You can continue to manage your character using the Character Manager GUI above.`
-      )
-    );
-
-  return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
-}
-
-module.exports = {
-  customId: 'character-notability-button',
-  async execute(interaction) {
-    // Defer the update to allow time to process
-    await interaction.deferUpdate();
-
-    // Ask for confirmation to opt in to notability
-    return askForConfirmation(
-      interaction,
-      [
-        new TextDisplayBuilder().setContent(
-          `# Character Notability Opt-In\n` +
-          `By opting in to notability, your character will be made mortal and will begin aging. It will also be possible for your character to participate in the offspring system. It is not possible to later opt out of notability, so make sure that you want to proceed.\n\nYou are currently opting in to notability.`
-        )
-      ],
-      'character-manager-return-button',
-      (interaction) => characterNotabilityConfirm(interaction)
-    )
-  }
+  return showMessageThenReturnToContainer(
+    interaction,
+    `# Notability Opt-In Confirmed\n` +
+    `Your character, ${formatCharacterName(changedCharacter.name)}, has been successfully updated to be notable. Your character is now mortal and has begun aging, and will be able to participate in the offspring system.`,
+    10000,
+    'Character Dashboard',
+    async () => getCharacterManagerContainer(changedCharacter)
+  )
 }

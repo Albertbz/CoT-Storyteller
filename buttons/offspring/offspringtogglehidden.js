@@ -1,7 +1,9 @@
 const { ContainerBuilder, MessageFlags, TextDisplayBuilder } = require("discord.js");
-const { PlayableChildren, Characters } = require("../../dbObjects");
+const { PlayableChildren, Characters, Players } = require("../../dbObjects");
 const { askForConfirmation } = require("../../helpers/confirmations");
 const { changePlayableChildInDatabase } = require("../../misc");
+const { showMessageThenReturnToContainer } = require("../../helpers/messageSender");
+const { getOffspringManagerContainer } = require("../../helpers/containerCreator");
 
 module.exports = {
   customId: 'offspring-toggle-hidden',
@@ -58,16 +60,13 @@ async function toggleHiddenConfirm(interaction, offspring) {
   }
 
   // Update the container to say that it has been updated
-  container.spliceComponents(0, container.components.length); // Clear container components
-
-  container
-    .addTextDisplayComponents((textDisplay) =>
-      textDisplay.setContent(
-        `# Offspring ${updatedOffspring.hidden ? 'Hidden' : 'Unhidden'}\n` +
-        `The offspring has been successfully ${updatedOffspring.hidden ? 'hidden' : 'unhidden'}.\n` +
-        `You can continue to manage your offspring using the Offspring Manager GUI above.`
-      )
-    );
-
-  return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  const player = await Players.findByPk(interaction.user.id);
+  return showMessageThenReturnToContainer(
+    interaction,
+    `# Offspring ${updatedOffspring.hidden ? 'Hidden' : 'Unhidden'}\n` +
+    `The offspring has been successfully ${updatedOffspring.hidden ? 'hidden' : 'unhidden'}.`,
+    10000,
+    `Offspring Dashboard`,
+    async () => getOffspringManagerContainer(player)
+  )
 }

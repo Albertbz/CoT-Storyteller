@@ -210,7 +210,7 @@ async function finalDeathModal({ deathDay = null, deathMonth = null, deathYear =
     .setCustomId('death-note-input')
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(true)
-    .setMaxLength(250);
+    .setMaxLength(500);
 
   if (deathNote) {
     noteInput.setValue(deathNote);
@@ -218,7 +218,7 @@ async function finalDeathModal({ deathDay = null, deathMonth = null, deathYear =
 
   const noteLabel = new LabelBuilder()
     .setLabel('Final note')
-    .setDescription('Your final note. This is not allowed to reveal any IC information and will be posted publically. Max 250 characters.')
+    .setDescription('Final note. No IC information allowed, as it will be posted to the public. Max 500 characters.')
     .setTextInputComponent(noteInput);
 
   modal.addLabelComponents(dayLabel, monthLabel, yearLabel, causeLabel, noteLabel);

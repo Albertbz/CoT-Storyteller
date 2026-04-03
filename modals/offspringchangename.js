@@ -1,8 +1,10 @@
 const { TextDisplayBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags, ContainerBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { askForConfirmation } = require("../helpers/confirmations");
-const { DiscordChannels, PlayableChildren, Characters } = require("../dbObjects");
+const { DiscordChannels, PlayableChildren, Characters, Players } = require("../dbObjects");
 const { COLORS } = require("../misc");
 const { offspringChangeNameModal } = require("../helpers/modalCreator");
+const { showMessageThenReturnToContainer } = require("../helpers/messageSender");
+const { getOffspringManagerContainer } = require("../helpers/containerCreator");
 
 module.exports = {
   customId: 'offspring-change-name-modal',
@@ -150,15 +152,15 @@ async function offspringChangeNameConfirm(interaction, offspring, newName, scree
   await approvalChannel.send({ components: [approvalContainer, responseRow], flags: [MessageFlags.IsComponentsV2] });
 
   // Edit the original message to confirm that the request has been sent
-  const container = new ContainerBuilder()
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# Offspring Name Change Request Sent\n` +
-        `Your request to change the name of **${offspringCharacter.name}** to **${newName}** has been sent to Staff for review. Please allow some time for Staff to review your request. You will be notified of the outcome of your request once it has been reviewed.`
-      )
-    )
-
-  return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  const player = await Players.findByPk(interaction.user.id);
+  return showMessageThenReturnToContainer(
+    interaction,
+    `# Offspring Name Change Request Sent\n` +
+    `Your request to change the name of **${offspringCharacter.name}** to **${newName}** has been sent to Staff for review. Please allow some time for Staff to review your request. You will be notified of the outcome of your request once it has been reviewed.`,
+    10000,
+    `Offspring Dashboard`,
+    async () => getOffspringManagerContainer(player)
+  )
 }
 
 async function offspringChangeNameEdit(interaction, offspring, newName) {

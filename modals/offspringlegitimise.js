@@ -1,8 +1,10 @@
 const { TextDisplayBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, ContainerBuilder, MessageFlags, MediaGalleryItem, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const { PlayableChildren, DiscordChannels } = require("../dbObjects");
+const { PlayableChildren, DiscordChannels, Players } = require("../dbObjects");
 const { askForConfirmation } = require("../helpers/confirmations");
 const { offspringLegitimiseModal } = require("../helpers/modalCreator");
 const { COLORS } = require("../misc.js");
+const { showMessageThenReturnToContainer } = require("../helpers/messageSender.js");
+const { getOffspringManagerContainer } = require("../helpers/containerCreator.js");
 
 module.exports = {
   customId: 'offspring-legitimise-modal',
@@ -121,15 +123,14 @@ async function offspringLegitimiseConfirm(interaction, offspring, screenshot) {
 
   // Edit the message to say that the request has been sent to Staff for review
   // and that the user will be notified of the outcome of the request
-  const container = new ContainerBuilder()
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# Offspring Legitimisation Request Sent\n` +
-        `Your request to legitimise the offspring ${offspringCharacter.name} has been sent to Staff for review. You will be notified of the outcome of the request once it has been reviewed. Please allow some time for Staff to review your request. You will be notified of the outcome of your request once it has been reviewed.`
-      )
-    )
-
-  return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  return showMessageThenReturnToContainer(
+    interaction,
+    `# Offspring Legitimisation Request Sent\n` +
+    `Your request to legitimise the offspring **${offspringCharacter.name}** has been sent to Staff for review. Please allow some time for Staff to review your request. You will be notified of the outcome of your request once it has been reviewed.`,
+    10000,
+    `Offspring Dashboard`,
+    async () => getOffspringManagerContainer(await Players.findByPk(interaction.user.id))
+  )
 }
 
 async function offspringLegitimiseEdit(interaction, offspring) {

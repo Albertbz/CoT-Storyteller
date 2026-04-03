@@ -1,9 +1,11 @@
 const { TextDisplayBuilder, MessageFlags, ContainerBuilder } = require("discord.js");
-const { Characters, Regions } = require("../dbObjects");
+const { Characters, Regions, Players } = require("../dbObjects");
 const { changeCharacterInDatabase } = require("../misc");
 const { askForConfirmation } = require("./confirmations");
+const { showMessageThenReturnToContainer } = require("./messageSender");
+const { getCharacterManagerContainer, getOffspringManagerContainer } = require("./containerCreator");
 
-async function changeRegionConfirm(interaction, character, regionId) {
+async function changeRegionConfirm(interaction, character, regionId, managerType) {
   // Defer update to allow time for processing
   await interaction.deferUpdate();
 
@@ -32,21 +34,36 @@ async function changeRegionConfirm(interaction, character, regionId) {
   }
 
   // Notify the user of successful region change
-  container.spliceComponents(0, container.components.length);
-
-  container
-    .addTextDisplayComponents((textDisplay) =>
-      textDisplay.setContent(
-        `# Character Region Changed\n` +
-        `The character has now successfully had their region changed.\n` +
-        `You can continue to manage the character using the Character Manager GUI above.`
-      )
-    )
-
-  return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  let returnTo;
+  let containerFunction;
+  if (managerType === 'character') {
+    returnTo = 'Character Dashboard';
+    containerFunction = async () => getCharacterManagerContainer(updatedCharacter);
+  }
+  else if (managerType === 'offspring') {
+    returnTo = 'Offspring Dashboard';
+    const player = await Players.findByPk(interaction.user.id);
+    containerFunction = async () => getOffspringManagerContainer(player);
+  }
+  return showMessageThenReturnToContainer(
+    interaction,
+    `# Character Region Changed\n` +
+    `The character has now successfully had their region changed.`,
+    10000,
+    returnTo,
+    containerFunction
+  )
 }
 
-async function changeRegion(interaction, cancelId) {
+async function changeRegion(interaction, managerType) {
+  let cancelId;
+  if (managerType === 'character') {
+    cancelId = 'character-manager-return-button';
+  }
+  else if (managerType === 'offspring') {
+    cancelId = 'offspring-manager-return-button';
+  }
+
   // Get character id from customId, split by ":" and get second element
   const characterId = interaction.customId.split(':')[1];
   const character = await Characters.findByPk(characterId);
@@ -61,7 +78,7 @@ async function changeRegion(interaction, cancelId) {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Character Already in Region\n` +
-          `The character **${character.name}** is already part of the region **${region.name}**.\n` +
+          `The character ** ${character.name}** is already part of the region ** ${region.name}**.\n` +
           `Please select a different region to change to.`
         )
       )
@@ -74,11 +91,11 @@ async function changeRegion(interaction, cancelId) {
     [
       new TextDisplayBuilder().setContent(
         `# Change Character Region\n` +
-        `You are about to change the region of the character **${character.name}** to **${region.name}**.`
+        `You are about to change the region of the character ** ${character.name}** to ** ${region.name}**.`
       )
     ],
     cancelId,
-    (interaction) => changeRegionConfirm(interaction, character, regionId)
+    (interaction) => changeRegionConfirm(interaction, character, regionId, managerType)
   )
 }
 
