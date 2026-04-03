@@ -25,11 +25,12 @@ module.exports = (sequelize, DataTypes) => {
     formattedInfo: {
       type: DataTypes.VIRTUAL,
       async get() {
+        const roles = [this.role1, this.role2, this.role3].filter(role => role !== "None");
+        const formatter = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' });
+
         return (
           `**Recruitment State:** ${this.state}\n` +
-          `**Role 1:** ${this.role1}\n` +
-          `**Role 2:** ${this.role2}\n` +
-          `**Role 3:** ${this.role3}`
+          `**Roles:** ${roles.length > 0 ? formatter.format(roles) : "None in particular"}`
         )
       },
       set(value) {

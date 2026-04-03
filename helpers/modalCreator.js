@@ -690,6 +690,51 @@ async function offspringChangeInheritanceModal(offspring) {
   return modal;
 }
 
+async function changeRecruitmentRolesModal(region) {
+  const modal = new ModalBuilder()
+    .setCustomId(`region-change-recruitment-roles-modal`)
+    .setTitle('Change Recruitment Roles for ' + region.name);
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing the recruitment roles for the region **${region.name}**.\n` +
+      `Please specify what roles this region is in need of. You can select up to 3 recruitment roles, or leave it blank if there are no specific roles needed for this region.`
+    );
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  // Create three string select menus for the three recruitment roles, prefilled with the current recruitment roles of the region
+  const possibleRoles = [{ name: 'Smiths', emoji: '🔨' }, { name: 'Builders', emoji: '🏗️' }, { name: 'Cooks', emoji: '🍳' }, { name: 'Lumberjacks', emoji: '🪓' }, { name: 'Soldiers', emoji: '⚔️' }, { name: 'Potters', emoji: '🏺' }, { name: 'Miners', emoji: '⛏️' }, { name: 'Carpenters', emoji: '🪚' }, { name: 'Tailors', emoji: '🧵' }, { name: 'Healers', emoji: '🩹' }, { name: 'Farmers', emoji: '🌾' }, { name: 'Hunters', emoji: '🏹' }, { name: 'Clockmakers', emoji: '🕰️' }];
+
+  const recruitment = await region.getRecruitment();
+  const currentRoles = recruitment ? [recruitment.role1, recruitment.role2, recruitment.role3] : [null, null, null];
+
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId(`recruitment-roles-select`)
+    .setPlaceholder(`No specific roles required`)
+    .setRequired(false)
+    .setMinValues(0)
+    .setMaxValues(3)
+    .addOptions(
+      possibleRoles.map(role => new StringSelectMenuOptionBuilder()
+        .setLabel(role.name)
+        .setValue(role.name)
+        .setEmoji(role.emoji)
+        .setDefault(currentRoles.includes(role.name) ? true : false)
+      )
+    );
+
+  const label = new LabelBuilder()
+    .setLabel(`Recruitment Roles`)
+    .setDescription('Select the recruitment roles for this region. You can select up to 3 roles.')
+    .setStringSelectMenuComponent(selectMenu);
+
+
+  modal.addLabelComponents(label);
+
+  return modal;
+}
+
 module.exports = {
   characterCreateModal,
   finalDeathModal,
@@ -700,5 +745,6 @@ module.exports = {
   offspringLegitimiseModal,
   offspringChangeNameModal,
   offspringChangeInheritanceModal,
-  denyChangeModal
+  denyChangeModal,
+  changeRecruitmentRolesModal
 }

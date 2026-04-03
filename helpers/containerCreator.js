@@ -2,6 +2,7 @@ const { ContainerBuilder, ButtonBuilder, ButtonStyle, inlineCode, StringSelectMe
 const { PlayableChildren, Characters, Relationships, Players } = require('../dbObjects');
 const { Op } = require('sequelize');
 const { formatCharacterName } = require('./formatters');
+const { WANDERER_REGION_ID } = require('../constants');
 
 async function getCharacterManagerContainer(userId) {
   const player = await Players.findByPk(userId);
@@ -230,11 +231,87 @@ async function getRegionManagerContainer(userId) {
   const container = new ContainerBuilder()
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `# :map: Region Manager\n` +
+        `# :map: Region Dashboard\n` +
         regionInfo
       )
     )
 
+  if (region.id === WANDERER_REGION_ID) {
+    container
+      .addSeparatorComponents((separator) => separator)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `Your character is currently in the ${region.name} region, which is a special region that cannot be changed.`
+        )
+      )
+
+    return container;
+  }
+
+  // Perform some sort of check to see if the character is allowed to manage
+  // the region
+  const allowedToManage = true; // Placeholder, implement actual check later
+
+  if (!allowedToManage) {
+    container
+      .addSeparatorComponents((separator) => separator)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `You are not currently allowed to manage this region. Only Rulers and those with proper permissions are allowed to manage the region. If you believe that you should have access to manage this region, please contact your ruler.`
+        )
+      )
+  }
+
+
+  container.addSeparatorComponents((separator) => separator)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `Use the buttons below to manage various aspects of your region.`
+      )
+    )
+
+  // Create buttons and action row for managing steelbearers and nobles
+  const manageSteelbearersButton = new ButtonBuilder()
+    .setCustomId('region-manage-steelbearers-button')
+    .setLabel('Manage Steelbearers')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('⚔️');
+
+  const manageNoblesButton = new ButtonBuilder()
+    .setCustomId('region-manage-nobles-button')
+    .setLabel('Manage Nobles')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('👑');
+
+  const manageTitlesActionRow = new ActionRowBuilder()
+    .addComponents(manageSteelbearersButton, manageNoblesButton);
+
+  container.addActionRowComponents(manageTitlesActionRow);
+
+  // Create buttons and action row for updating recruitment roles, removing a 
+  // character from the region, and for starting an activity check/purge
+  const changeRecruitmentRolesButton = new ButtonBuilder()
+    .setCustomId('region-change-recruitment-roles-button')
+    .setLabel('Change Recruitment Roles')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('⚒️');
+
+  const removeCharacterButton = new ButtonBuilder()
+    .setCustomId('region-remove-character-button')
+    .setLabel('Banish Character')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('🚪');
+
+  const activityCheckButton = new ButtonBuilder()
+    .setCustomId('region-activity-check-button')
+    .setLabel('Start Activity Check')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('⚠️');
+
+  const managementActionRow = new ActionRowBuilder()
+    .addComponents(changeRecruitmentRolesButton, removeCharacterButton, activityCheckButton);
+
+  container.addActionRowComponents(managementActionRow);
 
 
   return container;

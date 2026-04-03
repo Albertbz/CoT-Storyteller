@@ -49,7 +49,7 @@ module.exports = (sequelize, DataTypes) => {
 
         // Get duchies
         const duchies = await this.getDuchies();
-        const duchyNames = duchies.map(duchy => duchy.name);
+        const duchyNames = duchies.length > 0 ? duchies.map(duchy => duchy.name) : null;
 
         // Get liege region if applicable is a vassal
         const vassalRecord = await sequelize.models.vassals.findOne({ where: { vassalId: this.id } });
@@ -70,10 +70,13 @@ module.exports = (sequelize, DataTypes) => {
           `### General Info\n` +
           `**Name:** ${this.name}\n` +
           `**Ruling House:** ${rulingHouse ? rulingHouse.name : 'None'}\n` +
-          `**Population:** ${await this.population}\n` +
-          `**Duchies:** ${duchyNames ? duchyNames.join(', ') : 'None'}\n` +
-          `**Liege Region:** ${liegeRegion ? liegeRegion.name : 'None'}\n` +
-          `**Vassal Regions:** ${vassalRegionNames}` +
+          `**Population:** ${await this.population}` +
+          `${this.id !== WANDERER_REGION_ID ?
+            `\n**Duchies:** ${duchyNames ? duchyNames.join(', ') : 'None'}\n` +
+            `**Liege Region:** ${liegeRegion ? liegeRegion.name : 'None'}\n` +
+            `**Vassal Regions:** ${vassalRegionNames}`
+            : ``
+          }` +
           `${recruitment ? `\n### Recruitment Info\n${(await recruitment.formattedInfo)}` : ``}`
         );
       },
