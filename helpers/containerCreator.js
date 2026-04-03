@@ -1,6 +1,7 @@
 const { ContainerBuilder, ButtonBuilder, ButtonStyle, inlineCode, StringSelectMenuOptionBuilder, ActionRowBuilder, StringSelectMenuBuilder, TextDisplayBuilder } = require('discord.js');
 const { PlayableChildren, Characters, Relationships } = require('../dbObjects');
 const { Op } = require('sequelize');
+const { formatCharacterName } = require('./formatters');
 
 async function getCharacterManagerContainer(character) {
   const container = new ContainerBuilder()
@@ -198,12 +199,12 @@ async function getIntercharacterRollManagerContainer(character) {
   // add it to the container
   if (intercharacterRolls.length === 0) {
     const notRollingTextDisplay = new TextDisplayBuilder().setContent(
-      `Your character is currently not rolling in any intercharacter rolls.`
+      `Your character, ${formatCharacterName(character.name)}, is currently not rolling in any intercharacter rolls.`
     );
     container.addTextDisplayComponents(notRollingTextDisplay);
   } else {
     const rollingTextDisplay = new TextDisplayBuilder().setContent(
-      `Your character is currently rolling in one or more intercharacter rolls. To edit an intercharacter roll, please select the one that you want to edit in the select menu below. To create a new intercharacter roll, click the 'Create Roll' button. To delete an intercharacter roll, click the 'Delete Roll' button.`
+      `Your character, ${formatCharacterName(character.name)}, is currently rolling in one or more intercharacter rolls. To edit an intercharacter roll, please select the one that you want to edit in the select menu below. To create a new intercharacter roll, click the 'Create Roll' button. To delete an intercharacter roll, click the 'Delete Roll' button.`
     );
 
     container.addTextDisplayComponents(rollingTextDisplay);

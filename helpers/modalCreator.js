@@ -320,8 +320,8 @@ async function intercharacterRollCreateModal(character1, character2, { bearingCh
 
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `## You are creating an intercharacter roll between **${character1.name}** and **${character2.name}**.\n` +
-      (bearingCharacter && conceivingCharacter ? `**${bearingCharacter.name}** will be the bearing partner and **${conceivingCharacter.name}** will be the conceiving partner, as one or both of them are already in another intercharacter roll as that type of partner.\n\n` : `Please specify which character will be the bearing partner.\n`) +
+      `## You are creating an intercharacter roll between ${formatCharacterName(character1.name)} and ${formatCharacterName(character2.name)}.\n` +
+      (bearingCharacter && conceivingCharacter ? `${formatCharacterName(bearingCharacter.name)} will be the bearing partner and ${formatCharacterName(conceivingCharacter.name)} will be the conceiving partner, as one or both of them are already in another intercharacter roll as that type of partner.\n\n` : `Please specify which character will be the bearing partner.\n`) +
       `Please${bearingCharacter && conceivingCharacter ? ' ' : ' also '}specify whether the characters are married to each other or not${canInheritNobleTitles ? ', and if they are married, whether any children born from this intercharacter roll will inherit noble titles or not.' : '.'}`
     )
 
@@ -351,7 +351,7 @@ async function intercharacterRollEditModal(roll) {
   // and what the current settings of that roll are
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `## You are editing the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}**.\n` +
+      `## You are editing the intercharacter roll between ${formatCharacterName(roll.bearingCharacter.name)} and ${formatCharacterName(roll.conceivingCharacter.name)}.\n` +
       `Please change any of the values you want to change, and leave any values you do not want to change the same as they currently are.`
     )
 
@@ -556,7 +556,7 @@ async function offspringLegitimiseModal(offspring) {
   // what the requirements are
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `To legitimise the offspring **${offspringCharacter.name}**, please provide a screenshot of a piece of parchment that has been signed by the ruler of the lands that the offspring belongs to. The parchment must state that the offspring is now a legitimate child of their parent(s), and must include the name of the offspring and their parent(s).`
+      `To legitimise the offspring ${formatCharacterName(offspringCharacter.name)}, please provide a screenshot of a piece of parchment that has been signed by the ruler of the lands that the offspring belongs to. The parchment must state that the offspring is now a legitimate child of their parent(s), and must include the name of the offspring and their parent(s).`
     )
 
   modal.addTextDisplayComponents(textDisplay);
@@ -585,7 +585,7 @@ async function offspringChangeNameModal(offspring, { nameValue = null } = {}) {
   // Create textdisplay to explain what changing the name of the offspring means
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing the name of the offspring **${offspringCharacter.name}**.\n` +
+      `You are currently changing the name of the offspring ${formatCharacterName(offspringCharacter.name)}.\n` +
       `Please enter the new name for this offspring, and provide a screenshot of the chiseled child with its name shown. It has to be made into a tabletop piece to be valid.`
     );
 
@@ -656,7 +656,7 @@ async function offspringChangeInheritanceModal(offspring) {
   // Create textdisplay to explain what changing the inheritance of the offspring means
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing the inheritance of the offspring **${offspringCharacter.name}**.\n` +
+      `You are currently changing the inheritance of the offspring ${formatCharacterName(offspringCharacter.name)}.\n` +
       `Please specify whether this offspring is inheriting nobility or not.`
     );
 

@@ -1,6 +1,7 @@
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require("discord.js");
 const { PlayableChildren } = require("../../dbObjects");
 const { changeCharacterInDatabase, COLORS } = require("../../misc");
+const { formatCharacterName } = require("../../helpers/formatters");
 
 module.exports = {
   customId: 'offspring-change-name-approve',
@@ -27,7 +28,7 @@ module.exports = {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Offspring Name Change Approved\n` +
-          `The name change request for the offspring **${oldName}** has been approved by staff. The name of **${oldName}** has now been changed to **${newName}**.`
+          `The name change request for the offspring ${formatCharacterName(oldName)} has been approved by staff. The name of ${formatCharacterName(oldName)} has now been changed to ${formatCharacterName(newName)}.`
         )
       )
       .setAccentColor(COLORS.GREEN);
@@ -47,7 +48,7 @@ module.exports = {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Offspring Name Change Approved\n` +
-          `You have approved the name change request for **${oldName}**. The name has now been changed to **${newName}**.`
+          `You have approved the name change request for ${formatCharacterName(oldName)}. The name has now been changed to ${formatCharacterName(newName)}.`
         )
       )
       .setAccentColor(COLORS.GREEN);

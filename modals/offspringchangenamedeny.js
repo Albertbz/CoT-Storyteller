@@ -1,6 +1,7 @@
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require("discord.js");
 const { PlayableChildren } = require("../dbObjects");
 const { COLORS } = require("../misc");
+const { formatCharacterName } = require("../helpers/formatters");
 
 module.exports = {
   customId: 'offspring-change-name-deny-modal',
@@ -25,9 +26,9 @@ module.exports = {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Offspring Name Change Denied\n` +
-          `The name change request for the offspring **${offspringCharacter.name}** has been denied by staff.\n` +
+          `The name change request for the offspring ${formatCharacterName(offspringCharacter.name)} has been denied by staff.\n` +
           `**Reason for denial:**\n` +
-          `> ${reason}`
+          `>>> ${reason}`
         )
       )
       .setAccentColor(COLORS.RED);
@@ -47,9 +48,9 @@ module.exports = {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Offspring Name Change Denied\n` +
-          `You have denied the name change request for **${offspringCharacter.name}**.\n` +
+          `You have denied the name change request for ${formatCharacterName(offspringCharacter.name)}.\n` +
           `**Reason for denial:**\n` +
-          `> ${reason}`
+          `>>> ${reason}`
         )
       )
       .setAccentColor(COLORS.RED);

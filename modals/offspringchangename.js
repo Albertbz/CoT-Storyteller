@@ -5,6 +5,7 @@ const { COLORS } = require("../misc");
 const { offspringChangeNameModal } = require("../helpers/modalCreator");
 const { showMessageThenReturnToContainer } = require("../helpers/messageSender");
 const { getOffspringManagerContainer } = require("../helpers/containerCreator");
+const { formatCharacterName } = require("../helpers/formatters");
 
 module.exports = {
   customId: 'offspring-change-name-modal',
@@ -26,7 +27,7 @@ module.exports = {
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
             `# No Changes Detected\n` +
-            `The new name you entered is the same as the current name of the offspring, **${offspringCharacter.name}**. Please enter a different name to change it.`
+            `The new name you entered is the same as the current name of the offspring, ${formatCharacterName(offspringCharacter.name)}. Please enter a different name to change it.`
           )
         );
       return interaction.followUp({ components: [noChangesContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
@@ -66,7 +67,7 @@ module.exports = {
       [
         new TextDisplayBuilder().setContent(
           `# Confirm Offspring Name Change\n` +
-          `You are about to request a name change for the offspring **${offspringCharacter.name}** to **${newName}**. Please review the image you uploaded, ensuring that it is a screenshot of the chiseled child, and confirm that you want to proceed with this request. If you confirm, the request will be sent to Staff for review.`
+          `You are about to request a name change for the offspring ${formatCharacterName(offspringCharacter.name)} to ${formatCharacterName(newName)}. Please review the image you uploaded, ensuring that it is a screenshot of the chiseled child, and confirm that you want to proceed with this request. If you confirm, the request will be sent to Staff for review.`
         ),
         new MediaGalleryBuilder().addItems(
           new MediaGalleryItemBuilder()
@@ -122,8 +123,8 @@ async function offspringChangeNameConfirm(interaction, offspring, newName, scree
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `# Offspring Name Change Request\n` +
-        `Request sent in by ${interaction.user} for changing the name of **${offspringCharacter.name}** to:\n` +
-        `### *${newName}*\n` +
+        `Request sent in by ${interaction.user} for changing the name of ${formatCharacterName(offspringCharacter.name)} to:\n` +
+        `### ${formatCharacterName(newName)}\n` +
         `Please review the screenshot provided, ensuring that it is a screenshot of the chiseled child as a tabletop piece, and also verify that the child is legitimate or legitimised if the same surname as the parent(s) has been used. Then, approve or deny the request.\n` +
         `## Offspring Details\n` +
         offspringInfo + `\n` +
@@ -156,7 +157,7 @@ async function offspringChangeNameConfirm(interaction, offspring, newName, scree
   return showMessageThenReturnToContainer(
     interaction,
     `# Offspring Name Change Request Sent\n` +
-    `Your request to change the name of **${offspringCharacter.name}** to **${newName}** has been sent to Staff for review. Please allow some time for Staff to review your request. You will be notified of the outcome of your request once it has been reviewed.`,
+    `Your request to change the name of ${formatCharacterName(offspringCharacter.name)} to ${formatCharacterName(newName)} has been sent to Staff for review. Please allow some time for Staff to review your request. You will be notified of the outcome of your request once it has been reviewed.`,
     10000,
     `Offspring Dashboard`,
     async () => getOffspringManagerContainer(player)

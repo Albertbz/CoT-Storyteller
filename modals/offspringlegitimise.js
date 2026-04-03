@@ -5,6 +5,7 @@ const { offspringLegitimiseModal } = require("../helpers/modalCreator");
 const { COLORS } = require("../misc.js");
 const { showMessageThenReturnToContainer } = require("../helpers/messageSender.js");
 const { getOffspringManagerContainer } = require("../helpers/containerCreator.js");
+const { formatCharacterName } = require("../helpers/formatters.js");
 
 module.exports = {
   customId: 'offspring-legitimise-modal',
@@ -38,7 +39,7 @@ module.exports = {
       [
         new TextDisplayBuilder().setContent(
           `# Review Offspring Legitimisation Request\n` +
-          `You are about to request the legitimisation of the offspring **${offspringCharacter.name}**. Please review the image you uploaded and confirm that you want to proceed with this request. If you confirm, the request will be sent to Staff for review.`
+          `You are about to request the legitimisation of the offspring ${formatCharacterName(offspringCharacter.name)}. Please review the image you uploaded and confirm that you want to proceed with this request. If you confirm, the request will be sent to Staff for review.`
         ),
         new MediaGalleryBuilder().addItems(
           new MediaGalleryItemBuilder()
@@ -94,7 +95,7 @@ async function offspringLegitimiseConfirm(interaction, offspring, screenshot) {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `# Offspring Legitimisation Request\n` +
-        `Request sent in by <@${interaction.user.id}> for the legitimisation of the offspring **${offspringCharacter.name}**. Please review the screenshot provided and approve or deny the request using the buttons below.\n` +
+        `Request sent in by ${interaction.user} for the legitimisation of the offspring ${formatCharacterName(offspringCharacter.name)}. Please review the screenshot provided and approve or deny the request using the buttons below.\n` +
         `## Offspring Details\n` +
         offspringInfo + `\n` +
         `## Screenshot Provided`
@@ -126,7 +127,7 @@ async function offspringLegitimiseConfirm(interaction, offspring, screenshot) {
   return showMessageThenReturnToContainer(
     interaction,
     `# Offspring Legitimisation Request Sent\n` +
-    `Your request to legitimise the offspring **${offspringCharacter.name}** has been sent to Staff for review. Please allow some time for Staff to review your request. You will be notified of the outcome of your request once it has been reviewed.`,
+    `Your request to legitimise the offspring ${formatCharacterName(offspringCharacter.name)} has been sent to Staff for review. Please allow some time for Staff to review your request. You will be notified of the outcome of your request once it has been reviewed.`,
     10000,
     `Offspring Dashboard`,
     async () => getOffspringManagerContainer(await Players.findByPk(interaction.user.id))

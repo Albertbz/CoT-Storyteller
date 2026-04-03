@@ -86,7 +86,7 @@ async function characterPlayOthersOffspringConfirm(interaction, offspring) {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Play as Offspring Request\n` +
-          `Player ${interaction.user} has requested to play as your offspring character **${offspring.character.name}**.\n\n` +
+          `Player ${interaction.user} has requested to play as your offspring character ${formatCharacterName(offspring.character.name)}.\n\n` +
           `${offspringInfo}\n`
         )
       )
@@ -139,7 +139,7 @@ async function characterPlayOthersOffspringConfirm(interaction, offspring) {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# No Contacts Available\n` +
-          `Your request to play as the offspring character **${offspring.character.name}** could not be sent because none of their contacts could be reached. Please try again later or contact the contacts to let them know.`
+          `Your request to play as the offspring character ${formatCharacterName(offspring.character.name)} could not be sent because none of their contacts could be reached. Please try again later or contact the contacts to let them know.`
         )
       )
 
@@ -151,7 +151,7 @@ async function characterPlayOthersOffspringConfirm(interaction, offspring) {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Request Sent\n` +
-          `Your request to play as the offspring character **${offspring.character.name}** has been sent to their contact(s) for approval. They have 10 minutes to respond. You will be notified once a response is received.`
+          `Your request to play as the offspring character ${formatCharacterName(offspring.character.name)} has been sent to their contact(s) for approval. They have 10 minutes to respond. You will be notified once a response is received.`
         )
       );
 
@@ -193,7 +193,7 @@ async function characterPlayOthersOffspringConfirm(interaction, offspring) {
           .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
               `# Assignment Failed\n` +
-              `${interaction.user}, an error occurred while assigning ${offspring.character.name} to you after approval. The contacts have been notified of the failure.`
+              `${interaction.user}, an error occurred while assigning ${formatCharacterName(offspring.character.name)} to you after approval. The contacts have been notified of the failure.`
             )
           )
 
@@ -208,7 +208,7 @@ async function characterPlayOthersOffspringConfirm(interaction, offspring) {
           .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
               `# Request Approved\n` +
-              `${interaction.user}, your request to play as the offspring character **${offspring.character.name}** has been approved by their contact(s). The character has been assigned to you.\n` +
+              `${interaction.user}, your request to play as the offspring character ${formatCharacterName(offspring.character.name)} has been approved by their contact(s). The character has been assigned to you.\n` +
               `You can now view the character in the Character Dashboard.`
             )
           )
@@ -225,7 +225,7 @@ async function characterPlayOthersOffspringConfirm(interaction, offspring) {
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
             `# Request Denied\n` +
-            `${interaction.user}, your request to play as the offspring character **${offspring.character.name}** has been denied by their contact(s). You can try again later or contact the contacts.`
+            `${interaction.user}, your request to play as the offspring character ${formatCharacterName(offspring.character.name)} has been denied by their contact(s). You can try again later or contact the contacts.`
           )
         )
 
@@ -250,7 +250,7 @@ async function characterPlayOthersOffspringConfirm(interaction, offspring) {
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
             `# Request Expired\n` +
-            `${interaction.user}, your request to play as the offspring character **${offspring.character.name}** has expired due to no response from their contact(s). Please try again later.`
+            `${interaction.user}, your request to play as the offspring character ${formatCharacterName(offspring.character.name)} has expired due to no response from their contact(s). Please try again later.`
           )
         )
 

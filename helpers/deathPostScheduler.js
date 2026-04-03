@@ -1,4 +1,4 @@
-const { ContainerBuilder, MessageFlags, userMention } = require('discord.js');
+const { ContainerBuilder, MessageFlags, userMention, inlineCode } = require('discord.js');
 const { DeathPosts, Deceased, Characters, DiscordChannels } = require('../dbObjects');
 const { postInLogChannel, COLORS } = require('../misc');
 
@@ -41,7 +41,7 @@ async function sendPost(postId) {
                     `### ${post.deceased.character.name}\n` +
                     `Passed away on ${post.deceased.dayOfDeath} ${post.deceased.monthOfDeath}, Year ${post.deceased.yearOfDeath}.\n` +
                     // `${post.deceased.causeOfDeath}/n` + // I don't think we should show this, but we can easily add it back in if we want
-                    `> ${post.note}\n\n`
+                    `>>> ${post.note}\n\n`
                 )
             );
 
@@ -51,7 +51,7 @@ async function sendPost(postId) {
 
         await postInLogChannel(
             'Death Post Posted',
-            `Death Post for ${post.deceased.character.name} (\`${post.deceased.character.id}\`) posted to ${graveyardChannel}.`,
+            `Death Post for ${inlineCode(post.deceased.character.name)} (${inlineCode(post.deceased.character.id)}) posted to ${graveyardChannel}.`,
             COLORS.GREEN
         )
 

@@ -1,6 +1,7 @@
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require("discord.js");
 const { changePlayableChildInDatabase, COLORS } = require("../../misc");
 const { PlayableChildren } = require("../../dbObjects");
+const { formatCharacterName } = require("../../helpers/formatters");
 
 module.exports = {
   customId: 'offspring-legitimise-approve',
@@ -25,7 +26,7 @@ module.exports = {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Offspring Legitimisation Approved\n` +
-          `The legitimisation request for the offspring **${offspringCharacter.name}** has been approved by staff. **${offspringCharacter.name}** is now legitimised.`
+          `The legitimisation request for the offspring ${formatCharacterName(offspringCharacter.name)} has been approved by staff. ${formatCharacterName(offspringCharacter.name)} is now legitimised.`
         )
       )
       .setAccentColor(COLORS.GREEN);
@@ -45,7 +46,7 @@ module.exports = {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Offspring Legitimisation Approved\n` +
-          `You have approved the legitimisation request for **${offspringCharacter.name}**. The offspring is now legitimised.`
+          `You have approved the legitimisation request for ${formatCharacterName(offspringCharacter.name)}. The offspring is now legitimised.`
         )
       )
       .setAccentColor(COLORS.GREEN);
