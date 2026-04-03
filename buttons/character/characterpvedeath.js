@@ -71,7 +71,7 @@ async function characterPveDeathConfirm(interaction) {
     .addTextDisplayComponents((textDisplay) =>
       textDisplay.setContent(
         `# PvE death added Successfully!\n` +
-        `Your character, **${inlineCode(character.name)}**, has now spent ${inlineCode(addedpvedeath)} PvE ${addedpvedeath === 1 ? 'life' : 'lives'}.\n` +
+        `Your character, ***__${character.name}__***, has now spent **${addedpvedeath}** PvE ${addedpvedeath === 1 ? 'life' : 'lives'}.\n` +
         `You can continue to manage your character using the Character Manager GUI above.`
       )
     );

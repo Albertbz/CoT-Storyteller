@@ -2971,7 +2971,9 @@ async function addDeathPostToDatabase(deceased, note) {
     const character = await deceased.getCharacter();
     await postInLogChannel(
       'Death Post Created',
-      `Death Post for ${character.name} (\`${character.id}\`) created. Scheduled to be posted ${time(new Date(deathPost.scheduledPostTime), TimestampStyles.LongDateShortTime)}.`,
+      `Death Post for ${character.name} created.\n` + 
+      `Scheduled to be posted: ${time(new Date(deathPost.scheduledPostTime), TimestampStyles.LongDateShortTime)}.\n` +
+      `Note: ${note}`,
       COLORS.GREEN
     )
   }

@@ -46,7 +46,7 @@ async function characterNotabilityConfirm(interaction) {
     .addTextDisplayComponents((textDisplay) =>
       textDisplay.setContent(
         `# Notability Opt-In Confirmed\n` +
-        `Your character, **${inlineCode(changedCharacter.name)}**, has been successfully updated to be notable. Your character is now mortal and has begun aging, and will be able to participate in the offspring system.\n` +
+        `Your character, ***__${changedCharacter.name}__***, has been successfully updated to be notable. Your character is now mortal and has begun aging, and will be able to participate in the offspring system.\n` +
         `You can continue to manage your character using the Character Manager GUI above.`
       )
     );

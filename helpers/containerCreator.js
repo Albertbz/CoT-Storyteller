@@ -10,7 +10,7 @@ async function getCharacterManagerContainer(character) {
 
     container
       .addTextDisplayComponents(
-        (textDisplay) => textDisplay.setContent(`# Manage your current character: **${inlineCode(character.name)}**`),
+        (textDisplay) => textDisplay.setContent(`# Manage your current character: ***__${character.name}__***`),
         (textDisplay) => textDisplay.setContent(characterInfo)
       )
       .addSeparatorComponents((separator) => separator)
@@ -121,14 +121,13 @@ async function getOffspringManagerContainer(player) {
 
   if (offspring.length > 0) {
     const offspringOptions = offspring.map((offspring) => {
-      const parentNames = [offspring.character.parent1, offspring.character.parent2]
-        .filter(parent => parent) // Filter out null parents
-        .map(parent => parent.name)
-        .join(' and ');
+      const parentNames = [];
+      if (offspring.character.parent1) parentNames.push(offspring.character.parent1.name);
+      if (offspring.character.parent2) parentNames.push(offspring.character.parent2.name);
       return new StringSelectMenuOptionBuilder()
         .setLabel(offspring.character ? offspring.character.name : `Offspring ${offspring.id}`)
         .setValue(offspring.id)
-        .setDescription(`${offspring.legitimacy} ${offspring.character.sex ? offspring.character.sex === `Male` ? 'son' : 'daughter' : 'child'} of ${parentNames || 'Unknown Parents'}`);
+        .setDescription(`${offspring.legitimacy} ${offspring.character.sex ? offspring.character.sex === `Male` ? 'son' : 'daughter' : 'child'} of ${parentNames.length > 0 ? parentNames.join(" and ") : "Unknown Parents"}`);
     });
 
     container

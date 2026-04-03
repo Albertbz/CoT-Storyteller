@@ -1,4 +1,4 @@
-const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextDisplayBuilder, inlineCode, FileUploadBuilder } = require('discord.js');
+const { ModalBuilder, MessageFlags, TextInputBuilder, LabelBuilder, TextInputStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextDisplayBuilder, FileUploadBuilder } = require('discord.js');
 const { Regions, Houses, Relationships } = require('../dbObjects.js');
 const { guildId } = require('../configs/config.json');
 const { Op, Sequelize } = require('sequelize');
@@ -218,7 +218,7 @@ async function finalDeathModal({ deathDay = null, deathMonth = null, deathYear =
 
   const noteLabel = new LabelBuilder()
     .setLabel('Final note')
-    .setDescription('Your final note. This is not allowed to reveal any IC information. Max 250 characters.')
+    .setDescription('Your final note. This is not allowed to reveal any IC information and will be posted publically. Max 250 characters.')
     .setTextInputComponent(noteInput);
 
   modal.addLabelComponents(dayLabel, monthLabel, yearLabel, causeLabel, noteLabel);
@@ -241,8 +241,8 @@ async function characterSurnameModal(character, { surnameValue = null } = {}) {
 
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing the surname of your character, **${inlineCode(character.name)}**, ` +
-      (currentSurname === '' ? `who does not have a surname yet.\n` : `whose current surname is **${inlineCode(currentSurname)}**.\n`) +
+      `You are currently changing the surname of your character, **${character.name}**, ` +
+      (currentSurname === '' ? `who does not have a surname yet.\n` : `whose current surname is ***__${currentSurname}__***.\n`) +
       `Please do not choose a surname that already exists, unless your character is part of said family.`
     )
 
