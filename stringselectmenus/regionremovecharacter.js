@@ -100,10 +100,9 @@ async function removeCharacterFromRegionConfirm(interaction, character) {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Character Removed from Region\n` +
-          `Hi ${user}! Your character ${formatCharacterName(character.name)} has been removed from the region **${oldRegion.name}** and changed to the **${newRegion.name}** region. If you believe this was a mistake or have any questions, please contact the ruler of **${oldRegion.name}** or a member of Staff.`
+          `Your character ${formatCharacterName(character.name)} has been removed from the region **${oldRegion.name}** and changed to the **${newRegion.name}** region. If you believe this was a mistake or have any questions, please contact the ruler of **${oldRegion.name}** or a member of Staff.`
         )
       )
-      .setAccentColor(COLORS.RED)
     await user.send({ components: [removedContainer], flags: [MessageFlags.IsComponentsV2] });
 
     // Inform the user that the character has been removed and the player has been notified
