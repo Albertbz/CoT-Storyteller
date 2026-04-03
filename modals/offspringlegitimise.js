@@ -130,7 +130,7 @@ async function offspringLegitimiseConfirm(interaction, offspring, screenshot) {
     `Your request to legitimise the offspring ${formatCharacterName(offspringCharacter.name)} has been sent to Staff for review. Please allow some time for Staff to review your request. You will be notified of the outcome of your request once it has been reviewed.`,
     10000,
     `Offspring Dashboard`,
-    async () => getOffspringManagerContainer(await Players.findByPk(interaction.user.id))
+    async () => getOffspringManagerContainer(interaction.user.id)
   )
 }
 

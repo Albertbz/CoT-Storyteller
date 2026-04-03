@@ -74,7 +74,7 @@ async function characterPveDeathConfirm(interaction) {
     `Your character, ${formatCharacterName(changedCharacter.name)}, has now spent **${addedpvedeath}** PvE ${addedpvedeath === 1 ? 'life' : 'lives'}.`,
     10000,
     `Character Dashboard`,
-    async () => getCharacterManagerContainer(changedCharacter)
+    async () => getCharacterManagerContainer(interaction.user.id)
   )
 }
 

@@ -39,12 +39,11 @@ async function changeRegionConfirm(interaction, character, regionId, managerType
   let containerFunction;
   if (managerType === 'character') {
     returnTo = 'Character Dashboard';
-    containerFunction = async () => getCharacterManagerContainer(updatedCharacter);
+    containerFunction = async () => getCharacterManagerContainer(interaction.user.id);
   }
   else if (managerType === 'offspring') {
     returnTo = 'Offspring Dashboard';
-    const player = await Players.findByPk(interaction.user.id);
-    containerFunction = async () => getOffspringManagerContainer(player);
+    containerFunction = async () => getOffspringManagerContainer(interaction.user.id);
   }
   return showMessageThenReturnToContainer(
     interaction,

@@ -90,14 +90,13 @@ async function intercharacterRollCreateConfirm(interaction, bearingCharacter, co
   }
 
   // If the DM was sent successfully, inform the user who initiated the intercharacter roll creation that the confirmation request has been sent and we are waiting for their response
-  const playerCharacter = bearingCharacterPlayer.id === interaction.user.id ? bearingCharacter : conceivingCharacter;
   await showMessageThenReturnToContainer(
     interaction,
     `# Sent Intercharacter Roll Creation Request\n` +
     `A confirmation request has been sent to the other player, ${userMention(otherPlayer.id)}. They have 10 minutes to respond, and you will be notified of their response.`,
     15000,
     `Character Dashboard`,
-    async () => getCharacterManagerContainer(playerCharacter)
+    async () => getCharacterManagerContainer(interaction.user.id)
   )
 
   /**

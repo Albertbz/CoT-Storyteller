@@ -106,7 +106,7 @@ async function characterCreateConfirm(interaction, characterName, regionId, nota
     `Your character, ${formatCharacterName(character.name)}, has been successfully created and assigned to you.`,
     10000,
     'Character Dashboard',
-    async () => getCharacterManagerContainer(character)
+    async () => getCharacterManagerContainer(interaction.user.id)
   )
 }
 

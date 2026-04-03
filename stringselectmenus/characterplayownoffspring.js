@@ -80,6 +80,6 @@ async function characterPlayOwnOffspringConfirm(interaction, character) {
     `You are now playing as the offspring character ${formatCharacterName(character.name)}.`,
     10000,
     `Character Dashboard`,
-    async () => getCharacterManagerContainer(character)
+    async () => getCharacterManagerContainer(interaction.user.id)
   )
 }

@@ -153,14 +153,13 @@ async function offspringChangeNameConfirm(interaction, offspring, newName, scree
   await approvalChannel.send({ components: [approvalContainer, responseRow], flags: [MessageFlags.IsComponentsV2] });
 
   // Edit the original message to confirm that the request has been sent
-  const player = await Players.findByPk(interaction.user.id);
   return showMessageThenReturnToContainer(
     interaction,
     `# Offspring Name Change Request Sent\n` +
     `Your request to change the name of ${formatCharacterName(offspringCharacter.name)} to ${formatCharacterName(newName)} has been sent to Staff for review. Please allow some time for Staff to review your request. You will be notified of the outcome of your request once it has been reviewed.`,
     10000,
     `Offspring Dashboard`,
-    async () => getOffspringManagerContainer(player)
+    async () => getOffspringManagerContainer(interaction.user.id)
   )
 }
 

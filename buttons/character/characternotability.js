@@ -70,6 +70,6 @@ async function characterNotabilityConfirm(interaction) {
     `Your character, ${formatCharacterName(changedCharacter.name)}, has been successfully updated to be notable. Your character is now mortal and has begun aging, and will be able to participate in the offspring system.`,
     10000,
     'Character Dashboard',
-    async () => getCharacterManagerContainer(changedCharacter)
+    async () => getCharacterManagerContainer(interaction.user.id)
   )
 }

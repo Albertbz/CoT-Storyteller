@@ -61,13 +61,12 @@ async function toggleHiddenConfirm(interaction, offspring) {
   }
 
   // Update the container to say that it has been updated
-  const player = await Players.findByPk(interaction.user.id);
   return showMessageThenReturnToContainer(
     interaction,
     `# Offspring ${updatedOffspring.hidden ? 'Hidden' : 'Unhidden'}\n` +
     `The offspring has been successfully ${updatedOffspring.hidden ? 'hidden' : 'unhidden'}.`,
     10000,
     `Offspring Dashboard`,
-    async () => getOffspringManagerContainer(player)
+    async () => getOffspringManagerContainer(interaction.user.id)
   )
 }

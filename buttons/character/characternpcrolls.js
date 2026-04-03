@@ -84,6 +84,6 @@ async function characterNPCRollsConfirm(interaction) {
     `Your character, ${formatCharacterName(changedCharacter.name)}, has been successfully ${changedCharacter.isRollingForBastards ? 'opted in to' : 'opted out of'} NPC rolls.`,
     10000,
     'Character Dashboard',
-    async () => getCharacterManagerContainer(changedCharacter)
+    async () => getCharacterManagerContainer(interaction.user.id)
   )
 }

@@ -78,15 +78,13 @@ async function intercharacterRollDeleteConfirm(interaction, roll) {
   /**
    * Edit the message to say that the roll has been deleted
    */
-  const player = await Players.findByPk(interaction.user.id);
-  const character = await player.getCharacter();
   await showMessageThenReturnToContainer(
     interaction,
     `# Intercharacter Roll Deleted\n` +
     `The intercharacter roll between ${formatCharacterName(roll.bearingCharacter.name)} and ${formatCharacterName(roll.conceivingCharacter.name)} has been deleted.`,
     10000,
     `Character Dashboard`,
-    async () => getCharacterManagerContainer(character)
+    async () => getCharacterManagerContainer(interaction.user.id)
   )
 
   // Send a DM to the other player to notify them that the intercharacter roll has been deleted

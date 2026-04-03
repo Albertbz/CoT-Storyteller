@@ -127,15 +127,13 @@ async function intercharacterRollEditConfirm(interaction, roll, newBearingCharac
   }
 
   // Notify the user of successful edit
-  const player = await Players.findByPk(interaction.user.id);
-  const character = await player.getCharacter();
   await showMessageThenReturnToContainer(
     interaction,
     `# Intercharacter Roll Edited\n` +
     `The intercharacter roll between **${newBearingCharacter.name}** and **${newConceivingCharacter.name}** has been successfully edited.`,
     10000,
     `Character Dashboard`,
-    async () => getCharacterManagerContainer(character)
+    async () => getCharacterManagerContainer(interaction.user.id)
   )
 
   // Also notify the player of the other character of the changes

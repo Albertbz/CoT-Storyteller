@@ -1,83 +1,26 @@
 const { ContainerBuilder, ButtonBuilder, ButtonStyle, inlineCode, StringSelectMenuOptionBuilder, ActionRowBuilder, StringSelectMenuBuilder, TextDisplayBuilder } = require('discord.js');
-const { PlayableChildren, Characters, Relationships } = require('../dbObjects');
+const { PlayableChildren, Characters, Relationships, Players } = require('../dbObjects');
 const { Op } = require('sequelize');
 const { formatCharacterName } = require('./formatters');
 
-async function getCharacterManagerContainer(character) {
-  const container = new ContainerBuilder()
+async function getCharacterManagerContainer(userId) {
+  const player = await Players.findByPk(userId);
 
-  if (character) {
-    const characterInfo = await character.formattedInfo;
-
-    container
+  if (!player) {
+    const notRegisteredContainer = new ContainerBuilder()
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `# :bust_in_silhouette: Character Dashboard\n` +
-          characterInfo
-        ),
+          `# Not Registered as Player\n` +
+          `You are not registered as a player. Please make a whitelist application to get registered.`
+        )
       )
-      .addSeparatorComponents((separator) => separator)
-      .addTextDisplayComponents((textDisplay) =>
-        textDisplay.setContent(`Use the buttons below to manage various aspects of your character.`))
-      .addActionRowComponents((actionRow) =>
-        actionRow.setComponents(
-          new ButtonBuilder()
-            .setCustomId('character-change-surname-button')
-            .setLabel('Change Surname')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('✍️'),
-          new ButtonBuilder()
-            .setCustomId('character-change-region-button')
-            .setLabel('Change Region/House')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('🏠')
-        )
-      );
-
-    if (await character.isMortal) {
-      container.addActionRowComponents((actionRow) =>
-        actionRow.setComponents(
-          new ButtonBuilder()
-            .setCustomId('character-register-death-button')
-            .setLabel('Register Death')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('💀')
-        )
-      );
-    }
-
-    if (character.socialClassName === 'Commoner') {
-      container.addActionRowComponents((actionRow) =>
-        actionRow.setComponents(
-          new ButtonBuilder()
-            .setCustomId('character-notability-button')
-            .setLabel('Opt in to Notability')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('⭐')
-        )
-      );
-    }
-    else {
-      const npcRollsText = character.isRollingForBastards ? 'Opt out of NPC Rolls' : 'Opt in to NPC Rolls';
-
-      container.addActionRowComponents((actionRow) =>
-        actionRow.setComponents(
-          new ButtonBuilder()
-            .setCustomId('character-npc-rolls-button')
-            .setLabel(npcRollsText)
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('🎲'),
-          new ButtonBuilder()
-            .setCustomId('character-intercharacter-rolls-button')
-            .setLabel('Manage Intercharacter Rolls')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('👥')
-        )
-      );
-    }
+    return notRegisteredContainer;
   }
-  else {
-    container
+
+  const character = await player.getCharacter();
+
+  if (!character) {
+    const noCharacterContainer = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
           `# You do not currently have a Character\n` +
@@ -98,12 +41,95 @@ async function getCharacterManagerContainer(character) {
             .setEmoji('👶')
         )
       );
+
+    return noCharacterContainer;
+  }
+
+  const characterInfo = await character.formattedInfo;
+
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `# :bust_in_silhouette: Character Dashboard\n` +
+        characterInfo
+      ),
+    )
+    .addSeparatorComponents((separator) => separator)
+    .addTextDisplayComponents((textDisplay) =>
+      textDisplay.setContent(`Use the buttons below to manage various aspects of your character.`))
+    .addActionRowComponents((actionRow) =>
+      actionRow.setComponents(
+        new ButtonBuilder()
+          .setCustomId('character-change-surname-button')
+          .setLabel('Change Surname')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('✍️'),
+        new ButtonBuilder()
+          .setCustomId('character-change-region-button')
+          .setLabel('Change Region/House')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🏠')
+      )
+    );
+
+  if (await character.isMortal) {
+    container.addActionRowComponents((actionRow) =>
+      actionRow.setComponents(
+        new ButtonBuilder()
+          .setCustomId('character-register-death-button')
+          .setLabel('Register Death')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('💀')
+      )
+    );
+  }
+
+  if (character.socialClassName === 'Commoner') {
+    container.addActionRowComponents((actionRow) =>
+      actionRow.setComponents(
+        new ButtonBuilder()
+          .setCustomId('character-notability-button')
+          .setLabel('Opt in to Notability')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('⭐')
+      )
+    );
+  }
+  else {
+    const npcRollsText = character.isRollingForBastards ? 'Opt out of NPC Rolls' : 'Opt in to NPC Rolls';
+
+    container.addActionRowComponents((actionRow) =>
+      actionRow.setComponents(
+        new ButtonBuilder()
+          .setCustomId('character-npc-rolls-button')
+          .setLabel(npcRollsText)
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🎲'),
+        new ButtonBuilder()
+          .setCustomId('character-intercharacter-rolls-button')
+          .setLabel('Manage Intercharacter Rolls')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('👥')
+      )
+    );
   }
 
   return container;
 }
 
-async function getOffspringManagerContainer(player) {
+async function getOffspringManagerContainer(userId) {
+  const player = await Players.findByPk(userId);
+  if (!player) {
+    const notRegisteredContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Not Registered as Player\n` +
+          `You are not registered as a player. Please make a whitelist application to get registered.`
+        )
+      )
+    return notRegisteredContainer;
+  }
+
   const container = new ContainerBuilder();
 
   const offspring = await PlayableChildren.findAll({
@@ -159,6 +185,57 @@ async function getOffspringManagerContainer(player) {
         )
       )
   }
+
+  return container;
+}
+
+async function getRegionManagerContainer(userId) {
+  const player = await Players.findByPk(userId);
+  if (!player) {
+    const notRegisteredContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Not Registered as Player\n` +
+          `You are not registered as a player. Please make a whitelist application to get registered.`
+        )
+      )
+    return notRegisteredContainer;
+  }
+
+  const character = await player.getCharacter();
+  if (!character) {
+    const noCharacterContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# You do not currently have a Character\n` +
+          `Use the Character Dashboard to create a new character or to play an offspring in order to manage regions.`
+        )
+      )
+    return noCharacterContainer;
+  }
+
+  const region = await character.getRegion();
+  if (!region) {
+    const noRegionContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# No Region or House\n` +
+          `Your character is not currently associated with any region. This is not supposed to happen, as all characters should be associated with a region. Please contact a member of Staff to resolve this issue.`
+        )
+      )
+    return noRegionContainer;
+  }
+
+  const regionInfo = await region.formattedInfoNoSteelbearers;
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `# :map: Region Manager\n` +
+        regionInfo
+      )
+    )
+
+
 
   return container;
 }
@@ -272,5 +349,6 @@ async function getIntercharacterRollManagerContainer(character) {
 module.exports = {
   getCharacterManagerContainer,
   getOffspringManagerContainer,
+  getRegionManagerContainer,
   getIntercharacterRollManagerContainer
 }

@@ -101,7 +101,7 @@ async function finalDeathConfirm(interaction, day, month, year, cause, note) {
     `Your character, ${formatCharacterName(character.name)}, has been successfully marked as deceased. This death will be posted in the graveyard channel in 2 hours.`,
     10000,
     'Character Dashboard',
-    async () => getCharacterManagerContainer(null)
+    async () => getCharacterManagerContainer(interaction.user.id)
   )
 }
 

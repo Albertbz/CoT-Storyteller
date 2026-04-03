@@ -110,7 +110,7 @@ async function characterChangeSurnameConfirm(interaction, newName) {
     `Your character has now successfully had their name changed to ${formatCharacterName(newName)}.`,
     10000,
     'Character Dashboard',
-    async () => getCharacterManagerContainer(updatedCharacter)
+    async () => getCharacterManagerContainer(interaction.user.id)
   )
 }
 

@@ -3,7 +3,7 @@ const { PlayableChildren, Players } = require("../dbObjects");
 const { askForConfirmation } = require("../helpers/confirmations");
 const { changeCharacterInDatabase } = require("../misc");
 const { showMessageThenReturnToContainer } = require("../helpers/messageSender");
-const { getCharacterManagerContainer, getOffspringManagerContainer } = require("../helpers/containerCreator");
+const { getOffspringManagerContainer } = require("../helpers/containerCreator");
 const { formatCharacterName } = require("../helpers/formatters");
 
 module.exports = {
@@ -81,13 +81,12 @@ async function offspringChangeInheritanceConfirm(interaction, offspring, newSoci
   }
 
   // Edit the message to say that the change has been made
-  const player = await Players.findByPk(interaction.user.id);
   return showMessageThenReturnToContainer(
     interaction,
     `# Offspring Inheritance Changed\n` +
     `The inheritance status of the offspring ${formatCharacterName(offspringCharacter.name)} has been changed to ${newSocialClassName === 'Noble' ? 'inheriting nobility' : 'not inheriting nobility'}.`,
     10000,
     `Offspring Dashboard`,
-    async () => getOffspringManagerContainer(player)
+    async () => getOffspringManagerContainer(interaction.user.id)
   )
 }
