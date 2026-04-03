@@ -1,5 +1,6 @@
 const { ContainerBuilder, ButtonBuilder, MessageFlags, ButtonStyle, inlineCode } = require('discord.js');
 const { Players } = require('../../dbObjects.js');
+const { formatCharacterName } = require('../../helpers/formatters.js');
 
 module.exports = {
   customId: 'character-register-death-button',
@@ -15,7 +16,7 @@ module.exports = {
         textDisplay.setContent(
           `# Registering Character Death\n` +
           `This is to be used when your character has experienced a PvE or Final death.\n` +
-          `Your character, ***__${character.name}__***, has currently experienced **${character.pveDeaths}** PvE deaths.`
+          `Your character, ${formatCharacterName(character.name)}, has currently experienced **${character.pveDeaths}** PvE deaths.`
         )
       )
       .addSeparatorComponents((separator) => separator)

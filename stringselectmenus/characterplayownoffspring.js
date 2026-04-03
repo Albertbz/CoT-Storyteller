@@ -28,7 +28,7 @@ module.exports = {
       [
         new TextDisplayBuilder().setContent(
           `# Confirm Playing as Offspring Character\n` +
-          `You are about to play as the offspring character **${inlineCode(character.name)}**, with the following details:\n\n` +
+          `You are about to play as the offspring character ${formatCharacterName(character.name)}, with the following details:\n\n` +
           playableChildInfo
         )
       ],

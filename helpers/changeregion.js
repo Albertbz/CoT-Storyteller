@@ -4,6 +4,7 @@ const { changeCharacterInDatabase } = require("../misc");
 const { askForConfirmation } = require("./confirmations");
 const { showMessageThenReturnToContainer } = require("./messageSender");
 const { getCharacterManagerContainer, getOffspringManagerContainer } = require("./containerCreator");
+const { formatCharacterName } = require("./formatters");
 
 async function changeRegionConfirm(interaction, character, regionId, managerType) {
   // Defer update to allow time for processing
@@ -78,7 +79,7 @@ async function changeRegion(interaction, managerType) {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Character Already in Region\n` +
-          `The character ** ${character.name}** is already part of the region ** ${region.name}**.\n` +
+          `The character ${formatCharacterName(character.name)} is already part of the region **${region.name}**.\n` +
           `Please select a different region to change to.`
         )
       )
@@ -91,7 +92,7 @@ async function changeRegion(interaction, managerType) {
     [
       new TextDisplayBuilder().setContent(
         `# Change Character Region\n` +
-        `You are about to change the region of the character ** ${character.name}** to ** ${region.name}**.`
+        `You are about to change the region of the character ${formatCharacterName(character.name)} to **${region.name}**.`
       )
     ],
     cancelId,

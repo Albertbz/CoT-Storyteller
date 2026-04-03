@@ -3,6 +3,7 @@ const { Regions, Houses, Relationships } = require('../dbObjects.js');
 const { guildId } = require('../configs/config.json');
 const { Op, Sequelize } = require('sequelize');
 const { WANDERER_REGION_ID } = require('../constants.js');
+const { formatCharacterName } = require('./formatters.js');
 
 /**
  * Creates a character creation modal with optional pre-filled values.
@@ -241,8 +242,8 @@ async function characterSurnameModal(character, { surnameValue = null } = {}) {
 
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing the surname of your character, **${character.name}**, ` +
-      (currentSurname === '' ? `who does not have a surname yet.\n` : `whose current surname is ***__${currentSurname}__***.\n`) +
+      `You are currently changing the surname of your character, ${formatCharacterName(character.name)}, ` +
+      (currentSurname === '' ? `who does not have a surname yet.\n` : `whose current surname is **${currentSurname}**.\n`) +
       `Please do not choose a surname that already exists, unless your character is part of said family.`
     )
 
@@ -493,7 +494,7 @@ async function changeRegionModal(character, manager, { regionId = null } = {}) {
    */
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing the region of the character **${character.name}**.\n` +
+      `You are currently changing the region of the character ${formatCharacterName(character.name)}.\n` +
       `Changing the character's region will also change their house to the house that rules that region, and may also change their social class.`
     )
 

@@ -2,6 +2,7 @@ const { TextDisplayBuilder, ContainerBuilder, ActionRowBuilder, ButtonBuilder, B
 const { PlayableChildren, Characters } = require("../dbObjects");
 const { askForConfirmation } = require("../helpers/confirmations");
 const { assignCharacterToPlayer } = require("../misc");
+const { formatCharacterName } = require("../helpers/formatters");
 
 module.exports = {
   customId: 'character-play-others-offspring-select',
@@ -31,7 +32,7 @@ module.exports = {
       [
         new TextDisplayBuilder().setContent(
           `# Confirm Request to Play as Offspring\n` +
-          `You are about to request to play as the offspring character **${offspring.character.name}** of another player, with the following details:\n\n` +
+          `You are about to request to play as the offspring character ${formatCharacterName(offspring.character.name)} of another player, with the following details:\n\n` +
           offspringInfo
         )
       ],
@@ -52,7 +53,7 @@ async function characterPlayOthersOffspringConfirm(interaction, offspring) {
     .addTextDisplayComponents((textDisplay) =>
       textDisplay.setContent(
         `# Sending Request to Contact(s)...\n` +
-        `Your request to play as the offspring character **${offspring.character.name}** is being sent to their contact(s) for approval. This may take a few moments...`
+        `Your request to play as the offspring character ${formatCharacterName(offspring.character.name)} is being sent to their contact(s) for approval. This may take a few moments...`
       )
     );
 

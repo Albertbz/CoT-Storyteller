@@ -4,6 +4,7 @@ const { askForConfirmation } = require("../../helpers/confirmations");
 const { changePlayableChildInDatabase } = require("../../misc");
 const { showMessageThenReturnToContainer } = require("../../helpers/messageSender");
 const { getOffspringManagerContainer } = require("../../helpers/containerCreator");
+const { formatCharacterName } = require("../../helpers/formatters");
 
 module.exports = {
   customId: 'offspring-toggle-hidden',
@@ -41,7 +42,7 @@ async function toggleHiddenConfirm(interaction, offspring) {
     .addTextDisplayComponents((textDisplay) =>
       textDisplay.setContent(
         `# ${offspring.hidden ? 'Unhiding' : 'Hiding'} Offspring\n` +
-        `The offspring, ${offspring.character ? offspring.character.name : offspring.id}, is being ${offspring.hidden ? 'unhidden' : 'hidden'}. This may take a few moments...`
+        `The offspring, ${offspring.character ? formatCharacterName(offspring.character.name) : offspring.id}, is being ${offspring.hidden ? 'unhidden' : 'hidden'}. This may take a few moments...`
       )
     );
 

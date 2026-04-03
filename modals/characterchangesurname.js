@@ -55,7 +55,7 @@ module.exports = {
       [
         new TextDisplayBuilder().setContent(
           `# Change Character Surname\n` +
-          `You are currently changing the surname of your character to **${inlineCode(newSurname)}**. This will change your character's name to **${inlineCode(newName)}**.`
+          `You are currently changing the surname of your character to **${newSurname}**. This will change your character's name to ${formatCharacterName(newName)}.`
         )
       ],
       'character-manager-return-button',

@@ -32,7 +32,7 @@ module.exports = {
       [
         new TextDisplayBuilder().setContent(
           `# Review Character Final Death\n` +
-          `Please review the final death information below and confirm that this is correct for the death of ***__${character.name}__***.\n\n` +
+          `Please review the final death information below and confirm that this is correct for the death of ${formatCharacterName(character.name)}.\n\n` +
           `**Date of Death:** ${month} ${day}, Year ${year}\n` +
           `**Cause of Death:** ${cause}\n` +
           `**Final Note:** ${note}\n`

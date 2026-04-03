@@ -4,6 +4,7 @@ const { askForConfirmation } = require("../helpers/confirmations");
 const { changeCharacterInDatabase } = require("../misc");
 const { showMessageThenReturnToContainer } = require("../helpers/messageSender");
 const { getCharacterManagerContainer, getOffspringManagerContainer } = require("../helpers/containerCreator");
+const { formatCharacterName } = require("../helpers/formatters");
 
 module.exports = {
   customId: 'offspring-change-inheritance-modal',
@@ -28,7 +29,7 @@ module.exports = {
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
             `# No Changes Detected\n` +
-            `The offspring **${offspringCharacter.name}** is already ${isInheriting ? 'inheriting nobility' : 'not inheriting nobility'}. Please select a different inheritance status to change it.`
+            `The offspring ${formatCharacterName(offspringCharacter.name)} is already **${isInheriting ? 'inheriting nobility' : 'not inheriting nobility'}**. Please select a different inheritance status to change it.`
           )
         );
       return interaction.followUp({ components: [noChangeContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
@@ -40,7 +41,7 @@ module.exports = {
       [
         new TextDisplayBuilder().setContent(
           `# Confirm Offspring Inheritance Change\n` +
-          `You are about to change the inheritance status of the offspring **${offspringCharacter.name}** to ${isInheriting ? 'inheriting nobility' : 'not inheriting nobility'}. This will change the social class of the offspring to ${newSocialClassName}.`
+          `You are about to change the inheritance status of the offspring ${formatCharacterName(offspringCharacter.name)} to **${isInheriting ? 'inheriting nobility' : 'not inheriting nobility'}**. This will change the social class of the offspring to **${newSocialClassName}**.`
         )
       ],
       'offspring-manager-return-button',
@@ -60,7 +61,7 @@ async function offspringChangeInheritanceConfirm(interaction, offspring, newSoci
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `# Changing Offspring Inheritance\n` +
-        `The inheritance status change for the offspring **${offspringCharacter.name}** is being processed. Please wait a moment...`
+        `The inheritance status change for the offspring ${formatCharacterName(offspringCharacter.name)} is being processed. Please wait a moment...`
       )
     );
 
@@ -73,7 +74,7 @@ async function offspringChangeInheritanceConfirm(interaction, offspring, newSoci
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Error Changing Offspring Inheritance\n` +
-          `There was an error changing the inheritance status of the offspring **${offspringCharacter.name}**. Please contact a storyteller for assistance.`
+          `There was an error changing the inheritance status of the offspring ${formatCharacterName(offspringCharacter.name)}. Please contact a storyteller for assistance.`
         )
       );
     return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
@@ -84,7 +85,7 @@ async function offspringChangeInheritanceConfirm(interaction, offspring, newSoci
   return showMessageThenReturnToContainer(
     interaction,
     `# Offspring Inheritance Changed\n` +
-    `The inheritance status of the offspring **${offspringCharacter.name}** has been changed to ${newSocialClassName === 'Noble' ? 'inheriting nobility' : 'not inheriting nobility'}.`,
+    `The inheritance status of the offspring ${formatCharacterName(offspringCharacter.name)} has been changed to ${newSocialClassName === 'Noble' ? 'inheriting nobility' : 'not inheriting nobility'}.`,
     10000,
     `Offspring Dashboard`,
     async () => getOffspringManagerContainer(player)
