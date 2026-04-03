@@ -2538,13 +2538,13 @@ async function syncMemberRolesWithCharacter(player, character) {
     member = await guild.members.fetch(player.id);
   }
   catch (error) {
-    console.log('Could not fetch member with ID ' + player.id + ' on the server.');
+    console.log('Sync roles: Could not fetch member with ID ' + player.id + ' on the server.');
     return false;
   }
 
   // If could not find the member on the server, return false
   if (!member) {
-    console.log('Could not find member with ID ' + player.id + ' on the server.');
+    console.log('Sync roles: Could not find member with ID ' + player.id + ' on the server.');
     return false;
   }
 
@@ -2971,7 +2971,7 @@ async function addDeathPostToDatabase(deceased, note) {
     const character = await deceased.getCharacter();
     await postInLogChannel(
       'Death Post Created',
-      `Death Post for ${character.name} created.\n` + 
+      `Death Post for ${character.name} created.\n` +
       `Scheduled to be posted: ${time(new Date(deathPost.scheduledPostTime), TimestampStyles.LongDateShortTime)}.\n` +
       `Note: ${note}`,
       COLORS.GREEN
