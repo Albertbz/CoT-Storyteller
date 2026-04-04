@@ -73,7 +73,17 @@ async function intercharacterRollDeleteConfirm(interaction, roll) {
    * Delete the intercharacter roll from the database
    */
   const rollInfo = await roll.formattedInfo;
-  await removeRelationshipFromDatabase(interaction.user, roll);
+  const { success } = await removeRelationshipFromDatabase(interaction.user, roll);
+  if (!success) {
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Deleting Intercharacter Roll\n` +
+          `There was an error deleting the intercharacter roll between ${formatCharacterName(roll.bearingCharacter.name)} and ${formatCharacterName(roll.conceivingCharacter.name)}. Please try again later or contact a member of Staff.`
+        )
+      );
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  }
 
   /**
    * Edit the message to say that the roll has been deleted

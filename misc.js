@@ -2913,7 +2913,7 @@ async function removeRelationshipFromDatabase(storyteller, relationship) {
   if (!relationship) {
     relationshipNotRemovedEmbed
       .setDescription('Relationship does not exist in the database.')
-    return { relationship: null, embed: relationshipNotRemovedEmbed };
+    return { success: false, embed: relationshipNotRemovedEmbed };
   }
 
   const relationshipLogInfo = await relationship.logInfo;
@@ -2926,6 +2926,13 @@ async function removeRelationshipFromDatabase(storyteller, relationship) {
     `${relationshipLogInfo}`,
     COLORS.RED
   );
+
+  const relationshipFormattedInfo = await relationship.formattedInfo;
+  const relationshipRemovedEmbed = new EmbedBuilder()
+    .setTitle('Relationship Removed')
+    .setDescription(relationshipFormattedInfo)
+    .setColor(COLORS.RED);
+  return { success: true, embed: relationshipRemovedEmbed };
 }
 
 async function postInLogChannel(title, description, color) {
@@ -2998,6 +3005,36 @@ async function addDeathPostToDatabase(deceased, note) {
   return { deathPost: deathPost, embed: postCreatedEmbed };
 }
 
+async function removeSteelbearerFromDatabase(storyteller, steelbearer) {
+  const steelbearerNotRemovedEmbed = new EmbedBuilder()
+    .setTitle('Steelbearer Not Removed')
+    .setColor(COLORS.RED);
+
+  if (!steelbearer) {
+    steelbearerNotRemovedEmbed
+      .setDescription('Steelbearer does not exist in the database.')
+    return { success: false, embed: steelbearerNotRemovedEmbed };
+  }
+
+  const steelbearerLogInfo = await steelbearer.logInfo;
+
+  await steelbearer.destroy();
+
+  await postInLogChannel(
+    'Steelbearer Removed',
+    `**Removed by: ${userMention(storyteller.id)}**\n\n` +
+    `${steelbearerLogInfo}`,
+    COLORS.RED
+  );
+
+  const steelbearerFormattedInfo = await steelbearer.formattedInfo;
+  const steelbearerRemovedEmbed = new EmbedBuilder()
+    .setTitle('Steelbearer Removed')
+    .setDescription(steelbearerFormattedInfo)
+    .setColor(COLORS.RED);
+  return { success: true, embed: steelbearerRemovedEmbed };
+}
+
 module.exports = {
   addPlayerToDatabase,
   addCharacterToDatabase,
@@ -3025,5 +3062,6 @@ module.exports = {
   updateRecruitmentPost,
   addDeathPostToDatabase,
   removeRelationshipFromDatabase,
+  removeSteelbearerFromDatabase,
   COLORS
 }; 

@@ -153,6 +153,44 @@ module.exports = (sequelize, DataTypes) => {
       set(value) {
         throw new Error('Do not try to set the `fullType` value!');
       }
+    },
+    extraText: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        if (this.type === 'Duchy') {
+          const duchy = await sequelize.models.duchies.findOne({ where: { steelbearerId: this.id } });
+          return `${duchy ? duchy.name : 'Unknown Duchy'}`;
+        }
+        else if (this.type === 'Vassal') {
+          const vassalSteelbearer = await this.getVassalSteelbearer();
+          if (!vassalSteelbearer) {
+            return 'Unknown Region';
+          }
+          const vassal = await vassalSteelbearer.getVassal();
+          const vassalRegion = await vassal.getVassalRegion();
+          return `${vassalRegion.name}`;
+        }
+        else if (this.type === 'Liege') {
+          const vassalSteelbearer = await this.getVassalSteelbearer();
+          if (!vassalSteelbearer) {
+            return 'Unknown Region';
+          }
+          const vassal = await vassalSteelbearer.getVassal();
+          if (!vassal) {
+            return 'Unknown Region';
+          }
+          else {
+            const liegeRegion = await vassal.getLiegeRegion();
+            return `${liegeRegion.name}`;
+          }
+        }
+        else {
+          return '';
+        }
+      },
+      set(value) {
+        throw new Error('Do not try to set the `extraText` value!');
+      }
     }
   });
 }

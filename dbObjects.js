@@ -114,6 +114,7 @@ Characters.belongsTo(Characters, { foreignKey: 'parent2Id', as: 'parent2' })
 Characters.hasMany(Relationships, { foreignKey: 'bearingCharacterId', as: 'relationshipsBearing' })
 Characters.hasMany(Relationships, { foreignKey: 'conceivingCharacterId', as: 'relationshipsConceiving' })
 Characters.hasOne(Players, { foreignKey: 'characterId', as: 'player' })
+Characters.hasOne(Steelbearers, { foreignKey: 'characterId', as: 'steelbearer' })
 
 Relationships.belongsTo(Characters, { foreignKey: 'bearingCharacterId', as: 'bearingCharacter' })
 Relationships.belongsTo(Characters, { foreignKey: 'conceivingCharacterId', as: 'conceivingCharacter' })
