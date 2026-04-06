@@ -2,6 +2,8 @@ const { ContainerBuilder, TextDisplayBuilder, MessageFlags, ActionRowBuilder, Bu
 const { PlayableChildren, Characters, Worlds } = require("../../dbObjects");
 const { WORLD_ID } = require("../../constants");
 const { Op } = require("sequelize");
+const { showMessageThenReturnToContainer } = require("../../helpers/messageSender");
+const { getCharacterManagerContainer } = require("../../helpers/containerCreator");
 
 module.exports = {
   customId: 'character-play-others-offspring-button',
@@ -36,22 +38,14 @@ module.exports = {
 
     // If there are no offspring, display a message saying so
     if (offspring.length === 0) {
-      const noOffspringContainer = new ContainerBuilder()
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `# No Playable Offspring\n` +
-            `There are currently no playable offspring of other players that are available for play. Please make a new character instead.`
-          )
-        )
-        .addActionRowComponents(
-          new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId('character-manager-return-button')
-              .setLabel('Return')
-              .setStyle(ButtonStyle.Danger)
-          )
-        )
-      return interaction.editReply({ components: [noOffspringContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+      return showMessageThenReturnToContainer(
+        interaction,
+        `# No Playable Offspring\n` +
+        `There are currently no playable offspring of other players that are available for play. Please make a new character instead.`,
+        10000,
+        'Character Dashboard',
+        async () => getCharacterManagerContainer(interaction.user.id)
+      )
     }
 
     const offspringOptions = [];

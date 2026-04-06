@@ -1,4 +1,4 @@
-const { ContainerBuilder, MessageFlags, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ContainerBuilder, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   customId: 'character-play-offspring-button',
@@ -19,8 +19,8 @@ module.exports = {
           `You have chosen to play as an offspring character. Please select one of the options below to proceed.`
         )
       )
-      .addActionRowComponents((actionRow) =>
-        actionRow.setComponents(
+      .addActionRowComponents(
+        new ActionRowBuilder().setComponents(
           new ButtonBuilder()
             .setCustomId('character-play-own-offspring-button')
             .setLabel('Play Own Offspring')
@@ -28,9 +28,15 @@ module.exports = {
             .setEmoji('👶'),
           new ButtonBuilder()
             .setCustomId('character-play-others-offspring-button')
-            .setLabel("Play Someone Else's Offspring")
+            .setLabel('Play Someone Else\'s Offspring')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('🤝')
+        ),
+        new ActionRowBuilder().setComponents(
+          new ButtonBuilder()
+            .setCustomId('character-manager-return-button')
+            .setLabel('Cancel')
+            .setStyle(ButtonStyle.Danger)
         )
       );
 
