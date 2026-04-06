@@ -68,7 +68,8 @@ module.exports = {
 
     // Check if the duchy slots are already taken, and if not, add the duchy option
     const duchySteelbearers = steelbearers.filter(sb => sb.type === 'Duchy');
-    if (duchySteelbearers.length < 3) {
+    const duchies = await region.getDuchies();
+    if (duchies.length > 0 && duchySteelbearers.length < duchies.length) {
       optionsToAdd.push(duchyOption);
     }
 

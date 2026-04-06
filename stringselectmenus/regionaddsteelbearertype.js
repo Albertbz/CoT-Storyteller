@@ -3,6 +3,8 @@ const { Characters, Steelbearers, Vassals, VassalSteelbearers } = require("../db
 const { askForConfirmation } = require("../helpers/confirmations");
 const { formatCharacterName } = require("../helpers/formatters");
 const { addSteelbearerConfirm } = require("../helpers/steelbearer");
+const { showMessageThenReturnToContainer } = require("../helpers/messageSender");
+const { getRegionManagerContainer } = require("../helpers/containerCreator");
 
 module.exports = {
   customId: 'region-add-steelbearer-type-select',
@@ -57,6 +59,19 @@ async function handleDuchyType(interaction, character, region) {
     where: { '$steelbearer.id$': null }
   });
 
+  // If there are no duchies without steelbearers, show a message saying so
+  if (duchiesWithoutSteelbearer.length === 0) {
+    return showMessageThenReturnToContainer(
+      interaction,
+      `# No Eligible Duchies\n` +
+      `There are currently no duchies in this region that are eligible to have a steelbearer. Only duchies that do not already have a steelbearer can have a steelbearer assigned to them. If you want to make a steelbearer for a duchy, you must first make sure that the duchy does not already have a steelbearer.`,
+      10000,
+      'Region Dashboard',
+      async () => getRegionManagerContainer(interaction.user.id)
+    )
+  }
+
+  // Create the select menu options
   const options = duchiesWithoutSteelbearer.map(duchy => {
     return new StringSelectMenuOptionBuilder()
       .setLabel(duchy.name)

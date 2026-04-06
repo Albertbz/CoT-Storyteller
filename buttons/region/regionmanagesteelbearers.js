@@ -56,7 +56,9 @@ module.exports = {
         typeInfo += 'The Ruler slot is reserved for the ruler of the region.'
       }
       else if (type === 'Duchy') {
-        maxSteelbearers = 3;
+        // Get the number of duchies in the region for max steelbearers
+        const duchies = await region.getDuchies();
+        maxSteelbearers = duchies.length;
         typeInfo += 'The Duchy slots are typically reserved for the rulers of duchies within the region.'
       }
       else if (type === 'General-purpose') {

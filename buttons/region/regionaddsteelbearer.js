@@ -31,6 +31,19 @@ module.exports = {
         { model: Steelbearers, required: false, as: 'steelbearer' }
       ]
     });
+
+    // If there are no characters that can be made steelbearers, show a message saying so
+    if (characters.length === 0) {
+      const noEligibleCharactersContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# No Eligible Characters\n` +
+            `There are currently no characters in this region that are eligible to be made steelbearers. Only Notable, Noble and Ruler characters that are not already steelbearers can be made steelbearers. If you want to make a character a steelbearer, they must first opt in to become notable.`
+          )
+        )
+      return interaction.followUp({ components: [noEligibleCharactersContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+
     // Split up into pages of 25 characters each
     const charactersPerPage = 25;
     const totalPages = Math.ceil(characters.length / charactersPerPage);
