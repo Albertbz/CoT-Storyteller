@@ -870,6 +870,62 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
   }
 }
 
+async function addDuchyToDatabase(storyteller, { name, regionId } = {}) {
+  // storyteller is required
+  if (!storyteller) {
+    throw new Error('storyteller is required');
+  }
+
+  const duchyNotCreatedEmbed = new EmbedBuilder()
+    .setTitle('Duchy Not Created')
+    .setColor(COLORS.RED);
+
+  // Check whether region exists
+  const region = await Regions.findByPk(regionId);
+  if (!region) {
+    duchyNotCreatedEmbed
+      .setDescription('Region not found in database.');
+    return { duchy: null, embed: duchyNotCreatedEmbed };
+  }
+
+  // Check whether a duchy with the same name already exists in the region
+  const existingDuchy = await Duchies.findOne({ where: { name: name, regionId: regionId } });
+  if (existingDuchy) {
+    duchyNotCreatedEmbed
+      .setDescription('A duchy with the same name already exists in the region.');
+    return { duchy: null, embed: duchyNotCreatedEmbed };
+  }
+
+  // Checks passed, create the duchy
+  try {
+    const duchy = await Duchies.create({
+      name: name,
+      regionId: regionId
+    });
+
+    await postInLogChannel(
+      'Duchy Created',
+      '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
+      (await duchy.logInfo),
+      COLORS.GREEN
+    )
+
+    // Make an embed for duchy creation to return
+    const duchyCreatedEmbed = new EmbedBuilder()
+      .setTitle('Duchy Created')
+      .setDescription((await duchy.formattedInfo))
+      .setColor(COLORS.GREEN);
+
+    return { duchy, embed: duchyCreatedEmbed };
+  }
+  catch (error) {
+    console.log(error);
+    duchyNotCreatedEmbed
+      .setDescription(`An error occured while trying to create the duchy: ${error.message}`);
+    return { duchy: null, embed: duchyNotCreatedEmbed };
+  }
+}
+
 async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, yearOfDeath, monthOfDeath, dayOfDeath, causeOfDeath, playedById } = {}) {
   // storyteller is required
   if (!storyteller) {
@@ -3047,6 +3103,7 @@ module.exports = {
   addPlayableChildToDatabase,
   addDeceasedToDatabase,
   addRegionToDatabase,
+  addDuchyToDatabase,
   changeCharacterInDatabase,
   changePlayerInDatabase,
   changeRegionInDatabase,

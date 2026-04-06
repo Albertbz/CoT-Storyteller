@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Relationships, Worlds, PlayableChildren, Deceased } = require('../../dbObjects.js');
 const { Op, Sequelize } = require('sequelize');
-const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase, addVassalToDatabase, addPlayableChildToDatabase, addRegionToDatabase } = require('../../misc.js');
+const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase, addVassalToDatabase, addPlayableChildToDatabase, addRegionToDatabase, addDuchyToDatabase } = require('../../misc.js');
 const { WANDERER_REGION_ID, WORLD_ID } = require('../../constants.js');
 
 
@@ -265,6 +265,24 @@ module.exports = {
             )
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('duchy')
+        .setDescription('Create a new duchy.')
+        .addStringOption(option =>
+          option
+            .setName('name')
+            .setDescription('The name of the duchy.')
+            .setRequired(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('region')
+            .setDescription('The region to which the duchy belongs.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
   ,
   async autocomplete(interaction) {
     let choices;
@@ -302,12 +320,23 @@ module.exports = {
       choices = characters.map(character => ({ name: character.name, value: character.id }));
     }
 
+    if (subcommand === 'duchy') {
+      if (focusedOption.name === 'region') {
+        const focusedValue = interaction.options.getFocused();
+
+        const regions = await Regions.findAll({
+          where: { name: { [Op.startsWith]: focusedValue } },
+        })
+
+      }
+    }
+
     // Autocomplete for regions, check which option is being autocompleted
     if (focusedOption.name === 'region') {
       const focusedValue = interaction.options.getFocused();
 
       const regions = await Regions.findAll({
-        where: { name: { [Op.startsWith]: focusedValue } },
+        where: { name: { [Op.startsWith]: focusedValue }, id: { [Op.not]: WANDERER_REGION_ID } },
         attributes: ['name', 'id'],
         limit: 25
       });
@@ -555,6 +584,23 @@ module.exports = {
 
       try {
         const { region, embed } = await addRegionToDatabase(interaction.user, givenValues, createRecruitment === 'Yes' ? true : false);
+        return interaction.editReply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
+      }
+    }
+    else if (subcommand === 'duchy') {
+      const name = interaction.options.getString('name');
+      const regionId = interaction.options.getString('region');
+
+      let givenValues = {};
+      if (name) givenValues.name = name;
+      if (regionId) givenValues.regionId = regionId;
+
+      try {
+        const { duchy, embed } = await addDuchyToDatabase(interaction.user, givenValues);
         return interaction.editReply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       }
       catch (error) {
