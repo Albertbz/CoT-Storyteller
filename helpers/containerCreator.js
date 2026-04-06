@@ -296,11 +296,25 @@ async function getRegionManagerContainer(userId) {
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('⚒️');
 
+  // Check if region has a recruitment entry
+  const recruitment = await region.getRecruitment();
+  if (!recruitment) {
+    changeRecruitmentRolesButton.setDisabled(true);
+  }
+
   const removeCharacterButton = new ButtonBuilder()
     .setCustomId('region-remove-character-button')
     .setLabel('Banish Character')
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('🚪');
+
+  const charactersInRegion = await region.getCharacters({
+    where: { id: { [Op.not]: character.id } },
+    include: { model: Players, required: true, as: 'player' }
+  });
+  if (charactersInRegion.length === 0) {
+    removeCharacterButton.setDisabled(true);
+  }
 
   const activityCheckButton = new ButtonBuilder()
     .setCustomId('region-activity-check-button')

@@ -28,6 +28,20 @@ module.exports = {
       where: { id: { [Op.not]: character.id } },
       include: { model: Players, required: true, as: 'player' }
     });
+
+    // If there are no characters in the region except for the user's character,
+    // show a message saying so
+    if (characters.length === 0) {
+      const noCharactersContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# No Characters in Region\n` +
+            `There are currently no other characters in this region to remove.`
+          )
+        )
+      return interaction.followUp({ components: [noCharactersContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+
     // Sort characters by name alphabetically
     characters.sort((a, b) => a.name.localeCompare(b.name));
     const charactersPerPage = 25;

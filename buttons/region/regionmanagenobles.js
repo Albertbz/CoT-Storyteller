@@ -22,7 +22,7 @@ module.exports = {
     // - A button to remove noble status from a character
     // - A button to return to the region management menu
 
-
+    const disableRemoveButton = nobleCharacters.length === 0;
 
     const container = new ContainerBuilder()
       .addTextDisplayComponents(
@@ -51,7 +51,8 @@ module.exports = {
             .setCustomId(`region-remove-noble-button`)
             .setLabel(`Remove Nobility`)
             .setEmoji('🥀')
-            .setStyle(ButtonStyle.Secondary),
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(disableRemoveButton),
           new ButtonBuilder()
             .setCustomId(`region-manager-return-button`)
             .setLabel(`Cancel`)
