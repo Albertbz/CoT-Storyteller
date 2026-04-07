@@ -28,6 +28,10 @@ const DeathPosts = require('./models/DeathPosts.js')(sequelize, Sequelize.DataTy
 const DiscordChannels = require('./models/DiscordChannels.js')(sequelize, Sequelize.DataTypes);
 const DiscordRoles = require('./models/DiscordRoles.js')(sequelize, Sequelize.DataTypes);
 const LegitimisationRequests = require('./models/LegitimisationRequests.js')(sequelize, Sequelize.DataTypes);
+const OffspringChangeNameRequests = require('./models/OffspringChangeNameRequests.js')(sequelize, Sequelize.DataTypes);
+
+OffspringChangeNameRequests.belongsTo(PlayableChildren, { foreignKey: 'offspringId', as: 'offspring' });
+OffspringChangeNameRequests.belongsTo(Players, { foreignKey: 'requestedById', as: 'requestedBy' });
 
 LegitimisationRequests.belongsTo(PlayableChildren, { foreignKey: 'offspringId', as: 'offspring' });
 LegitimisationRequests.belongsTo(Players, { foreignKey: 'requestedById', as: 'requestedBy' });
@@ -130,6 +134,7 @@ DeathRollDeaths.belongsTo(Characters, { foreignKey: 'characterId', as: 'characte
 
 PlayableChildren.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 PlayableChildren.hasOne(LegitimisationRequests, { foreignKey: 'offspringId', as: 'legitimisationRequest' });
+PlayableChildren.hasOne(OffspringChangeNameRequests, { foreignKey: 'offspringId', as: 'changeNameRequest' });
 
 Players.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 
@@ -155,5 +160,6 @@ module.exports = {
   DeathPosts,
   DiscordChannels,
   DiscordRoles,
-  LegitimisationRequests
+  LegitimisationRequests,
+  OffspringChangeNameRequests,
 };

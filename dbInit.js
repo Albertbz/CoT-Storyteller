@@ -29,6 +29,7 @@ require('./models/DeathPosts.js')(sequelize, Sequelize.DataTypes);
 require('./models/DiscordChannels.js')(sequelize, Sequelize.DataTypes);
 require('./models/DiscordRoles.js')(sequelize, Sequelize.DataTypes);
 require('./models/LegitimisationRequests.js')(sequelize, Sequelize.DataTypes);
+require('./models/OffspringChangeNameRequests.js')(sequelize, Sequelize.DataTypes);
 
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 
