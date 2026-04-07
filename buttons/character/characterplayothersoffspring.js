@@ -38,14 +38,15 @@ module.exports = {
 
     // If there are no offspring, display a message saying so
     if (offspring.length === 0) {
-      return showMessageThenReturnToContainer(
-        interaction,
-        `# No Playable Offspring\n` +
-        `There are currently no playable offspring of other players that are available for play. Please make a new character instead.`,
-        10000,
-        'Character Dashboard',
-        async () => getCharacterManagerContainer(interaction.user.id)
-      )
+      const noPlayableOffspringContainer = new ContainerBuilder()
+        .addTextDisplayComponents((textDisplay) =>
+          textDisplay.setContent(
+            `# No Playable Offspring\n` +
+            `There are currently no playable offspring of other players that are available for play. Please make a new character instead.`
+          )
+        );
+
+      return interaction.followUp({ components: [noPlayableOffspringContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     const offspringOptions = [];
@@ -85,19 +86,22 @@ module.exports = {
 
       const previousButton = new ButtonBuilder()
         .setCustomId(`character-play-others-offspring-button:${groupIndex - 1}`)
-        // .setLabel('Previous')
         .setStyle(ButtonStyle.Secondary)
         .setEmoji('⬅️')
         .setDisabled(groupIndex === 0);
 
       const nextButton = new ButtonBuilder()
         .setCustomId(`character-play-others-offspring-button:${groupIndex + 1}`)
-        // .setLabel('Next')
         .setStyle(ButtonStyle.Secondary)
         .setEmoji('➡️')
         .setDisabled(groupIndex === offspringOptionGroups.length - 1);
 
-      const navigationRow = new ActionRowBuilder().addComponents(previousButton, nextButton);
+      const cancelButton = new ButtonBuilder()
+        .setCustomId('character-manager-return-button')
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Danger)
+
+      const navigationRow = new ActionRowBuilder().addComponents(previousButton, nextButton, cancelButton);
 
       const container = new ContainerBuilder()
         .addTextDisplayComponents(

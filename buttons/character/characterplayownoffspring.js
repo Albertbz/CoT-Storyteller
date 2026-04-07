@@ -40,14 +40,15 @@ module.exports = {
 
     // If no playable offspring found, inform the player
     if (offspring.length === 0) {
-      return showMessageThenReturnToContainer(
-        interaction,
-        `# No Playable Offspring Found\n` +
-        `You do not have any playable offspring characters available at this time.`,
-        10000,
-        'Character Dashboard',
-        async () => getCharacterManagerContainer(interaction.user.id)
-      )
+      const noPlayableOffspringContainer = new ContainerBuilder()
+        .addTextDisplayComponents((textDisplay) =>
+          textDisplay.setContent(
+            `# No Playable Offspring Found\n` +
+            `You do not have any playable offspring characters available at this time. Please check back later as you may have new offspring characters become available to play.`
+          )
+        );
+
+      return interaction.followUp({ components: [noPlayableOffspringContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     /**
