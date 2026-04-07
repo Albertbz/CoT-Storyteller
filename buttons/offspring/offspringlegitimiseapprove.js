@@ -1,5 +1,5 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require("discord.js");
-const { changePlayableChildInDatabase, COLORS, changeCharacterInDatabase } = require("../../misc");
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags, inlineCode } = require("discord.js");
+const { changePlayableChildInDatabase, COLORS, changeCharacterInDatabase, postInLogChannel } = require("../../misc");
 const { PlayableChildren, LegitimisationRequests } = require("../../dbObjects");
 const { formatCharacterName } = require("../../helpers/formatters");
 
@@ -72,7 +72,7 @@ module.exports = {
           )
         )
         .setAccentColor(COLORS.GREEN);
-      return interaction.followUp({ components: [successContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+      await interaction.followUp({ components: [successContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
     catch (error) {
       console.log(`Could not send DM to requested by with id ${requestedBy.id} for offspring legitimisation approval.`, error.message);
@@ -86,7 +86,18 @@ module.exports = {
           )
         )
         .setAccentColor(COLORS.YELLOW);
-      return interaction.followUp({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+      await interaction.followUp({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
+
+    await postInLogChannel(
+      `Offspring Legitimisation Approved`,
+      `**Approved by:** ${interaction.user}\n\n` +
+      `offspring: ${inlineCode(offspringCharacter.name)} (${inlineCode(offspring.id)})\n` +
+      `newName: ${inlineCode(legitimisationRequest.newName || '-')}\n` +
+      `requestedBy: ${user} (${inlineCode(user.id)})`,
+      COLORS.GREEN
+    );
+
+    return legitimisationRequest.destroy();
   }
 }

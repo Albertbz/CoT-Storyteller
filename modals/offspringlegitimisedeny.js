@@ -1,6 +1,6 @@
-const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require("discord.js");
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, inlineCode, codeBlock } = require("discord.js");
 const { PlayableChildren, LegitimisationRequests } = require("../dbObjects");
-const { COLORS } = require("../misc");
+const { COLORS, postInLogChannel } = require("../misc");
 const { formatCharacterName } = require("../helpers/formatters");
 
 module.exports = {
@@ -48,7 +48,7 @@ module.exports = {
           )
         )
         .setAccentColor(COLORS.RED);
-      return interaction.followUp({ components: [deniedReasonContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+      await interaction.followUp({ components: [deniedReasonContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
     catch (error) {
       console.error(`Could not send DM to user with id ${requestedBy.id} for offspring legitimisation denial.`, error);
@@ -64,7 +64,21 @@ module.exports = {
           )
         )
         .setAccentColor(COLORS.RED);
-      return interaction.followUp({ components: [deniedReasonContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+
+
+      await interaction.followUp({ components: [deniedReasonContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
+
+    await postInLogChannel(
+      `Offspring Legitimisation Denied`,
+      `**Denied by:** ${interaction.user}\n\n` +
+      `offspring: ${inlineCode(offspringCharacter.name)} (${inlineCode(offspring.id)})\n` +
+      `newName: ${inlineCode(legitimisationRequest.newName || '-')}\n` +
+      `requestedBy: ${user} (${inlineCode(user.id)})\n` +
+      `reason:\n${codeBlock(reason)}`,
+      COLORS.RED
+    )
+
+    return legitimisationRequest.destroy();
   }
 }

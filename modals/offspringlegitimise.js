@@ -124,7 +124,7 @@ async function offspringLegitimiseConfirm(interaction, offspring, screenshot, ne
   const legitimisationRequest = await LegitimisationRequests.create({
     offspringId: offspring.id,
     requestedById: interaction.user.id,
-    newName: newName
+    newName: changingName ? newName : null
   })
 
   const responseRow = new ActionRowBuilder().addComponents(

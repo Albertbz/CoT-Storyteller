@@ -129,6 +129,7 @@ Deceased.belongsTo(Players, { foreignKey: 'playedById', as: 'playedBy' });
 DeathRollDeaths.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 
 PlayableChildren.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
+PlayableChildren.hasOne(LegitimisationRequests, { foreignKey: 'offspringId', as: 'legitimisationRequest' });
 
 Players.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 
