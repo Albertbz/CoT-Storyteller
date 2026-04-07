@@ -1,5 +1,5 @@
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require("discord.js");
-const { PlayableChildren } = require("../dbObjects");
+const { PlayableChildren, LegitimisationRequests } = require("../dbObjects");
 const { COLORS } = require("../misc");
 const { formatCharacterName } = require("../helpers/formatters");
 
@@ -10,17 +10,16 @@ module.exports = {
     await interaction.deferUpdate();
 
     // Get the offspring from the customId, which is split by a :
-    const offspringId = interaction.customId.split(':')[1]
-    const offspring = await PlayableChildren.findByPk(offspringId);
+    const legitimisationRequestId = interaction.customId.split(':')[1];
+    const legitimisationRequest = await LegitimisationRequests.findByPk(legitimisationRequestId);
+    const offspring = await legitimisationRequest.getOffspring();
     const offspringCharacter = await offspring.getCharacter();
 
     // Get the reason for denying the legitimisation request from the modal submission
     const reason = interaction.fields.getTextInputValue('reason');
 
-    // Send a message to the contacts of the offspring to inform them of the legitimisation being denied, including the reason for denying the request
-    const contacts = new Set();
-    if (offspring.contact1Snowflake) contacts.add(offspring.contact1Snowflake);
-    if (offspring.contact2Snowflake) contacts.add(offspring.contact2Snowflake);
+    // Send a message to the player that requested the legitimisation to inform them that their request has been denied, along with the reason for denial
+    const requestedBy = await legitimisationRequest.getRequestedBy();
 
     const deniedContainer = new ContainerBuilder()
       .addTextDisplayComponents(
@@ -33,27 +32,39 @@ module.exports = {
       )
       .setAccentColor(COLORS.RED);
 
-    for (const contact of contacts) {
-      try {
-        const user = await interaction.client.users.fetch(contact);
-        await user.send({ components: [deniedContainer], flags: [MessageFlags.IsComponentsV2] });
-      }
-      catch (error) {
-        console.error(`Could not send DM to contact with id ${contact} for offspring legitimisation denial.`, error);
-      }
-    }
+    let user = null;
+    try {
+      user = await interaction.client.users.fetch(requestedBy.id);
+      await user.send({ components: [deniedContainer], flags: [MessageFlags.IsComponentsV2] });
 
-    await interaction.deleteReply();
-    const deniedReasonContainer = new ContainerBuilder()
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `# Offspring Legitimisation Denied\n` +
-          `You have denied the legitimisation request for ${formatCharacterName(offspringCharacter.name)}.\n` +
-          `**Reason for denial:**\n` +
-          `>>> ${reason}`
+      await interaction.deleteReply();
+      const deniedReasonContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Offspring Legitimisation Denied\n` +
+            `You have denied the legitimisation request for ${formatCharacterName(offspringCharacter.name)}.\n` +
+            `**Reason for denial:**\n` +
+            `>>> ${reason}`
+          )
         )
-      )
-      .setAccentColor(COLORS.RED);
-    return interaction.followUp({ components: [deniedReasonContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+        .setAccentColor(COLORS.RED);
+      return interaction.followUp({ components: [deniedReasonContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+    catch (error) {
+      console.error(`Could not send DM to user with id ${requestedBy.id} for offspring legitimisation denial.`, error);
+
+      await interaction.deleteReply();
+      const deniedReasonContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Offspring Legitimisation Denied\n` +
+            `You have denied the legitimisation request for ${formatCharacterName(offspringCharacter.name)}. However, an error occurred while trying to notify ${user} to inform them of the denial. Please contact them manually to inform them of the denial and the reason for it.\n` +
+            `**Reason for denial:**\n` +
+            `>>> ${reason}`
+          )
+        )
+        .setAccentColor(COLORS.RED);
+      return interaction.followUp({ components: [deniedReasonContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
   }
 }

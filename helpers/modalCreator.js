@@ -545,7 +545,7 @@ async function changeRegionModal(character, manager, { regionId = null } = {}) {
   return modal;
 }
 
-async function offspringLegitimiseModal(offspring) {
+async function offspringLegitimiseModal(offspring, newNameValue = null) {
   const modal = new ModalBuilder()
     .setCustomId('offspring-legitimise-modal:' + offspring.id)
     .setTitle('Legitimise Offspring');
@@ -556,7 +556,8 @@ async function offspringLegitimiseModal(offspring) {
   // what the requirements are
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `To legitimise the offspring ${formatCharacterName(offspringCharacter.name)}, please provide a screenshot of a piece of parchment that has been signed by the ruler of the lands that the offspring belongs to. The parchment must state that the offspring is now a legitimate child of their parent(s), and must include the name of the offspring and their parent(s).`
+      `To legitimise the offspring ${formatCharacterName(offspringCharacter.name)}, please provide a screenshot of a piece of parchment that has been signed by the ruler of the lands that the offspring belongs to. The parchment must state that the offspring is now a legitimate child of their parent(s), and must include the name of the offspring and their parent(s).\n` +
+      `You can also specify the new name of the offspring in the input below (if it is to be changed), and you must also provide a screenshot of the chiseled child with its name shown, made into a tabletop piece, to show that the child exists in the world.`
     )
 
   modal.addTextDisplayComponents(textDisplay);
@@ -570,9 +571,37 @@ async function offspringLegitimiseModal(offspring) {
     .setDescription('Make sure the screenshot includes the things mentioned in the instructions above.')
     .setFileUploadComponent(screenshotInput);
 
-  modal.addLabelComponents(screenshotLabel);
+  const { nameLabel, screenshotLabel: nameScreenshotLabel } = getNameAndScreenshotLabel(newNameValue ? newNameValue : offspringCharacter.name);
+
+  modal.addLabelComponents(screenshotLabel, nameLabel, nameScreenshotLabel);
 
   return modal;
+}
+
+function getNameAndScreenshotLabel(nameValue) {
+  const nameInput = new TextInputBuilder()
+    .setCustomId('offspring-change-name-input')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('Enter new name for the offspring')
+    .setValue(nameValue)
+    .setMaxLength(50);
+
+  const nameLabel = new LabelBuilder()
+    .setLabel('What is the new name of the offspring?')
+    .setDescription('Numbers, usernames, and references to real-life are not allowed.')
+    .setTextInputComponent(nameInput);
+
+  // Create a file upload input for the screenshot of the chiseled child with its name shown
+  const screenshotInput = new FileUploadBuilder()
+    .setCustomId('offspring-chiseled-offspring-screenshot')
+
+  const screenshotLabel = new LabelBuilder()
+    .setLabel('Upload screenshot of chiseled child')
+    .setDescription('Make sure the screenshot includes the things mentioned in the instructions above.')
+    .setFileUploadComponent(screenshotInput);
+
+  return { nameLabel, screenshotLabel };
 }
 
 async function offspringChangeNameModal(offspring, { nameValue = null } = {}) {
@@ -592,33 +621,7 @@ async function offspringChangeNameModal(offspring, { nameValue = null } = {}) {
   modal.addTextDisplayComponents(textDisplay);
 
   // Create a text input for the new name of the offspring, prefilled with the current name
-  const nameInput = new TextInputBuilder()
-    .setCustomId('offspring-change-name-input')
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true)
-    .setPlaceholder('Enter new name for the offspring')
-    .setMaxLength(50);
-
-  if (nameValue) {
-    nameInput.setValue(nameValue);
-  }
-  else {
-    nameInput.setValue(offspringCharacter.name);
-  }
-
-  const nameLabel = new LabelBuilder()
-    .setLabel('What is the new name of the offspring?')
-    .setDescription('Numbers, usernames, and references to real-life are not allowed.')
-    .setTextInputComponent(nameInput);
-
-  // Create a file upload input for the screenshot of the chiseled child with its name shown
-  const screenshotInput = new FileUploadBuilder()
-    .setCustomId('offspring-change-name-screenshot')
-
-  const screenshotLabel = new LabelBuilder()
-    .setLabel('Upload screenshot of chiseled child')
-    .setDescription('Make sure the screenshot includes the things mentioned in the instructions above.')
-    .setFileUploadComponent(screenshotInput);
+  const { nameLabel, screenshotLabel } = getNameAndScreenshotLabel(nameValue ? nameValue : offspringCharacter.name);
 
   modal.addLabelComponents(nameLabel, screenshotLabel);
 

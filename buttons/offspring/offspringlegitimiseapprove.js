@@ -1,6 +1,6 @@
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require("discord.js");
-const { changePlayableChildInDatabase, COLORS } = require("../../misc");
-const { PlayableChildren } = require("../../dbObjects");
+const { changePlayableChildInDatabase, COLORS, changeCharacterInDatabase } = require("../../misc");
+const { PlayableChildren, LegitimisationRequests } = require("../../dbObjects");
 const { formatCharacterName } = require("../../helpers/formatters");
 
 module.exports = {
@@ -10,46 +10,83 @@ module.exports = {
     await interaction.deferUpdate();
 
     // Get the offspring from the customId, which is split by a :
-    const offspringId = interaction.customId.split(':')[1]
-    const offspring = await PlayableChildren.findByPk(offspringId);
+    const legitimisationRequestId = interaction.customId.split(':')[1]
+    const legitimisationRequest = await LegitimisationRequests.findByPk(legitimisationRequestId);
+    const offspring = await legitimisationRequest.getOffspring();
     const offspringCharacter = await offspring.getCharacter();
 
     // Change the legitimacy of the offspring to Legitimised
-    await changePlayableChildInDatabase(interaction.user, offspring, { newLegitimacy: 'Legitimised' });
+    const { playableChild: updatedOffspring } = await changePlayableChildInDatabase(interaction.user, offspring, { newLegitimacy: 'Legitimised' });
+    if (!updatedOffspring) {
+      const errorContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Error Approving Legitimisation\n` +
+            `An error occurred while trying to approve the legitimisation request for ${formatCharacterName(offspringCharacter.name)}. Please try again later.`
+          )
+        )
+        .setAccentColor(COLORS.RED);
+      return interaction.followUp({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+    // Change the name of the offspring if the new name is different from the old name
+    const oldName = offspringCharacter.name;
+    if (legitimisationRequest.newName && legitimisationRequest.newName !== offspringCharacter.name) {
+      const { character: updatedCharacter } = await changeCharacterInDatabase(interaction.user, offspringCharacter, true, { newName: legitimisationRequest.newName });
+      if (!updatedCharacter) {
+        const errorContainer = new ContainerBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `# Error Changing Offspring Name\n` +
+              `An error occurred while trying to change the name of ${formatCharacterName(oldName)} to ${formatCharacterName(legitimisationRequest.newName)}. However, the legitimisation of the offspring has still been approved. Please contact staff to resolve this issue.`
+            )
+          )
+          .setAccentColor(COLORS.RED);
+        return interaction.followUp({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+      }
+    }
 
-    // Send a message to the contacts of the offspring to inform them of the legitimisation being approved
-    const contacts = new Set();
-    if (offspring.contact1Snowflake) contacts.add(offspring.contact1Snowflake);
-    if (offspring.contact2Snowflake) contacts.add(offspring.contact2Snowflake);
+
+    // Send a message to the one that requested the legitimisation that their request has been approved
+    const requestedBy = await legitimisationRequest.getRequestedBy();
 
     const approvalContainer = new ContainerBuilder()
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Offspring Legitimisation Approved\n` +
-          `The legitimisation request for the offspring ${formatCharacterName(offspringCharacter.name)} has been approved by staff. ${formatCharacterName(offspringCharacter.name)} is now legitimised.`
+          `The legitimisation request for the offspring ${formatCharacterName(oldName)} has been approved by staff. ${formatCharacterName(oldName)} is now legitimised${legitimisationRequest.newName ? ` and has had their name changed to ${formatCharacterName(legitimisationRequest.newName)}` : ''}.`
         )
       )
       .setAccentColor(COLORS.GREEN);
 
-    for (const contact of contacts) {
-      try {
-        const user = await interaction.client.users.fetch(contact);
-        await user.send({ components: [approvalContainer], flags: [MessageFlags.IsComponentsV2] });
-      }
-      catch (error) {
-        console.log(`Could not send DM to contact with id ${contact} for offspring legitimisation approval.`, error);
-      }
+    let user = null;
+    try {
+      user = await interaction.client.users.fetch(requestedBy.id);
+      await user.send({ components: [approvalContainer], flags: [MessageFlags.IsComponentsV2] });
+
+      await interaction.deleteReply();
+      const successContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Offspring Legitimisation Approved\n` +
+            `You have approved the legitimisation request for ${formatCharacterName(oldName)}. The offspring is now legitimised${legitimisationRequest.newName ? ` and has had their name changed to ${formatCharacterName(legitimisationRequest.newName)}` : ''}.`
+          )
+        )
+        .setAccentColor(COLORS.GREEN);
+      return interaction.followUp({ components: [successContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
+    catch (error) {
+      console.log(`Could not send DM to requested by with id ${requestedBy.id} for offspring legitimisation approval.`, error.message);
 
-    await interaction.deleteReply();
-    const successContainer = new ContainerBuilder()
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `# Offspring Legitimisation Approved\n` +
-          `You have approved the legitimisation request for ${formatCharacterName(offspringCharacter.name)}. The offspring is now legitimised.`
+      await interaction.deleteReply();
+      const errorContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Offspring Legitimisation Approved\n` +
+            `You have approved the legitimisation request for ${formatCharacterName(oldName)}. The offspring is now legitimised${legitimisationRequest.newName ? ` and has had their name changed to ${formatCharacterName(legitimisationRequest.newName)}` : ''}. However, an error occurred while trying to notify ${user} to inform them of the approval. Please contact them manually.`
+          )
         )
-      )
-      .setAccentColor(COLORS.GREEN);
-    return interaction.followUp({ components: [successContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+        .setAccentColor(COLORS.YELLOW);
+      return interaction.followUp({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
   }
 }

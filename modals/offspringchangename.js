@@ -47,7 +47,7 @@ module.exports = {
     }
 
     // Get the screenshot from the file upload
-    const screenshot = interaction.fields.getUploadedFiles('offspring-change-name-screenshot').first();
+    const screenshot = interaction.fields.getUploadedFiles('offspring-chiseled-offspring-screenshot').first();
 
     // Get the image URL from the attachment, ensure that it is an image file
     if (!screenshot || !screenshot.contentType.startsWith('image/')) {
