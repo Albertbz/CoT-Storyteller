@@ -1,6 +1,6 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require("discord.js");
-const { PlayableChildren } = require("../../dbObjects");
-const { changeCharacterInDatabase, COLORS } = require("../../misc");
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags, inlineCode } = require("discord.js");
+const { PlayableChildren, OffspringChangeNameRequests } = require("../../dbObjects");
+const { changeCharacterInDatabase, COLORS, postInLogChannel } = require("../../misc");
 const { formatCharacterName } = require("../../helpers/formatters");
 
 module.exports = {
@@ -10,48 +10,83 @@ module.exports = {
     await interaction.deferUpdate();
 
     // Get the offspring ID and new name from the customId, which is split by a :
-    const [_, offspringId, newName] = interaction.customId.split(':');
-    const offspring = await PlayableChildren.findByPk(offspringId);
+    const [_, changeNameRequestId] = interaction.customId.split(':');
+    const changeNameRequest = await OffspringChangeNameRequests.findByPk(changeNameRequestId);
+    const offspring = await changeNameRequest.getOffspring();
     const offspringCharacter = await offspring.getCharacter();
 
     const oldName = offspringCharacter.name;
 
     // Change the name of the offspring in the database
-    await changeCharacterInDatabase(interaction.user, offspringCharacter, true, { newName: newName });
+    const { character: updatedCharacter } = await changeCharacterInDatabase(interaction.user, offspringCharacter, true, { newName: changeNameRequest.newName });
+    if (!updatedCharacter) {
+      const errorContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Error Changing Offspring Name\n` +
+            `An error occurred while trying to change the name of ${formatCharacterName(oldName)} to ${formatCharacterName(changeNameRequest.newName)}. Please try again later.`
+          )
+        )
+        .setAccentColor(COLORS.RED);
+      return interaction.followUp({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
 
-    // Send a message to the contacts of the offspring to inform them of the name change
-    const contacts = new Set();
-    if (offspring.contact1Snowflake) contacts.add(offspring.contact1Snowflake);
-    if (offspring.contact2Snowflake) contacts.add(offspring.contact2Snowflake);
+    // Send a message to the player that requested the name change
+    const requestedBy = await changeNameRequest.getRequestedBy();
 
     const approvalContainer = new ContainerBuilder()
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Offspring Name Change Approved\n` +
-          `The name change request for the offspring ${formatCharacterName(oldName)} has been approved by staff. The name of ${formatCharacterName(oldName)} has now been changed to ${formatCharacterName(newName)}.`
+          `The name change request for the offspring ${formatCharacterName(oldName)} has been approved by staff. The name of ${formatCharacterName(oldName)} has now been changed to ${formatCharacterName(changeNameRequest.newName)}.`
         )
       )
       .setAccentColor(COLORS.GREEN);
 
-    for (const contact of contacts) {
-      try {
-        const user = await interaction.client.users.fetch(contact);
-        await user.send({ components: [approvalContainer], flags: [MessageFlags.IsComponentsV2] });
-      }
-      catch (error) {
-        console.log(`Could not send DM to contact with id ${contact} for offspring name change approval.`, error);
-      }
+    let user = null;
+    try {
+      user = await interaction.client.users.fetch(requestedBy.id);
+      await user.send({ components: [approvalContainer], flags: [MessageFlags.IsComponentsV2] });
+
+      await interaction.deleteReply();
+      const successContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Offspring Name Change Approved\n` +
+            `You have approved the name change request for ${formatCharacterName(oldName)}. The name has now been changed to ${formatCharacterName(changeNameRequest.newName)}.`
+          )
+        )
+        .setAccentColor(COLORS.GREEN);
+      await interaction.followUp({ components: [successContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+    catch (error) {
+      console.log(`Could not send DM to requested by user with id ${requestedBy.id} for offspring name change approval.`, error.message);
+      await interaction.deleteReply();
+      const successContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Offspring Name Change Approved\n` +
+            `You have approved the name change request for ${formatCharacterName(oldName)}. The name has now been changed to ${formatCharacterName(changeNameRequest.newName)}. However, an error occurred while trying to notify ${user} to inform them of the approval. Please contact them manually to inform them of the approval and the name change.`
+          )
+        )
+        .setAccentColor(COLORS.GREEN);
+      await interaction.followUp({ components: [successContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
-    await interaction.deleteReply();
-    const successContainer = new ContainerBuilder()
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `# Offspring Name Change Approved\n` +
-          `You have approved the name change request for ${formatCharacterName(oldName)}. The name has now been changed to ${formatCharacterName(newName)}.`
-        )
+    try {
+      await postInLogChannel(
+        `Offspring Name Change Approved`,
+        `**Approved by:** ${interaction.user}\n\n` +
+        `offspring: ${inlineCode(offspringCharacter.name)} (${inlineCode(offspring.id)})\n` +
+        `newName: ${inlineCode(changeNameRequest.newName)}\n` +
+        `requestedBy: ${user} (${inlineCode(user.id)})`,
+        COLORS.GREEN
       )
-      .setAccentColor(COLORS.GREEN);
-    return interaction.followUp({ components: [successContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+    catch (error) {
+      console.error('Error posting offspring name change approval in log channel:', error);
+    }
+
+    return changeNameRequest.destroy();
   }
 }

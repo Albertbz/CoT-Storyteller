@@ -1,6 +1,6 @@
 const { TextDisplayBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags, ContainerBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { askForConfirmation } = require("../helpers/confirmations");
-const { DiscordChannels, PlayableChildren, Characters, Players } = require("../dbObjects");
+const { DiscordChannels, PlayableChildren, Characters, Players, OffspringChangeNameRequests } = require("../dbObjects");
 const { COLORS } = require("../misc");
 const { offspringChangeNameModal } = require("../helpers/modalCreator");
 const { showMessageThenReturnToContainer } = require("../helpers/messageSender");
@@ -116,7 +116,6 @@ async function offspringChangeNameConfirm(interaction, offspring, newName, scree
     return interaction.editReply({ components: [channelNotFoundContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
-
   const offspringInfo = await offspring.formattedInfo;
 
   const approvalContainer = new ContainerBuilder()
@@ -139,13 +138,20 @@ async function offspringChangeNameConfirm(interaction, offspring, newName, scree
     )
     .setAccentColor(COLORS.APRICOT);
 
+  // Create change name request in database
+  const changeNameRequest = await OffspringChangeNameRequests.create({
+    offspringId: offspring.id,
+    requestedById: interaction.user.id,
+    newName: newName
+  })
+
   const responseRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`offspring-change-name-approve:${offspring.id}:${newName}`)
+      .setCustomId(`offspring-change-name-approve:${changeNameRequest.id}`)
       .setLabel('Approve')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setCustomId(`offspring-change-name-deny:${offspring.id}`)
+      .setCustomId(`offspring-change-name-deny:${changeNameRequest.id}`)
       .setLabel('Deny')
       .setStyle(ButtonStyle.Danger)
   );

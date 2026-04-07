@@ -89,14 +89,19 @@ module.exports = {
       await interaction.followUp({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
-    await postInLogChannel(
-      `Offspring Legitimisation Approved`,
-      `**Approved by:** ${interaction.user}\n\n` +
-      `offspring: ${inlineCode(offspringCharacter.name)} (${inlineCode(offspring.id)})\n` +
-      `newName: ${inlineCode(legitimisationRequest.newName || '-')}\n` +
-      `requestedBy: ${user} (${inlineCode(user.id)})`,
-      COLORS.GREEN
-    );
+    try {
+      await postInLogChannel(
+        `Offspring Legitimisation Approved`,
+        `**Approved by:** ${interaction.user}\n\n` +
+        `offspring: ${inlineCode(offspringCharacter.name)} (${inlineCode(offspring.id)})\n` +
+        `newName: ${inlineCode(legitimisationRequest.newName || '-')}\n` +
+        `requestedBy: ${user} (${inlineCode(user.id)})`,
+        COLORS.GREEN
+      );
+    }
+    catch (error) {
+      console.error('Error posting offspring legitimisation approval in log channel:', error);
+    }
 
     return legitimisationRequest.destroy();
   }

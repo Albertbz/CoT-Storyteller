@@ -69,16 +69,21 @@ module.exports = {
       await interaction.followUp({ components: [deniedReasonContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
-    await postInLogChannel(
-      `Offspring Legitimisation Denied`,
-      `**Denied by:** ${interaction.user}\n\n` +
-      `offspring: ${inlineCode(offspringCharacter.name)} (${inlineCode(offspring.id)})\n` +
-      `newName: ${inlineCode(legitimisationRequest.newName || '-')}\n` +
-      `requestedBy: ${user} (${inlineCode(user.id)})\n` +
-      `reason:\n${codeBlock(reason)}`,
-      COLORS.RED
-    )
+    try {
+      await postInLogChannel(
+        `Offspring Legitimisation Denied`,
+        `**Denied by:** ${interaction.user}\n\n` +
+        `offspring: ${inlineCode(offspringCharacter.name)} (${inlineCode(offspring.id)})\n` +
+        `newName: ${inlineCode(legitimisationRequest.newName || '-')}\n` +
+        `requestedBy: ${user} (${inlineCode(user.id)})\n` +
+        `reason:\n${codeBlock(reason)}`,
+        COLORS.RED
+      )
+    }
+    catch (error) {
+      console.error('Error posting offspring legitimisation denial in log channel.', error);
+    }
 
-    return legitimisationRequest.destroy();
+    await legitimisationRequest.destroy();
   }
 }
