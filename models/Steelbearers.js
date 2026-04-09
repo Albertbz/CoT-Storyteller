@@ -36,8 +36,13 @@ module.exports = (sequelize, DataTypes) => {
           }
           else {
             const vassal = await vassalSteelbearer.getVassal();
-            const vassalRegion = await vassal.getVassalRegion();
-            extraText = `\nvassal: \`${vassalRegion ? vassalRegion.name : 'Unknown'}\` (\`${vassalRegion ? vassalRegion.id : 'Unknown'}\`)`;
+            if (!vassal) {
+              extraText = `\nvassal: \`Unknown\``;
+            }
+            else {
+              const vassalRegion = await vassal.getVassalRegion();
+              extraText = `\nvassal: \`${vassalRegion ? vassalRegion.name : 'Unknown'}\` (\`${vassalRegion ? vassalRegion.id : 'Unknown'}\`)`;
+            }
           }
         }
         else if (this.type === 'Liege') {
@@ -84,8 +89,13 @@ module.exports = (sequelize, DataTypes) => {
           }
           else {
             const vassal = await vassalSteelbearer.getVassal();
-            const vassalRegion = await vassal.getVassalRegion();
-            extraText = `\n**Vassal:** ${vassalRegion ? vassalRegion.name : 'Unknown'}`;
+            if (!vassal) {
+              extraText = `\n**Vassal:** Unknown`;
+            }
+            else {
+              const vassalRegion = await vassal.getVassalRegion();
+              extraText = `\n**Vassal:** ${vassalRegion ? vassalRegion.name : 'Unknown'}`;
+            }
           }
         }
         else if (this.type === 'Liege') {
@@ -129,6 +139,9 @@ module.exports = (sequelize, DataTypes) => {
             return 'Vassal | Unknown';
           }
           const vassal = await vassalSteelbearer.getVassal();
+          if (!vassal) {
+            return 'Vassal | Unknown';
+          }
           const vassalRegion = await vassal.getVassalRegion();
           return `Vassal | ${vassalRegion.name}`;
         }
@@ -167,6 +180,9 @@ module.exports = (sequelize, DataTypes) => {
             return 'Unknown Region';
           }
           const vassal = await vassalSteelbearer.getVassal();
+          if (!vassal) {
+            return 'Unknown Region';
+          }
           const vassalRegion = await vassal.getVassalRegion();
           return `${vassalRegion.name}`;
         }
