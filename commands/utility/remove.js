@@ -505,6 +505,9 @@ module.exports = {
       else if (error.code === 'WandererRegionDeletionError') {
         return interaction.editReply({ content: `The ${entityName} cannot be removed because it is necessary for the bot to function properly.`, components: [], embeds: [] });
       }
+      else if (error.code === 'VassalSteelbearersExist') {
+        return interaction.editReply({ content: `The ${entityName} cannot be removed because there are steelbearer assignments associated with it. Please remove those steelbearer assignments first before removing this ${entityName}.`, components: [], embeds: [] });
+      }
       console.error('Error removing entity:', error);
       return interaction.editReply({ content: `There was an error removing the ${entityName} from the database: ${error.message}`, components: [], embeds: [] });
     }
