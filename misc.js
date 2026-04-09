@@ -870,6 +870,62 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
   }
 }
 
+async function addDuchyToDatabase(storyteller, { name, regionId } = {}) {
+  // storyteller is required
+  if (!storyteller) {
+    throw new Error('storyteller is required');
+  }
+
+  const duchyNotCreatedEmbed = new EmbedBuilder()
+    .setTitle('Duchy Not Created')
+    .setColor(COLORS.RED);
+
+  // Check whether region exists
+  const region = await Regions.findByPk(regionId);
+  if (!region) {
+    duchyNotCreatedEmbed
+      .setDescription('Region not found in database.');
+    return { duchy: null, embed: duchyNotCreatedEmbed };
+  }
+
+  // Check whether a duchy with the same name already exists in the region
+  const existingDuchy = await Duchies.findOne({ where: { name: name, regionId: regionId } });
+  if (existingDuchy) {
+    duchyNotCreatedEmbed
+      .setDescription('A duchy with the same name already exists in the region.');
+    return { duchy: null, embed: duchyNotCreatedEmbed };
+  }
+
+  // Checks passed, create the duchy
+  try {
+    const duchy = await Duchies.create({
+      name: name,
+      regionId: regionId
+    });
+
+    await postInLogChannel(
+      'Duchy Created',
+      '**Created by: ' + userMention(storyteller.id) + '**\n\n' +
+      (await duchy.logInfo),
+      COLORS.GREEN
+    )
+
+    // Make an embed for duchy creation to return
+    const duchyCreatedEmbed = new EmbedBuilder()
+      .setTitle('Duchy Created')
+      .setDescription((await duchy.formattedInfo))
+      .setColor(COLORS.GREEN);
+
+    return { duchy, embed: duchyCreatedEmbed };
+  }
+  catch (error) {
+    console.log(error);
+    duchyNotCreatedEmbed
+      .setDescription(`An error occured while trying to create the duchy: ${error.message}`);
+    return { duchy: null, embed: duchyNotCreatedEmbed };
+  }
+}
+
 async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, yearOfDeath, monthOfDeath, dayOfDeath, causeOfDeath, playedById } = {}) {
   // storyteller is required
   if (!storyteller) {
@@ -2538,13 +2594,13 @@ async function syncMemberRolesWithCharacter(player, character) {
     member = await guild.members.fetch(player.id);
   }
   catch (error) {
-    console.log('Could not fetch member with ID ' + player.id + ' on the server.');
+    console.log('Sync roles: Could not fetch member with ID ' + player.id + ' on the server.');
     return false;
   }
 
   // If could not find the member on the server, return false
   if (!member) {
-    console.log('Could not find member with ID ' + player.id + ' on the server.');
+    console.log('Sync roles: Could not find member with ID ' + player.id + ' on the server.');
     return false;
   }
 
@@ -2913,7 +2969,7 @@ async function removeRelationshipFromDatabase(storyteller, relationship) {
   if (!relationship) {
     relationshipNotRemovedEmbed
       .setDescription('Relationship does not exist in the database.')
-    return { relationship: null, embed: relationshipNotRemovedEmbed };
+    return { success: false, embed: relationshipNotRemovedEmbed };
   }
 
   const relationshipLogInfo = await relationship.logInfo;
@@ -2926,6 +2982,13 @@ async function removeRelationshipFromDatabase(storyteller, relationship) {
     `${relationshipLogInfo}`,
     COLORS.RED
   );
+
+  const relationshipFormattedInfo = await relationship.formattedInfo;
+  const relationshipRemovedEmbed = new EmbedBuilder()
+    .setTitle('Relationship Removed')
+    .setDescription(relationshipFormattedInfo)
+    .setColor(COLORS.RED);
+  return { success: true, embed: relationshipRemovedEmbed };
 }
 
 async function postInLogChannel(title, description, color) {
@@ -2971,7 +3034,7 @@ async function addDeathPostToDatabase(deceased, note) {
     const character = await deceased.getCharacter();
     await postInLogChannel(
       'Death Post Created',
-      `Death Post for ${character.name} created.\n` + 
+      `Death Post for ${character.name} created.\n` +
       `Scheduled to be posted: ${time(new Date(deathPost.scheduledPostTime), TimestampStyles.LongDateShortTime)}.\n` +
       `Note: ${note}`,
       COLORS.GREEN
@@ -2998,6 +3061,36 @@ async function addDeathPostToDatabase(deceased, note) {
   return { deathPost: deathPost, embed: postCreatedEmbed };
 }
 
+async function removeSteelbearerFromDatabase(storyteller, steelbearer) {
+  const steelbearerNotRemovedEmbed = new EmbedBuilder()
+    .setTitle('Steelbearer Not Removed')
+    .setColor(COLORS.RED);
+
+  if (!steelbearer) {
+    steelbearerNotRemovedEmbed
+      .setDescription('Steelbearer does not exist in the database.')
+    return { success: false, embed: steelbearerNotRemovedEmbed };
+  }
+
+  const steelbearerLogInfo = await steelbearer.logInfo;
+
+  await steelbearer.destroy();
+
+  await postInLogChannel(
+    'Steelbearer Removed',
+    `**Removed by: ${userMention(storyteller.id)}**\n\n` +
+    `${steelbearerLogInfo}`,
+    COLORS.RED
+  );
+
+  const steelbearerFormattedInfo = await steelbearer.formattedInfo;
+  const steelbearerRemovedEmbed = new EmbedBuilder()
+    .setTitle('Steelbearer Removed')
+    .setDescription(steelbearerFormattedInfo)
+    .setColor(COLORS.RED);
+  return { success: true, embed: steelbearerRemovedEmbed };
+}
+
 module.exports = {
   addPlayerToDatabase,
   addCharacterToDatabase,
@@ -3010,6 +3103,7 @@ module.exports = {
   addPlayableChildToDatabase,
   addDeceasedToDatabase,
   addRegionToDatabase,
+  addDuchyToDatabase,
   changeCharacterInDatabase,
   changePlayerInDatabase,
   changeRegionInDatabase,
@@ -3025,5 +3119,6 @@ module.exports = {
   updateRecruitmentPost,
   addDeathPostToDatabase,
   removeRelationshipFromDatabase,
+  removeSteelbearerFromDatabase,
   COLORS
 }; 

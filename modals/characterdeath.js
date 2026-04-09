@@ -3,7 +3,10 @@ const { addDeceasedToDatabase, addDeathPostToDatabase } = require('../misc.js');
 const { Players } = require('../dbObjects');
 const { askForConfirmation } = require('../helpers/confirmations');
 const { finalDeathModal } = require('../helpers/modalCreator.js');
-const { schedulePost } = require('../helpers/deathPostScheduler.js')
+const { schedulePost } = require('../helpers/deathPostScheduler.js');
+const { showMessageThenReturnToContainer } = require('../helpers/messageSender.js');
+const { formatCharacterName } = require('../helpers/formatters.js');
+const { getCharacterManagerContainer } = require('../helpers/containerCreator.js');
 
 module.exports = {
   customId: 'character-death-modal',
@@ -29,7 +32,7 @@ module.exports = {
       [
         new TextDisplayBuilder().setContent(
           `# Review Character Final Death\n` +
-          `Please review the final death information below and confirm that this is correct for the death of ***__${character.name}__***.\n\n` +
+          `Please review the final death information below and confirm that this is correct for the death of ${formatCharacterName(character.name)}.\n\n` +
           `**Date of Death:** ${month} ${day}, Year ${year}\n` +
           `**Cause of Death:** ${cause}\n` +
           `**Final Note:** ${note}\n`
@@ -92,18 +95,14 @@ async function finalDeathConfirm(interaction, day, month, year, cause, note) {
   /**
    * Notify the user of successful character death
    */
-  container.spliceComponents(0, container.components.length); // Clear container components
-
-  container
-    .addTextDisplayComponents((textDisplay) =>
-      textDisplay.setContent(
-        `# Character Final Death Registered\n` +
-        `Your character, ***__${character.name}__***, has been successfully marked as deceased. This death will be posted in the graveyard channel in 2 hours.\n` +
-        `You can now create a new character using the Character Manager GUI above.`
-      )
-    );
-
-  await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  return showMessageThenReturnToContainer(
+    interaction,
+    `# Character Final Death Registered\n` +
+    `Your character, ${formatCharacterName(character.name)}, has been successfully marked as deceased. This death will be posted in the graveyard channel in 2 hours.`,
+    10000,
+    'Character Dashboard',
+    async () => getCharacterManagerContainer(interaction.user.id)
+  )
 }
 
 async function finalDeathEdit(interaction, day, month, year, cause, note) {

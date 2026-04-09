@@ -6,6 +6,6 @@ module.exports = {
     // Defer update to allow time for processing
     await interaction.deferUpdate();
 
-    return changeRegion(interaction, 'offspring-manager-return-button');
+    return changeRegion(interaction, 'offspring');
   }
 }

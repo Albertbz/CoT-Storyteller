@@ -8,9 +8,7 @@ module.exports = {
     // Defer the update to allow time to process
     await interaction.deferUpdate();
 
-    // Get player to get offspring to edit reply with offspring manager container
-    const player = await Players.findByPk(interaction.user.id);
-    const container = await getOffspringManagerContainer(player);
+    const container = await getOffspringManagerContainer(interaction.user.id);
 
     return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }

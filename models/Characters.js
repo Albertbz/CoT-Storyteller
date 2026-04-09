@@ -142,8 +142,8 @@ module.exports = (sequelize, DataTypes) => {
           `**Region:** ${region ? region.name : `-`}\n` +
           `${region && region.id === WANDERER_REGION_ID ? `` : `**House:** ${house ? house.name : `-`}\n`}` +
           `**Social Class:** ${this.socialClassName}`);
-          //`**Role:** ${this.role ? this.role : '-'}\n` +
-          //`**Comments:** ${this.comments ? this.comments : '-'}`);
+        //`**Role:** ${this.role ? this.role : '-'}\n` +
+        //`**Comments:** ${this.comments ? this.comments : '-'}`);
 
         infoList.push(generalInfo);
 

@@ -8,11 +8,7 @@ module.exports = {
     // Defer the update to allow time to process
     await interaction.deferUpdate();
 
-    // Get player and character to edit reply with character manager container
-    const player = await Players.findByPk(interaction.user.id);
-    const character = await player.getCharacter();
-
-    const container = await getCharacterManagerContainer(character);
+    const container = await getCharacterManagerContainer(interaction.user.id);
 
     return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }

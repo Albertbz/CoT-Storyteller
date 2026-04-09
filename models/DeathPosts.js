@@ -37,7 +37,8 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.VIRTUAL,
             async get() {
                 const character = await this.getCharacter();
-                return (`**Character**: \`${character.name}\` (\`${character.id}\`)\n` +
+                return (
+                    `**Character**: \`${character.name}\` (\`${character.id}\`)\n` +
                     `**Final Note**: \`${this.note}\`\n` +
                     `**Scheduled Post Time**: ${this.scheduledPostTime}`
                 );

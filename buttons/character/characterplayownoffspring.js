@@ -2,6 +2,8 @@ const { ContainerBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMen
 const { Players, Characters, PlayableChildren, Worlds } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 const { WORLD_ID } = require('../../constants.js');
+const { showMessageThenReturnToContainer } = require('../../helpers/messageSender.js');
+const { getCharacterManagerContainer } = require('../../helpers/containerCreator.js');
 
 module.exports = {
   customId: 'character-play-own-offspring-button',
@@ -38,15 +40,15 @@ module.exports = {
 
     // If no playable offspring found, inform the player
     if (offspring.length === 0) {
-      const noOffspringContainer = new ContainerBuilder()
+      const noPlayableOffspringContainer = new ContainerBuilder()
         .addTextDisplayComponents((textDisplay) =>
           textDisplay.setContent(
             `# No Playable Offspring Found\n` +
-            `You do not have any playable offspring characters available at this time.`
+            `You do not have any playable offspring characters available at this time. Please check back later as you may have new offspring characters become available to play.`
           )
         );
 
-      return interaction.editReply({ components: [noOffspringContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+      return interaction.followUp({ components: [noPlayableOffspringContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
     }
 
     /**

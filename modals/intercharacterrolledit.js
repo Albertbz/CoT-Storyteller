@@ -1,6 +1,7 @@
 const { Relationships, Characters, Players } = require("../dbObjects");
 const { askForConfirmation } = require("../helpers/confirmations");
-const { getIntercharacterRollManagerContainer } = require("../helpers/containerCreator");
+const { getIntercharacterRollManagerContainer, getCharacterManagerContainer } = require("../helpers/containerCreator");
+const { showMessageThenReturnToContainer } = require("../helpers/messageSender");
 const { changeRelationshipInDatabase } = require("../misc");
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require("discord.js");
 
@@ -126,18 +127,14 @@ async function intercharacterRollEditConfirm(interaction, roll, newBearingCharac
   }
 
   // Notify the user of successful edit
-  container.spliceComponents(0, container.components.length); // Clear container components
-
-  container
-    .addTextDisplayComponents((textDisplay) =>
-      textDisplay.setContent(
-        `# Intercharacter Roll Edited\n` +
-        `The intercharacter roll between **${newBearingCharacter.name}** and **${newConceivingCharacter.name}** has been successfully edited.\n` +
-        `You can view the updated intercharacter roll in the Character Manager.`
-      )
-    );
-
-  await interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  await showMessageThenReturnToContainer(
+    interaction,
+    `# Intercharacter Roll Edited\n` +
+    `The intercharacter roll between **${newBearingCharacter.name}** and **${newConceivingCharacter.name}** has been successfully edited.`,
+    10000,
+    `Character Dashboard`,
+    async () => getCharacterManagerContainer(interaction.user.id)
+  )
 
   // Also notify the player of the other character of the changes
   const bearingCharacterPlayer = await (await updatedRelationship.getBearingCharacter()).getPlayer();
@@ -162,7 +159,7 @@ async function intercharacterRollEditConfirm(interaction, roll, newBearingCharac
           `**Conceiving Character:** ${newConceivingCharacter.name}\n` +
           `**Married:** ${newCommitted ? 'Yes' : 'No'}\n` +
           `**Inherited Title:** ${newInheritedTitle ? 'Nobility' : 'None'}\n\n` +
-          `You can view the updated intercharacter roll in the Character Manager.`
+          `You can view the updated intercharacter roll in the Character Dashboard.`
         )
       );
 

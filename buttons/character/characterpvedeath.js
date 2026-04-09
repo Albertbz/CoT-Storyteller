@@ -2,6 +2,9 @@ const { ContainerBuilder, MessageFlags, inlineCode, TextDisplayBuilder } = requi
 const { changeCharacterInDatabase } = require('../../misc.js');
 const { Players } = require('../../dbObjects.js');
 const { askForConfirmation } = require('../../helpers/confirmations.js');
+const { showMessageThenReturnToContainer } = require('../../helpers/messageSender.js');
+const { getCharacterManagerContainer } = require('../../helpers/containerCreator.js');
+const { formatCharacterName } = require('../../helpers/formatters.js');
 
 module.exports = {
   customId: 'character-pve-death-button',
@@ -65,18 +68,14 @@ async function characterPveDeathConfirm(interaction) {
   /**
    * Notify the user of successful notability update
    */
-  container.spliceComponents(0, container.components.length); // Clear container components
-
-  container
-    .addTextDisplayComponents((textDisplay) =>
-      textDisplay.setContent(
-        `# PvE death added Successfully!\n` +
-        `Your character, ***__${character.name}__***, has now spent **${addedpvedeath}** PvE ${addedpvedeath === 1 ? 'life' : 'lives'}.\n` +
-        `You can continue to manage your character using the Character Manager GUI above.`
-      )
-    );
-
-  return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  return showMessageThenReturnToContainer(
+    interaction,
+    `# PvE death added\n` +
+    `Your character, ${formatCharacterName(changedCharacter.name)}, has now spent **${addedpvedeath}** PvE ${addedpvedeath === 1 ? 'life' : 'lives'}.`,
+    10000,
+    `Character Dashboard`,
+    async () => getCharacterManagerContainer(interaction.user.id)
+  )
 }
 
 async function playerTimeCheck(interaction) {

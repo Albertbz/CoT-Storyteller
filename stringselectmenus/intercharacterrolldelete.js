@@ -1,7 +1,10 @@
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require("discord.js");
-const { Relationships, Characters } = require("../dbObjects");
+const { Relationships, Characters, Players } = require("../dbObjects");
 const { askForConfirmation } = require("../helpers/confirmations");
 const { removeRelationshipFromDatabase } = require("../misc");
+const { showMessageThenReturnToContainer } = require("../helpers/messageSender");
+const { getCharacterManagerContainer } = require("../helpers/containerCreator");
+const { formatCharacterName } = require("../helpers/formatters");
 
 module.exports = {
   customId: 'intercharacter-roll-delete-select',
@@ -40,7 +43,7 @@ module.exports = {
       [
         new TextDisplayBuilder().setContent(
           `# Confirm Intercharacter Roll Deletion\n` +
-          `You are currently deleting the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}**. Are you sure you want to proceed? This action cannot be undone.`
+          `You are currently deleting the intercharacter roll between ${formatCharacterName(roll.bearingCharacter.name)} and ${formatCharacterName(roll.conceivingCharacter.name)}. Are you sure you want to proceed? This action cannot be undone.`
         )
       ],
       'character-manager-return-button',
@@ -59,7 +62,8 @@ async function intercharacterRollDeleteConfirm(interaction, roll) {
   const deletingContainer = new ContainerBuilder()
     .addTextDisplayComponents((textDisplay) =>
       textDisplay.setContent(
-        `# Deleting Intercharacter Roll\nDeleting the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}**. This may take a moment...`
+        `# Deleting Intercharacter Roll\n` +
+        `Deleting the intercharacter roll between ${formatCharacterName(roll.bearingCharacter.name)} and ${formatCharacterName(roll.conceivingCharacter.name)}. This may take a moment...`
       )
     );
 
@@ -69,19 +73,29 @@ async function intercharacterRollDeleteConfirm(interaction, roll) {
    * Delete the intercharacter roll from the database
    */
   const rollInfo = await roll.formattedInfo;
-  await removeRelationshipFromDatabase(interaction.user, roll);
+  const { success } = await removeRelationshipFromDatabase(interaction.user, roll);
+  if (!success) {
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Error Deleting Intercharacter Roll\n` +
+          `There was an error deleting the intercharacter roll between ${formatCharacterName(roll.bearingCharacter.name)} and ${formatCharacterName(roll.conceivingCharacter.name)}. Please try again later or contact a member of Staff.`
+        )
+      );
+    return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  }
 
   /**
    * Edit the message to say that the roll has been deleted
    */
-  const deletedContainer = new ContainerBuilder()
-    .addTextDisplayComponents((textDisplay) =>
-      textDisplay.setContent(
-        `# Intercharacter Roll Deleted\nThe intercharacter roll has been deleted.`
-      )
-    );
-
-  await interaction.editReply({ components: [deletedContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  await showMessageThenReturnToContainer(
+    interaction,
+    `# Intercharacter Roll Deleted\n` +
+    `The intercharacter roll between ${formatCharacterName(roll.bearingCharacter.name)} and ${formatCharacterName(roll.conceivingCharacter.name)} has been deleted.`,
+    10000,
+    `Character Dashboard`,
+    async () => getCharacterManagerContainer(interaction.user.id)
+  )
 
   // Send a DM to the other player to notify them that the intercharacter roll has been deleted
   const bearingPlayer = await roll.bearingCharacter.getPlayer();
@@ -99,7 +113,8 @@ async function intercharacterRollDeleteConfirm(interaction, roll) {
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
-          `# Intercharacter Roll Deleted\nThe intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}** has been deleted by ${interaction.user}.\n\n` +
+          `# Intercharacter Roll Deleted\n` +
+          `The intercharacter roll between ${formatCharacterName(roll.bearingCharacter.name)} and ${formatCharacterName(roll.conceivingCharacter.name)} has been deleted by ${interaction.user}.\n\n` +
           `${rollInfo}`
         )
       );

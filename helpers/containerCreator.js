@@ -1,80 +1,27 @@
 const { ContainerBuilder, ButtonBuilder, ButtonStyle, inlineCode, StringSelectMenuOptionBuilder, ActionRowBuilder, StringSelectMenuBuilder, TextDisplayBuilder } = require('discord.js');
-const { PlayableChildren, Characters, Relationships } = require('../dbObjects');
+const { PlayableChildren, Characters, Relationships, Players } = require('../dbObjects');
 const { Op } = require('sequelize');
+const { formatCharacterName } = require('./formatters');
+const { WANDERER_REGION_ID } = require('../constants');
 
-async function getCharacterManagerContainer(character) {
-  const container = new ContainerBuilder()
+async function getCharacterManagerContainer(userId) {
+  const player = await Players.findByPk(userId);
 
-  if (character) {
-    const characterInfo = await character.formattedInfo;
-
-    container
+  if (!player) {
+    const notRegisteredContainer = new ContainerBuilder()
       .addTextDisplayComponents(
-        (textDisplay) => textDisplay.setContent(`# Manage your current character: ***__${character.name}__***`),
-        (textDisplay) => textDisplay.setContent(characterInfo)
+        new TextDisplayBuilder().setContent(
+          `# Not Registered as Player\n` +
+          `You are not registered as a player. Please make a whitelist application to get registered.`
+        )
       )
-      .addSeparatorComponents((separator) => separator)
-      .addTextDisplayComponents((textDisplay) =>
-        textDisplay.setContent(`Use the buttons below to manage various aspects of your character.`))
-      .addActionRowComponents((actionRow) =>
-        actionRow.setComponents(
-          new ButtonBuilder()
-            .setCustomId('character-change-surname-button')
-            .setLabel('Change Surname')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('✍️'),
-          new ButtonBuilder()
-            .setCustomId('character-change-region-button')
-            .setLabel('Change Region/House')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('🏠')
-        )
-      );
-
-    if (await character.isMortal) {
-      container.addActionRowComponents((actionRow) =>
-        actionRow.setComponents(
-          new ButtonBuilder()
-            .setCustomId('character-register-death-button')
-            .setLabel('Register Death')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('💀')
-        )
-      );
-    }
-
-    if (character.socialClassName === 'Commoner') {
-      container.addActionRowComponents((actionRow) =>
-        actionRow.setComponents(
-          new ButtonBuilder()
-            .setCustomId('character-notability-button')
-            .setLabel('Opt in to Notability')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('⭐')
-        )
-      );
-    }
-    else {
-      const npcRollsText = character.isRollingForBastards ? 'Opt out of NPC Rolls' : 'Opt in to NPC Rolls';
-
-      container.addActionRowComponents((actionRow) =>
-        actionRow.setComponents(
-          new ButtonBuilder()
-            .setCustomId('character-npc-rolls-button')
-            .setLabel(npcRollsText)
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('🎲'),
-          new ButtonBuilder()
-            .setCustomId('character-intercharacter-rolls-button')
-            .setLabel('Manage Intercharacter Rolls')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('👥')
-        )
-      );
-    }
+    return notRegisteredContainer;
   }
-  else {
-    container
+
+  const character = await player.getCharacter();
+
+  if (!character) {
+    const noCharacterContainer = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
           `# You do not currently have a Character\n` +
@@ -95,12 +42,95 @@ async function getCharacterManagerContainer(character) {
             .setEmoji('👶')
         )
       );
+
+    return noCharacterContainer;
+  }
+
+  const characterInfo = await character.formattedInfo;
+
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `# :bust_in_silhouette: Character Dashboard\n` +
+        characterInfo
+      ),
+    )
+    .addSeparatorComponents((separator) => separator)
+    .addTextDisplayComponents((textDisplay) =>
+      textDisplay.setContent(`Use the buttons below to manage various aspects of your character.`))
+    .addActionRowComponents((actionRow) =>
+      actionRow.setComponents(
+        new ButtonBuilder()
+          .setCustomId('character-change-surname-button')
+          .setLabel('Change Surname')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('✍️'),
+        new ButtonBuilder()
+          .setCustomId('character-change-region-button')
+          .setLabel('Change Region/House')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🏠')
+      )
+    );
+
+  if (await character.isMortal) {
+    container.addActionRowComponents((actionRow) =>
+      actionRow.setComponents(
+        new ButtonBuilder()
+          .setCustomId('character-register-death-button')
+          .setLabel('Register Death')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('💀')
+      )
+    );
+  }
+
+  if (character.socialClassName === 'Commoner') {
+    container.addActionRowComponents((actionRow) =>
+      actionRow.setComponents(
+        new ButtonBuilder()
+          .setCustomId('character-notability-button')
+          .setLabel('Opt in to Notability')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('⭐')
+      )
+    );
+  }
+  else {
+    const npcRollsText = character.isRollingForBastards ? 'Opt out of NPC Rolls' : 'Opt in to NPC Rolls';
+
+    container.addActionRowComponents((actionRow) =>
+      actionRow.setComponents(
+        new ButtonBuilder()
+          .setCustomId('character-npc-rolls-button')
+          .setLabel(npcRollsText)
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🎲'),
+        new ButtonBuilder()
+          .setCustomId('character-intercharacter-rolls-button')
+          .setLabel('Manage Intercharacter Rolls')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('👥')
+      )
+    );
   }
 
   return container;
 }
 
-async function getOffspringManagerContainer(player) {
+async function getOffspringManagerContainer(userId) {
+  const player = await Players.findByPk(userId);
+  if (!player) {
+    const notRegisteredContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Not Registered as Player\n` +
+          `You are not registered as a player. Please make a whitelist application to get registered.`
+        )
+      )
+    return notRegisteredContainer;
+  }
+
   const container = new ContainerBuilder();
 
   const offspring = await PlayableChildren.findAll({
@@ -131,11 +161,12 @@ async function getOffspringManagerContainer(player) {
     });
 
     container
-      .addTextDisplayComponents((textDisplay) =>
-        textDisplay.setContent(
-          `# Manage Offspring\n` +
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# :baby: Offspring Dashboard\n` +
           `You are listed as a contact for the following offspring. Select the one that you would like to manage to continue.`
-        ))
+        )
+      )
       .addActionRowComponents(
         new ActionRowBuilder()
           .setComponents(
@@ -148,13 +179,154 @@ async function getOffspringManagerContainer(player) {
   }
   else {
     container
-      .addTextDisplayComponents((textDisplay) =>
-        textDisplay.setContent(
-          `# Manage Offspring\n` +
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# :baby: Manage Offspring\n` +
           `You are not currently listed as a contact for any offspring. One of your characters must have had a child, or you must have adopted someone else's child in order to have offspring to manage.`
         )
       )
   }
+
+  return container;
+}
+
+async function getRegionManagerContainer(userId) {
+  const player = await Players.findByPk(userId);
+  if (!player) {
+    const notRegisteredContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Not Registered as Player\n` +
+          `You are not registered as a player. Please make a whitelist application to get registered.`
+        )
+      )
+    return notRegisteredContainer;
+  }
+
+  const character = await player.getCharacter();
+  if (!character) {
+    const noCharacterContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# You do not currently have a Character\n` +
+          `Use the Character Dashboard to create a new character or to play an offspring in order to manage regions.`
+        )
+      )
+    return noCharacterContainer;
+  }
+
+  const region = await character.getRegion();
+  if (!region) {
+    const noRegionContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# No Region or House\n` +
+          `Your character is not currently associated with any region. This is not supposed to happen, as all characters should be associated with a region. Please contact a member of Staff to resolve this issue.`
+        )
+      )
+    return noRegionContainer;
+  }
+
+  const regionInfo = await region.formattedInfoNoSteelbearers;
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `# :map: Region Dashboard\n` +
+        regionInfo
+      )
+    )
+
+  if (region.id === WANDERER_REGION_ID) {
+    container
+      .addSeparatorComponents((separator) => separator)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `Your character is currently in the ${region.name} region, which is a special region that cannot be changed.`
+        )
+      )
+
+    return container;
+  }
+
+  // Perform some sort of check to see if the character is allowed to manage
+  // the region
+  const allowedToManage = true; // Placeholder, implement actual check later
+
+  if (!allowedToManage) {
+    container
+      .addSeparatorComponents((separator) => separator)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `You are not currently allowed to manage this region. Only Rulers and those with proper permissions are allowed to manage the region. If you believe that you should have access to manage this region, please contact your ruler.`
+        )
+      )
+  }
+
+
+  container.addSeparatorComponents((separator) => separator)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `Use the buttons below to manage various aspects of your region.`
+      )
+    )
+
+  // Create buttons and action row for managing steelbearers and nobles
+  const manageSteelbearersButton = new ButtonBuilder()
+    .setCustomId('region-manage-steelbearers-button')
+    .setLabel('Manage Steelbearers')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('⚔️');
+
+  const manageNoblesButton = new ButtonBuilder()
+    .setCustomId('region-manage-nobles-button')
+    .setLabel('Manage Nobles')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('👑');
+
+  const manageTitlesActionRow = new ActionRowBuilder()
+    .addComponents(manageSteelbearersButton, manageNoblesButton);
+
+  container.addActionRowComponents(manageTitlesActionRow);
+
+  // Create buttons and action row for updating recruitment roles, removing a 
+  // character from the region, and for starting an activity check/purge
+  const changeRecruitmentRolesButton = new ButtonBuilder()
+    .setCustomId('region-change-recruitment-roles-button')
+    .setLabel('Change Recruitment Roles')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('⚒️');
+
+  // Check if region has a recruitment entry
+  const recruitment = await region.getRecruitment();
+  if (!recruitment) {
+    changeRecruitmentRolesButton.setDisabled(true);
+  }
+
+  const removeCharacterButton = new ButtonBuilder()
+    .setCustomId('region-remove-character-button')
+    .setLabel('Banish Character')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('🚪');
+
+  const charactersInRegion = await region.getCharacters({
+    where: { id: { [Op.not]: character.id } },
+    include: { model: Players, required: true, as: 'player' }
+  });
+  if (charactersInRegion.length === 0) {
+    removeCharacterButton.setDisabled(true);
+  }
+
+  const activityCheckButton = new ButtonBuilder()
+    .setCustomId('region-activity-check-button')
+    .setLabel('Start Activity Check')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('⚠️');
+
+  const managementActionRow = new ActionRowBuilder()
+    .addComponents(changeRecruitmentRolesButton, removeCharacterButton, activityCheckButton);
+
+  container.addActionRowComponents(managementActionRow);
+
 
   return container;
 }
@@ -195,12 +367,12 @@ async function getIntercharacterRollManagerContainer(character) {
   // add it to the container
   if (intercharacterRolls.length === 0) {
     const notRollingTextDisplay = new TextDisplayBuilder().setContent(
-      `Your character is currently not rolling in any intercharacter rolls.`
+      `Your character, ${formatCharacterName(character.name)}, is currently not rolling in any intercharacter rolls.`
     );
     container.addTextDisplayComponents(notRollingTextDisplay);
   } else {
     const rollingTextDisplay = new TextDisplayBuilder().setContent(
-      `Your character is currently rolling in one or more intercharacter rolls. To edit an intercharacter roll, please select the one that you want to edit in the select menu below. To create a new intercharacter roll, click the 'Create Roll' button. To delete an intercharacter roll, click the 'Delete Roll' button.`
+      `Your character, ${formatCharacterName(character.name)}, is currently rolling in one or more intercharacter rolls. To edit an intercharacter roll, please select the one that you want to edit in the select menu below. To create a new intercharacter roll, click the 'Create Roll' button. To delete an intercharacter roll, click the 'Delete Roll' button.`
     );
 
     container.addTextDisplayComponents(rollingTextDisplay);
@@ -268,5 +440,6 @@ async function getIntercharacterRollManagerContainer(character) {
 module.exports = {
   getCharacterManagerContainer,
   getOffspringManagerContainer,
+  getRegionManagerContainer,
   getIntercharacterRollManagerContainer
 }

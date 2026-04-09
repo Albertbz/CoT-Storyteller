@@ -1,5 +1,6 @@
 const { ContainerBuilder, inlineCode, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require("discord.js");
 const { Players, PlayableChildren, Characters } = require("../dbObjects");
+const { formatCharacterName } = require("../helpers/formatters");
 
 module.exports = {
   customId: 'offspring-manage-select',
@@ -71,7 +72,7 @@ module.exports = {
     const container = new ContainerBuilder()
       .addTextDisplayComponents((textDisplay) =>
         textDisplay.setContent(
-          `# Manage Offspring: ${offspring.character ? `***__${offspring.character.name}__***` : `${offspring.id}`}\n` +
+          `# Manage Offspring: ${offspring.character ? `${formatCharacterName(offspring.character.name)}` : `${offspring.id}`}\n` +
           formattedInfo
         )
       )
@@ -98,6 +99,6 @@ module.exports = {
       );
 
 
-    return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2], allowedMentions: { parse: [] } });
   }
 }

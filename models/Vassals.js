@@ -46,5 +46,19 @@ module.exports = (sequelize, DataTypes) => {
         throw new Error('Do not try to set the formattedInfo value!')
       }
     }
-  });
+  }, {
+    hooks: {
+      beforeDestroy: async (instance, options) => {
+        // Check if any vassalsteelbearers with this vassal exist and throw an
+        // error if any do to prevent orphaned steelbearers
+        const vassalSteelbearers = await sequelize.models.vassalsteelbearers.findAll({ where: { vassalId: instance.id } });
+        if (vassalSteelbearers.length > 0) {
+          const error = new Error('Cannot delete vassal with existing vassal/liege steelbearers');
+          error.code = 'VassalSteelbearersExist';
+          throw error;
+        }
+      }
+    }
+  }
+  );
 }

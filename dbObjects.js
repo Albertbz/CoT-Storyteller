@@ -27,6 +27,14 @@ const DeathRollDeaths = require('./models/DeathRollDeaths.js')(sequelize, Sequel
 const DeathPosts = require('./models/DeathPosts.js')(sequelize, Sequelize.DataTypes);
 const DiscordChannels = require('./models/DiscordChannels.js')(sequelize, Sequelize.DataTypes);
 const DiscordRoles = require('./models/DiscordRoles.js')(sequelize, Sequelize.DataTypes);
+const LegitimisationRequests = require('./models/LegitimisationRequests.js')(sequelize, Sequelize.DataTypes);
+const OffspringChangeNameRequests = require('./models/OffspringChangeNameRequests.js')(sequelize, Sequelize.DataTypes);
+
+OffspringChangeNameRequests.belongsTo(PlayableChildren, { foreignKey: 'offspringId', as: 'offspring' });
+OffspringChangeNameRequests.belongsTo(Players, { foreignKey: 'requestedById', as: 'requestedBy' });
+
+LegitimisationRequests.belongsTo(PlayableChildren, { foreignKey: 'offspringId', as: 'offspring' });
+LegitimisationRequests.belongsTo(Players, { foreignKey: 'requestedById', as: 'requestedBy' });
 
 Regions.belongsTo(Houses, { foreignKey: 'rulingHouseId', as: 'rulingHouse' });
 Regions.belongsTo(Recruitments, { foreignKey: 'recruitmentId', as: 'recruitment' });
@@ -114,6 +122,7 @@ Characters.belongsTo(Characters, { foreignKey: 'parent2Id', as: 'parent2' })
 Characters.hasMany(Relationships, { foreignKey: 'bearingCharacterId', as: 'relationshipsBearing' })
 Characters.hasMany(Relationships, { foreignKey: 'conceivingCharacterId', as: 'relationshipsConceiving' })
 Characters.hasOne(Players, { foreignKey: 'characterId', as: 'player' })
+Characters.hasOne(Steelbearers, { foreignKey: 'characterId', as: 'steelbearer' })
 
 Relationships.belongsTo(Characters, { foreignKey: 'bearingCharacterId', as: 'bearingCharacter' })
 Relationships.belongsTo(Characters, { foreignKey: 'conceivingCharacterId', as: 'conceivingCharacter' })
@@ -124,6 +133,8 @@ Deceased.belongsTo(Players, { foreignKey: 'playedById', as: 'playedBy' });
 DeathRollDeaths.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 
 PlayableChildren.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
+PlayableChildren.hasOne(LegitimisationRequests, { foreignKey: 'offspringId', as: 'legitimisationRequest' });
+PlayableChildren.hasOne(OffspringChangeNameRequests, { foreignKey: 'offspringId', as: 'changeNameRequest' });
 
 Players.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
 
@@ -148,5 +159,7 @@ module.exports = {
   DeathRollDeaths,
   DeathPosts,
   DiscordChannels,
-  DiscordRoles
+  DiscordRoles,
+  LegitimisationRequests,
+  OffspringChangeNameRequests,
 };

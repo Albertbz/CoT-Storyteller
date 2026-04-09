@@ -108,8 +108,11 @@ module.exports = {
       }
     }
     else if (interaction.isStringSelectMenu()) {
+      // Get base customId by splitting on colons
+      const baseCustomId = interaction.customId.split(':')[0];
+
       // Check whether a string select menu handler exists for this customId
-      const selectMenuHandler = interaction.client.stringSelectMenus.get(interaction.customId);
+      const selectMenuHandler = interaction.client.stringSelectMenus.get(baseCustomId);
 
       // If not, ignore select menu and return
       if (!selectMenuHandler) return;

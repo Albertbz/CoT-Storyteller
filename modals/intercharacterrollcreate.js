@@ -3,6 +3,8 @@ const { askForConfirmation } = require("../helpers/confirmations");
 const { Characters } = require("../dbObjects");
 const { addRelationshipToDatabase } = require("../misc");
 const { intercharacterRollCreateModal } = require("../helpers/modalCreator");
+const { showMessageThenReturnToContainer } = require("../helpers/messageSender");
+const { getCharacterManagerContainer } = require("../helpers/containerCreator");
 
 async function intercharacterRollCreateConfirm(interaction, bearingCharacter, conceivingCharacter, committed, inheritedTitle) {
   // Defer reply to allow time to process
@@ -15,8 +17,8 @@ async function intercharacterRollCreateConfirm(interaction, bearingCharacter, co
   const container = new ContainerBuilder()
     .addTextDisplayComponents((textDisplay) =>
       textDisplay.setContent(
-        `# Intercharacter Roll Creation\n` +
-        `A request for an intercharacter roll is being sent to the other player. They have 10 minutes to respond. Waiting for their response...`
+        `# Sending Intercharacter Roll Creation Request\n` +
+        `A request for an intercharacter roll is being sent to the other player. This may take a few moments...`
       )
     );
 
@@ -87,6 +89,16 @@ async function intercharacterRollCreateConfirm(interaction, bearingCharacter, co
     return interaction.editReply({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }
 
+  // If the DM was sent successfully, inform the user who initiated the intercharacter roll creation that the confirmation request has been sent and we are waiting for their response
+  await showMessageThenReturnToContainer(
+    interaction,
+    `# Sent Intercharacter Roll Creation Request\n` +
+    `A confirmation request has been sent to the other player, ${userMention(otherPlayer.id)}. They have 10 minutes to respond, and you will be notified of their response.`,
+    15000,
+    `Character Dashboard`,
+    async () => getCharacterManagerContainer(interaction.user.id)
+  )
+
   /**
    * Create a collector to wait for the other player's response to the confirmation message
    * If the other player confirms, create the intercharacter roll and inform both players of the successful creation
@@ -120,10 +132,9 @@ async function intercharacterRollCreateConfirm(interaction, bearingCharacter, co
           textDisplay.setContent(
             `# Intercharacter Roll Created\n` +
             `${interaction.user}, the other player has confirmed the creation of the intercharacter roll.\n` +
-            `You can continue to manage your character and their intercharacter rolls using the Character Manager GUI above.`
+            `You can continue to manage your character and their intercharacter rolls using the Character Dashboard above.`
           )
         )
-      await interaction.deleteReply();
       await interaction.followUp({ components: [userContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 
       // Reuse otherUserContainer to inform the other player of the successful 
@@ -147,10 +158,9 @@ async function intercharacterRollCreateConfirm(interaction, bearingCharacter, co
           textDisplay.setContent(
             `# Intercharacter Roll Creation Denied\n` +
             `${interaction.user}, the other player has denied the creation of the intercharacter roll.\n` +
-            `You can try again or manage your character using the Character Manager GUI above.`
+            `You can try again or manage your character using the Character Dashboard above.`
           )
         )
-      await interaction.deleteReply();
       await interaction.followUp({ components: [userContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 
       // Reuse otherUserContainer to inform the other player that they denied the request by editing the original confirmation message sent to them
@@ -176,10 +186,9 @@ async function intercharacterRollCreateConfirm(interaction, bearingCharacter, co
           textDisplay.setContent(
             `# Intercharacter Roll Creation Timed Out\n` +
             `${interaction.user}, the other player did not respond to the intercharacter roll creation request within 10 minutes. The request has timed out.\n` +
-            `You can try again or manage your character using the Character Manager GUI above.`
+            `You can try again or manage your character using the Character Dashboard above.`
           )
         )
-      await interaction.deleteReply();
       await interaction.followUp({ components: [userContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
 
       // Reuse otherUserContainer to inform the other player that the request timed out by editing the original confirmation message sent to them

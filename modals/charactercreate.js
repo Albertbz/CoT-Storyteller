@@ -4,6 +4,9 @@ const { askForConfirmation } = require('../helpers/confirmations.js');
 const { Regions, Characters } = require('../dbObjects.js');
 const { characterCreateModal } = require('../helpers/modalCreator.js');
 const { where } = require('sequelize');
+const { showMessageThenReturnToContainer } = require('../helpers/messageSender.js');
+const { getCharacterManagerContainer } = require('../helpers/containerCreator.js');
+const { formatCharacterName } = require('../helpers/formatters.js');
 
 module.exports = {
   customId: 'character-create-modal',
@@ -97,18 +100,14 @@ async function characterCreateConfirm(interaction, characterName, regionId, nota
   /**
    * Notify the user of successful character creation
    */
-  container.spliceComponents(0, container.components.length); // Clear container components
-
-  container
-    .addTextDisplayComponents((textDisplay) =>
-      textDisplay.setContent(
-        `# Character Created\n` +
-        `Your character, **${inlineCode(character.name)}**, has been successfully created and assigned to you.\n` +
-        `You can manage your character using the Character Manager GUI above.`
-      )
-    );
-
-  return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+  return showMessageThenReturnToContainer(
+    interaction,
+    `# Character Created\n` +
+    `Your character, ${formatCharacterName(character.name)}, has been successfully created and assigned to you.`,
+    10000,
+    'Character Dashboard',
+    async () => getCharacterManagerContainer(interaction.user.id)
+  )
 }
 
 async function characterCreateEdit(interaction, characterName, regionId, notabilityChoice) {

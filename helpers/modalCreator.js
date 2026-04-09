@@ -3,6 +3,7 @@ const { Regions, Houses, Relationships } = require('../dbObjects.js');
 const { guildId } = require('../configs/config.json');
 const { Op, Sequelize } = require('sequelize');
 const { WANDERER_REGION_ID } = require('../constants.js');
+const { formatCharacterName } = require('./formatters.js');
 
 /**
  * Creates a character creation modal with optional pre-filled values.
@@ -210,7 +211,7 @@ async function finalDeathModal({ deathDay = null, deathMonth = null, deathYear =
     .setCustomId('death-note-input')
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(true)
-    .setMaxLength(250);
+    .setMaxLength(500);
 
   if (deathNote) {
     noteInput.setValue(deathNote);
@@ -218,7 +219,7 @@ async function finalDeathModal({ deathDay = null, deathMonth = null, deathYear =
 
   const noteLabel = new LabelBuilder()
     .setLabel('Final note')
-    .setDescription('Your final note. This is not allowed to reveal any IC information and will be posted publically. Max 250 characters.')
+    .setDescription('Final note. No IC information allowed, as it will be posted to the public. Max 500 characters.')
     .setTextInputComponent(noteInput);
 
   modal.addLabelComponents(dayLabel, monthLabel, yearLabel, causeLabel, noteLabel);
@@ -241,8 +242,8 @@ async function characterSurnameModal(character, { surnameValue = null } = {}) {
 
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing the surname of your character, **${character.name}**, ` +
-      (currentSurname === '' ? `who does not have a surname yet.\n` : `whose current surname is ***__${currentSurname}__***.\n`) +
+      `You are currently changing the surname of your character, ${formatCharacterName(character.name)}, ` +
+      (currentSurname === '' ? `who does not have a surname yet.\n` : `whose current surname is **${currentSurname}**.\n`) +
       `Please do not choose a surname that already exists, unless your character is part of said family.`
     )
 
@@ -319,8 +320,8 @@ async function intercharacterRollCreateModal(character1, character2, { bearingCh
 
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `## You are creating an intercharacter roll between **${character1.name}** and **${character2.name}**.\n` +
-      (bearingCharacter && conceivingCharacter ? `**${bearingCharacter.name}** will be the bearing partner and **${conceivingCharacter.name}** will be the conceiving partner, as one or both of them are already in another intercharacter roll as that type of partner.\n\n` : `Please specify which character will be the bearing partner.\n`) +
+      `## You are creating an intercharacter roll between ${formatCharacterName(character1.name)} and ${formatCharacterName(character2.name)}.\n` +
+      (bearingCharacter && conceivingCharacter ? `${formatCharacterName(bearingCharacter.name)} will be the bearing partner and ${formatCharacterName(conceivingCharacter.name)} will be the conceiving partner, as one or both of them are already in another intercharacter roll as that type of partner.\n\n` : `Please specify which character will be the bearing partner.\n`) +
       `Please${bearingCharacter && conceivingCharacter ? ' ' : ' also '}specify whether the characters are married to each other or not${canInheritNobleTitles ? ', and if they are married, whether any children born from this intercharacter roll will inherit noble titles or not.' : '.'}`
     )
 
@@ -350,7 +351,7 @@ async function intercharacterRollEditModal(roll) {
   // and what the current settings of that roll are
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `## You are editing the intercharacter roll between **${roll.bearingCharacter.name}** and **${roll.conceivingCharacter.name}**.\n` +
+      `## You are editing the intercharacter roll between ${formatCharacterName(roll.bearingCharacter.name)} and ${formatCharacterName(roll.conceivingCharacter.name)}.\n` +
       `Please change any of the values you want to change, and leave any values you do not want to change the same as they currently are.`
     )
 
@@ -493,7 +494,7 @@ async function changeRegionModal(character, manager, { regionId = null } = {}) {
    */
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing the region of the character **${character.name}**.\n` +
+      `You are currently changing the region of the character ${formatCharacterName(character.name)}.\n` +
       `Changing the character's region will also change their house to the house that rules that region, and may also change their social class.`
     )
 
@@ -544,7 +545,7 @@ async function changeRegionModal(character, manager, { regionId = null } = {}) {
   return modal;
 }
 
-async function offspringLegitimiseModal(offspring) {
+async function offspringLegitimiseModal(offspring, newNameValue = null) {
   const modal = new ModalBuilder()
     .setCustomId('offspring-legitimise-modal:' + offspring.id)
     .setTitle('Legitimise Offspring');
@@ -555,7 +556,8 @@ async function offspringLegitimiseModal(offspring) {
   // what the requirements are
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `To legitimise the offspring **${offspringCharacter.name}**, please provide a screenshot of a piece of parchment that has been signed by the ruler of the lands that the offspring belongs to. The parchment must state that the offspring is now a legitimate child of their parent(s), and must include the name of the offspring and their parent(s).`
+      `To legitimise the offspring ${formatCharacterName(offspringCharacter.name)}, please provide a screenshot of a piece of parchment that has been signed by the ruler of the lands that the offspring belongs to. The parchment must state that the offspring is now a legitimate child of their parent(s), and must include the name of the offspring and their parent(s).\n` +
+      `You can also specify the new name of the offspring in the input below (if it is to be changed), and you must also provide a screenshot of the chiseled child with its name shown, made into a tabletop piece, to show that the child exists in the world.`
     )
 
   modal.addTextDisplayComponents(textDisplay);
@@ -569,9 +571,37 @@ async function offspringLegitimiseModal(offspring) {
     .setDescription('Make sure the screenshot includes the things mentioned in the instructions above.')
     .setFileUploadComponent(screenshotInput);
 
-  modal.addLabelComponents(screenshotLabel);
+  const { nameLabel, screenshotLabel: nameScreenshotLabel } = getNameAndScreenshotLabel(newNameValue ? newNameValue : offspringCharacter.name);
+
+  modal.addLabelComponents(screenshotLabel, nameLabel, nameScreenshotLabel);
 
   return modal;
+}
+
+function getNameAndScreenshotLabel(nameValue) {
+  const nameInput = new TextInputBuilder()
+    .setCustomId('offspring-change-name-input')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('Enter new name for the offspring')
+    .setValue(nameValue)
+    .setMaxLength(50);
+
+  const nameLabel = new LabelBuilder()
+    .setLabel('What is the new name of the offspring?')
+    .setDescription('Numbers, usernames, and references to real-life are not allowed.')
+    .setTextInputComponent(nameInput);
+
+  // Create a file upload input for the screenshot of the chiseled child with its name shown
+  const screenshotInput = new FileUploadBuilder()
+    .setCustomId('offspring-chiseled-offspring-screenshot')
+
+  const screenshotLabel = new LabelBuilder()
+    .setLabel('Upload screenshot of chiseled child')
+    .setDescription('Make sure the screenshot includes the things mentioned in the instructions above.')
+    .setFileUploadComponent(screenshotInput);
+
+  return { nameLabel, screenshotLabel };
 }
 
 async function offspringChangeNameModal(offspring, { nameValue = null } = {}) {
@@ -584,40 +614,14 @@ async function offspringChangeNameModal(offspring, { nameValue = null } = {}) {
   // Create textdisplay to explain what changing the name of the offspring means
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing the name of the offspring **${offspringCharacter.name}**.\n` +
+      `You are currently changing the name of the offspring ${formatCharacterName(offspringCharacter.name)}.\n` +
       `Please enter the new name for this offspring, and provide a screenshot of the chiseled child with its name shown. It has to be made into a tabletop piece to be valid.`
     );
 
   modal.addTextDisplayComponents(textDisplay);
 
   // Create a text input for the new name of the offspring, prefilled with the current name
-  const nameInput = new TextInputBuilder()
-    .setCustomId('offspring-change-name-input')
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true)
-    .setPlaceholder('Enter new name for the offspring')
-    .setMaxLength(50);
-
-  if (nameValue) {
-    nameInput.setValue(nameValue);
-  }
-  else {
-    nameInput.setValue(offspringCharacter.name);
-  }
-
-  const nameLabel = new LabelBuilder()
-    .setLabel('What is the new name of the offspring?')
-    .setDescription('Numbers, usernames, and references to real-life are not allowed.')
-    .setTextInputComponent(nameInput);
-
-  // Create a file upload input for the screenshot of the chiseled child with its name shown
-  const screenshotInput = new FileUploadBuilder()
-    .setCustomId('offspring-change-name-screenshot')
-
-  const screenshotLabel = new LabelBuilder()
-    .setLabel('Upload screenshot of chiseled child')
-    .setDescription('Make sure the screenshot includes the things mentioned in the instructions above.')
-    .setFileUploadComponent(screenshotInput);
+  const { nameLabel, screenshotLabel } = getNameAndScreenshotLabel(nameValue ? nameValue : offspringCharacter.name);
 
   modal.addLabelComponents(nameLabel, screenshotLabel);
 
@@ -655,7 +659,7 @@ async function offspringChangeInheritanceModal(offspring) {
   // Create textdisplay to explain what changing the inheritance of the offspring means
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing the inheritance of the offspring **${offspringCharacter.name}**.\n` +
+      `You are currently changing the inheritance of the offspring ${formatCharacterName(offspringCharacter.name)}.\n` +
       `Please specify whether this offspring is inheriting nobility or not.`
     );
 
@@ -689,6 +693,51 @@ async function offspringChangeInheritanceModal(offspring) {
   return modal;
 }
 
+async function changeRecruitmentRolesModal(region) {
+  const modal = new ModalBuilder()
+    .setCustomId(`region-change-recruitment-roles-modal`)
+    .setTitle('Change Recruitment Roles for ' + region.name);
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing the recruitment roles for the region **${region.name}**.\n` +
+      `Please specify what roles this region is in need of. You can select up to 3 recruitment roles, or leave it blank if there are no specific roles needed for this region.`
+    );
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  // Create three string select menus for the three recruitment roles, prefilled with the current recruitment roles of the region
+  const possibleRoles = [{ name: 'Smiths', emoji: '🔨' }, { name: 'Builders', emoji: '🏗️' }, { name: 'Cooks', emoji: '🍳' }, { name: 'Lumberjacks', emoji: '🪓' }, { name: 'Soldiers', emoji: '⚔️' }, { name: 'Potters', emoji: '🏺' }, { name: 'Miners', emoji: '⛏️' }, { name: 'Carpenters', emoji: '🪚' }, { name: 'Tailors', emoji: '🧵' }, { name: 'Healers', emoji: '🩹' }, { name: 'Farmers', emoji: '🌾' }, { name: 'Hunters', emoji: '🏹' }, { name: 'Clockmakers', emoji: '🕰️' }];
+
+  const recruitment = await region.getRecruitment();
+  const currentRoles = recruitment ? [recruitment.role1, recruitment.role2, recruitment.role3] : [null, null, null];
+
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId(`recruitment-roles-select`)
+    .setPlaceholder(`No specific roles required`)
+    .setRequired(false)
+    .setMinValues(0)
+    .setMaxValues(3)
+    .addOptions(
+      possibleRoles.map(role => new StringSelectMenuOptionBuilder()
+        .setLabel(role.name)
+        .setValue(role.name)
+        .setEmoji(role.emoji)
+        .setDefault(currentRoles.includes(role.name) ? true : false)
+      )
+    );
+
+  const label = new LabelBuilder()
+    .setLabel(`Recruitment Roles`)
+    .setDescription('Select the recruitment roles for this region. You can select up to 3 roles.')
+    .setStringSelectMenuComponent(selectMenu);
+
+
+  modal.addLabelComponents(label);
+
+  return modal;
+}
+
 module.exports = {
   characterCreateModal,
   finalDeathModal,
@@ -699,5 +748,6 @@ module.exports = {
   offspringLegitimiseModal,
   offspringChangeNameModal,
   offspringChangeInheritanceModal,
-  denyChangeModal
+  denyChangeModal,
+  changeRecruitmentRolesModal
 }
