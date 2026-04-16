@@ -12,6 +12,17 @@ module.exports = {
     // Get the offspring ID and new name from the customId, which is split by a :
     const [_, changeNameRequestId] = interaction.customId.split(':');
     const changeNameRequest = await OffspringChangeNameRequests.findByPk(changeNameRequestId);
+    if (!changeNameRequest) {
+      const errorContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Error Approving Offspring Name Change\n` +
+            `The name change request could not be found. It may have already been processed or deleted. Please try again or delete the request.`
+          )
+        )
+        .setAccentColor(COLORS.RED);
+      return interaction.followUp({ components: [errorContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
     const offspring = await changeNameRequest.getOffspring();
     const offspringCharacter = await offspring.getCharacter();
 
