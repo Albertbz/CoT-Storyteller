@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, ButtonBuilder, ActionRowBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Steelbearers, Deceased, DeathRollDeaths, Vassals } = require('../../dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Steelbearers, Deceased, DeathRollDeaths, Vassals, RegionManagers } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 const { postInLogChannel, COLORS } = require('../../misc.js');
 
@@ -117,6 +117,18 @@ module.exports = {
             .setAutocomplete(true)
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('regionmanager')
+        .setDescription('Remove a region manager.')
+        .addStringOption(option =>
+          option
+            .setName('name')
+            .setDescription('The name of the region manager to remove.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
   ,
   async autocomplete(interaction) {
     let choices;
@@ -136,6 +148,34 @@ module.exports = {
         });
 
         choices = characters.map(character => ({ name: character.name, value: character.id }));
+      }
+    }
+
+    // Handle autocompletes for region manager subcommand
+    if (subcommand === 'regionmanager') {
+      const focusedOption = interaction.options.getFocused(true);
+
+      if (focusedOption.name === 'name') {
+        const focusedValue = interaction.options.getFocused();
+
+        const regionManagers = await RegionManagers.findAll({
+          include: [{
+            model: Characters,
+            as: 'character',
+            where: { name: { [Op.startsWith]: focusedValue } },
+            include: [{
+              model: Regions,
+              as: 'region'
+            }]
+          }],
+          attributes: ['id'],
+          limit: 25
+        });
+
+        choices = regionManagers.map(regionManager => ({
+          name: `${regionManager.character.name} (${regionManager.character.region.name})`,
+          value: regionManager.id
+        }));
       }
     }
 
@@ -330,6 +370,25 @@ module.exports = {
 
       entityName = `player ${userMention(user.id)}`;
       embedTitle = 'Player Removed';
+    }
+
+    /**
+     * Handle 'region manager' subcommand
+     */
+    if (subcommand === 'regionmanager') {
+      const regionManagerId = interaction.options.getString('name');
+
+      toRemove = await RegionManagers.findByPk(regionManagerId, {
+        include: {
+          model: Characters, as: 'character',
+          include: {
+            model: Regions, as: 'region'
+          }
+        }
+      });
+
+      entityName = `region manager ${inlineCode(toRemove.character.name)} for region ${inlineCode(toRemove.character.region.name)}`;
+      embedTitle = 'Region Manager Removed';
     }
 
 

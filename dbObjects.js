@@ -168,4 +168,5 @@ module.exports = {
   DiscordRoles,
   LegitimisationRequests,
   OffspringChangeNameRequests,
+  RegionManagers
 };

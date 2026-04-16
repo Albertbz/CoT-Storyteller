@@ -250,23 +250,26 @@ async function getRegionManagerContainer(userId) {
 
   // Perform some sort of check to see if the character is allowed to manage
   // the region
-  const allowedToManage = true; // Placeholder, implement actual check later
+
+  const allowedToManage = character.socialClassName === 'Ruler' || await character.getRegionManager();
 
   if (!allowedToManage) {
     container
       .addSeparatorComponents((separator) => separator)
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `You are not currently allowed to manage this region. Only Rulers and those with proper permissions are allowed to manage the region. If you believe that you should have access to manage this region, please contact your ruler.`
+          `You are not currently allowed to manage this region. Only Rulers and Region Managers are allowed to manage the region. If you believe that you should have access to manage this region, please contact your ruler.`
         )
       )
+
+    return container;
   }
 
 
   container.addSeparatorComponents((separator) => separator)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `Use the buttons below to manage various aspects of your region.`
+        `Use the buttons below to manage various aspects of your region. You can only do this because you are a Ruler or a Region Manager.`
       )
     )
 
@@ -283,8 +286,18 @@ async function getRegionManagerContainer(userId) {
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('👑');
 
+  const manageManagersButton = new ButtonBuilder()
+    .setCustomId('region-manage-managers-button')
+    .setLabel('Manage Region Managers')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('🛡️');
+
   const manageTitlesActionRow = new ActionRowBuilder()
     .addComponents(manageSteelbearersButton, manageNoblesButton);
+
+  if (character.socialClassName === 'Ruler') {
+    manageTitlesActionRow.addComponents(manageManagersButton);
+  }
 
   container.addActionRowComponents(manageTitlesActionRow);
 

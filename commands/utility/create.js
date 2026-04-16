@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Relationships, Worlds, PlayableChildren, Deceased } = require('../../dbObjects.js');
 const { Op, Sequelize } = require('sequelize');
-const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase, addVassalToDatabase, addPlayableChildToDatabase, addRegionToDatabase, addDuchyToDatabase } = require('../../misc.js');
+const { addPlayerToDatabase, addCharacterToDatabase, assignCharacterToPlayer, postInLogChannel, addRelationshipToDatabase, addHouseToDatabase, addVassalToDatabase, addPlayableChildToDatabase, addRegionToDatabase, addDuchyToDatabase, addRegionManagerToDatabase } = require('../../misc.js');
 const { WANDERER_REGION_ID, WORLD_ID } = require('../../constants.js');
 
 
@@ -283,6 +283,25 @@ module.exports = {
             .setAutocomplete(true)
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('regionmanager')
+        .setDescription('Make a character into a region manager for a region.')
+        .addStringOption(option =>
+          option
+            .setName('character')
+            .setDescription('The character to make into a region manager.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('region')
+            .setDescription('The region for which to make the character a manager.')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
   ,
   async autocomplete(interaction) {
     let choices;
@@ -382,6 +401,18 @@ module.exports = {
       });
 
       choices = regions.map(region => ({ name: region.name, value: region.id }));
+    }
+
+    else if (focusedOption.name === 'character') {
+      const focusedValue = interaction.options.getFocused();
+
+      const characters = await Characters.findAll({
+        where: { name: { [Op.startsWith]: focusedValue } },
+        attributes: ['name', 'id'],
+        limit: 25
+      });
+
+      choices = characters.map(character => ({ name: character.name, value: character.id }));
     }
 
     await interaction.respond(choices);
@@ -601,6 +632,23 @@ module.exports = {
 
       try {
         const { duchy, embed } = await addDuchyToDatabase(interaction.user, givenValues);
+        return interaction.editReply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      }
+      catch (error) {
+        console.log(error);
+        return interaction.editReply({ content: error.message, flags: MessageFlags.Ephemeral });
+      }
+    }
+    else if (subcommand === 'regionmanager') {
+      const characterId = interaction.options.getString('character');
+      const regionId = interaction.options.getString('region');
+
+      let givenValues = {};
+      if (characterId) givenValues.characterId = characterId;
+      if (regionId) givenValues.regionId = regionId;
+
+      try {
+        const { regionManager, embed } = await addRegionManagerToDatabase(interaction.user, givenValues);
         return interaction.editReply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       }
       catch (error) {

@@ -1,5 +1,5 @@
 const { EmbedBuilder, userMention, inlineCode, MessageFlags, ContainerBuilder, TextDisplayBuilder, hyperlink, time, bold, italic, strikethrough, TimestampStyles, AttachmentBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, roleMention } = require('discord.js');
-const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts, DiscordChannels, Recruitments, DiscordRoles } = require('./dbObjects.js');
+const { Players, Characters, Regions, Houses, SocialClasses, Duchies, Vassals, Steelbearers, VassalSteelbearers, Worlds, Relationships, Deceased, PlayableChildren, DeathRollDeaths, DeathPosts, DiscordChannels, Recruitments, DiscordRoles, RegionManagers } = require('./dbObjects.js');
 const { guildId } = require('./configs/config.json');
 const { Op } = require('sequelize');
 const { WANDERER_REGION_ID, WORLD_ID } = require('./constants.js');
@@ -1217,6 +1217,14 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
     if (steelbearerRecord) {
       characterNotChangedEmbed
         .setDescription('Character is a Steelbearer and cannot change regions. Remove the Steelbearer status first.');
+      return { character: null, embed: characterNotChangedEmbed };
+    }
+
+    // Check whether character is a region manager. If they are, cannot change region
+    const regionManagerRecord = await RegionManagers.findOne({ where: { characterId: character.id } });
+    if (regionManagerRecord) {
+      characterNotChangedEmbed
+        .setDescription('Character is a Region Manager and cannot change regions. Remove the Region Manager status first.');
       return { character: null, embed: characterNotChangedEmbed };
     }
 
@@ -3091,6 +3099,72 @@ async function removeSteelbearerFromDatabase(storyteller, steelbearer) {
   return { success: true, embed: steelbearerRemovedEmbed };
 }
 
+async function addRegionManagerToDatabase(storyteller, { characterId, regionId } = {}) {
+  const regionManagerNotAddedEmbed = new EmbedBuilder()
+    .setTitle('Region Manager Not Added')
+    .setColor(COLORS.RED);
+
+  const character = await Characters.findByPk(characterId);
+  const region = await Regions.findByPk(regionId);
+
+  if (!character) {
+    regionManagerNotAddedEmbed
+      .setDescription('Character with the provided ID does not exist in the database.');
+    return { regionManager: null, embed: regionManagerNotAddedEmbed };
+  }
+
+  if (!region) {
+    regionManagerNotAddedEmbed
+      .setDescription('Region with the provided ID does not exist in the database.');
+    return { regionManager: null, embed: regionManagerNotAddedEmbed };
+  }
+
+  // Checek if the character is already a region manager for some region
+  const existingRegionManager = await RegionManagers.findOne({ where: { characterId: characterId } });
+  if (existingRegionManager) {
+    // Check if the existing region manager record is for the same region, if so, return a specific message about that, otherwise return the general message about being a region manager for another region
+    if (existingRegionManager.regionId === regionId) {
+      regionManagerNotAddedEmbed
+        .setDescription('Character is already a region manager for this region.');
+    }
+    else {
+      regionManagerNotAddedEmbed
+        .setDescription('Character is already a region manager for another region. Please remove them as a region manager from that region before adding them as a region manager for a new region.');
+    }
+    return { regionManager: null, embed: regionManagerNotAddedEmbed };
+  }
+
+  let regionManager;
+  try {
+    regionManager = await RegionManagers.create({
+      characterId: characterId,
+      regionId: regionId
+    });
+
+    await postInLogChannel(
+      'Region Manager Added',
+      `**Added by: ${userMention(storyteller.id)}**\n\n` +
+      await regionManager.logInfo,
+      COLORS.GREEN
+    );
+  }
+  catch (error) {
+    console.log(error);
+    regionManagerNotAddedEmbed
+      .setDescription('An error occurred while trying to add region manager: ' + error.message);
+    return { regionManager: null, embed: regionManagerNotAddedEmbed };
+  }
+
+  const regionManagerAddedEmbed = new EmbedBuilder()
+    .setTitle('Region Manager Added')
+    .setDescription(
+      await regionManager.formattedInfo
+    )
+    .setColor(COLORS.GREEN);
+
+  return { regionManager, embed: regionManagerAddedEmbed };
+}
+
 module.exports = {
   addPlayerToDatabase,
   addCharacterToDatabase,
@@ -3118,6 +3192,7 @@ module.exports = {
   syncMemberRolesWithCharacter,
   updateRecruitmentPost,
   addDeathPostToDatabase,
+  addRegionManagerToDatabase,
   removeRelationshipFromDatabase,
   removeSteelbearerFromDatabase,
   COLORS

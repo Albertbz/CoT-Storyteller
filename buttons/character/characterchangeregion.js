@@ -1,6 +1,7 @@
-const { TimestampStyles, ContainerBuilder, MessageFlags, time } = require("discord.js");
+const { TimestampStyles, ContainerBuilder, MessageFlags, time, TextDisplayBuilder } = require("discord.js");
 const { Players } = require("../../dbObjects");
 const { changeRegionModal } = require("../../helpers/modalCreator");
+const { formatCharacterName } = require("../../helpers/formatters");
 
 module.exports = {
   customId: 'character-change-region-button',
@@ -9,6 +10,32 @@ module.exports = {
     const player = await Players.findByPk(interaction.user.id);
     const character = await player.getCharacter();
     const regionChangedRecently = regionChangedCheck(character);
+
+    // Check whether the character is a steelbearer
+    const steelbearer = await character.getSteelbearer();
+    if (steelbearer) {
+      const steelbearerContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Character Is a Steelbearer\n` +
+            `The character ${formatCharacterName(character.name)} is currently a steelbearer, and as such cannot have their region changed until they are no longer a steelbearer.`
+          )
+        )
+      return interaction.reply({ components: [steelbearerContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
+
+    // Check whether the character is a region manager
+    const regionManager = await character.getRegionManager();
+    if (regionManager) {
+      const regionManagerContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Character Is a Region Manager\n` +
+            `The character ${formatCharacterName(character.name)} is currently a region manager, and as such cannot have their region changed until they are no longer a region manager.`
+          )
+        )
+      return interaction.reply({ components: [regionManagerContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    }
 
     if (!regionChangedRecently) {
       const modal = await changeRegionModal(character, 'character', { regionId: character.regionId });
