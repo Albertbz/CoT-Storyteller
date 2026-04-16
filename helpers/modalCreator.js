@@ -707,7 +707,7 @@ async function changeRecruitmentRolesModal(region) {
   modal.addTextDisplayComponents(textDisplay);
 
   // Create three string select menus for the three recruitment roles, prefilled with the current recruitment roles of the region
-  const possibleRoles = [{ name: 'Smiths', emoji: '🔨' }, { name: 'Builders', emoji: '🏗️' }, { name: 'Cooks', emoji: '🍳' }, { name: 'Lumberjacks', emoji: '🪓' }, { name: 'Soldiers', emoji: '⚔️' }, { name: 'Potters', emoji: '🏺' }, { name: 'Miners', emoji: '⛏️' }, { name: 'Carpenters', emoji: '🪚' }, { name: 'Tailors', emoji: '🧵' }, { name: 'Healers', emoji: '🩹' }, { name: 'Farmers', emoji: '🌾' }, { name: 'Hunters', emoji: '🏹' }, { name: 'Clockmakers', emoji: '🕰️' }];
+  const possibleRoles = [{ name: 'Smiths', emoji: '🔨' }, { name: 'Builders', emoji: '🏗️' }, { name: 'Cooks', emoji: '🍳' }, { name: 'Lumberjacks', emoji: '🪓' }, { name: 'Soldiers', emoji: '⚔️' }, { name: 'Potters', emoji: '🏺' }, { name: 'Miners', emoji: '⛏️' }, { name: 'Carpenters', emoji: '🪚' }, { name: 'Tailors', emoji: '🧵' }, { name: 'Healers', emoji: '🩹' }, { name: 'Farmers', emoji: '🌾' }, { name: 'Hunters', emoji: '🏹' }, { name: 'Clockmakers', emoji: '🕰️' }, { name: 'Alchemists', emoji: '🧪' }];
 
   const recruitment = await region.getRecruitment();
   const currentRoles = recruitment ? [recruitment.role1, recruitment.role2, recruitment.role3] : [null, null, null];
