@@ -29,6 +29,10 @@ const DiscordChannels = require('./models/DiscordChannels.js')(sequelize, Sequel
 const DiscordRoles = require('./models/DiscordRoles.js')(sequelize, Sequelize.DataTypes);
 const LegitimisationRequests = require('./models/LegitimisationRequests.js')(sequelize, Sequelize.DataTypes);
 const OffspringChangeNameRequests = require('./models/OffspringChangeNameRequests.js')(sequelize, Sequelize.DataTypes);
+const RegionManagers = require('./models/RegionManagers.js')(sequelize, Sequelize.DataTypes);
+
+RegionManagers.belongsTo(Characters, { foreignKey: 'characterId', as: 'character' });
+RegionManagers.belongsTo(Regions, { foreignKey: 'regionId', as: 'region' });
 
 OffspringChangeNameRequests.belongsTo(PlayableChildren, { foreignKey: 'offspringId', as: 'offspring' });
 OffspringChangeNameRequests.belongsTo(Players, { foreignKey: 'requestedById', as: 'requestedBy' });
@@ -43,6 +47,7 @@ Regions.hasMany(Steelbearers, { foreignKey: 'regionId', as: 'steelbearers' });
 Regions.hasMany(Vassals, { foreignKey: 'liegeId', as: 'vassals' });
 Regions.hasOne(Vassals, { foreignKey: 'vassalId', as: 'vassalRecord' });
 Regions.hasMany(Characters, { foreignKey: 'regionId', as: 'characters' });
+Regions.hasMany(RegionManagers, { foreignKey: 'regionId', as: 'regionManagers' });
 
 Duchies.belongsTo(Regions, { foreignKey: 'regionId', as: 'region' });
 Duchies.belongsTo(Steelbearers, { foreignKey: 'steelbearerId', as: 'steelbearer' });
@@ -123,6 +128,7 @@ Characters.hasMany(Relationships, { foreignKey: 'bearingCharacterId', as: 'relat
 Characters.hasMany(Relationships, { foreignKey: 'conceivingCharacterId', as: 'relationshipsConceiving' })
 Characters.hasOne(Players, { foreignKey: 'characterId', as: 'player' })
 Characters.hasOne(Steelbearers, { foreignKey: 'characterId', as: 'steelbearer' })
+Characters.hasOne(RegionManagers, { foreignKey: 'characterId', as: 'regionManager' })
 
 Relationships.belongsTo(Characters, { foreignKey: 'bearingCharacterId', as: 'bearingCharacter' })
 Relationships.belongsTo(Characters, { foreignKey: 'conceivingCharacterId', as: 'conceivingCharacter' })
