@@ -12,6 +12,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       unique: true,
     },
+    gamertag: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     timezone: {
       type: DataTypes.STRING,
     },
