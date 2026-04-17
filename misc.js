@@ -986,6 +986,12 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
     for (const relationship of bearingRelationships) {
       await relationship.destroy();
     }
+
+    // Remove as region manager if applicable
+    const existingRegionManagerRecord = await RegionManagers.findOne({ where: { characterId: characterId } });
+    if (existingRegionManagerRecord) {
+      await existingRegionManagerRecord.destroy();
+    }
   }
   catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
@@ -3081,6 +3087,7 @@ async function removeSteelbearerFromDatabase(storyteller, steelbearer) {
   }
 
   const steelbearerLogInfo = await steelbearer.logInfo;
+  const steelbearerFormattedInfo = await steelbearer.formattedInfo;
 
   await steelbearer.destroy();
 
@@ -3091,7 +3098,6 @@ async function removeSteelbearerFromDatabase(storyteller, steelbearer) {
     COLORS.RED
   );
 
-  const steelbearerFormattedInfo = await steelbearer.formattedInfo;
   const steelbearerRemovedEmbed = new EmbedBuilder()
     .setTitle('Steelbearer Removed')
     .setDescription(steelbearerFormattedInfo)
@@ -3165,6 +3171,43 @@ async function addRegionManagerToDatabase(storyteller, { characterId, regionId }
   return { regionManager, embed: regionManagerAddedEmbed };
 }
 
+async function removeRegionManagerFromDatabase(storyteller, regionManager) {
+  const regionManagerNotRemovedEmbed = new EmbedBuilder()
+    .setTitle('Region Manager Not Removed')
+    .setColor(COLORS.RED);
+
+  if (!regionManager) {
+    regionManagerNotRemovedEmbed
+      .setDescription('Region manager does not exist in the database.')
+    return { success: false, embed: regionManagerNotRemovedEmbed };
+  }
+
+  const regionManagerLogInfo = await regionManager.logInfo;
+  const regionManagerFormattedInfo = await regionManager.formattedInfo;
+
+  try {
+    await regionManager.destroy();
+    await postInLogChannel(
+      'Region Manager Removed',
+      `**Removed by: ${userMention(storyteller.id)}**\n\n` +
+      `${regionManagerLogInfo}`,
+      COLORS.RED
+    );
+
+    const regionManagerRemovedEmbed = new EmbedBuilder()
+      .setTitle('Region Manager Removed')
+      .setDescription(regionManagerFormattedInfo)
+      .setColor(COLORS.RED);
+    return { success: true, embed: regionManagerRemovedEmbed };
+  }
+  catch (error) {
+    // console.log(error);
+    regionManagerNotRemovedEmbed
+      .setDescription('An error occurred while trying to remove region manager: ' + error.message);
+    return { success: false, embed: regionManagerNotRemovedEmbed };
+  }
+}
+
 module.exports = {
   addPlayerToDatabase,
   addCharacterToDatabase,
@@ -3195,5 +3238,6 @@ module.exports = {
   addRegionManagerToDatabase,
   removeRelationshipFromDatabase,
   removeSteelbearerFromDatabase,
+  removeRegionManagerFromDatabase,
   COLORS
 }; 

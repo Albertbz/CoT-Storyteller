@@ -32,10 +32,10 @@ module.exports = (sequelize, DataTypes) => {
         const character = await this.getCharacter();
         const region = await this.getRegion();
         return (
-          `id: ${this.id}\n` +
+          `id: \`${this.id}\`\n` +
           `\n` +
-          `character: ${character.name} (${character.id})\n` +
-          `region: ${region.name} (${region.id})`
+          `character: \`${character.name}\` (\`${character.id}\`)\n` +
+          `region: \`${region.name}\` (\`${region.id}\`)`
         )
       },
       set(value) {
