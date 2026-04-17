@@ -27,6 +27,11 @@ module.exports = {
         )
         .addStringOption(option =>
           option
+            .setName('gamertag_new')
+            .setDescription('The new gamertag.')
+        )
+        .addStringOption(option =>
+          option
             .setName('timezone_new')
             .setDescription('The new timezone.')
         )
@@ -879,10 +884,12 @@ module.exports = {
     if (subcommand === 'player') {
       const user = interaction.options.getUser('user');
       const newIgn = interaction.options.getString('ign_new');
+      const newGamertag = interaction.options.getString('gamertag_new');
       const newTimezone = interaction.options.getString('timezone_new');
 
       const toUpdate = {};
       if (newIgn) toUpdate.newIgn = newIgn;
+      if (newGamertag) toUpdate.newGamertag = newGamertag;
       if (newTimezone) toUpdate.newTimezone = newTimezone;
 
       const player = await Players.findByPk(user.id);

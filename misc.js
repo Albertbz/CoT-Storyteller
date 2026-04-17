@@ -1413,7 +1413,7 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
 }
 
 
-async function changePlayerInDatabase(storyteller, player, { newIgn = null, newTimezone = null } = {}) {
+async function changePlayerInDatabase(storyteller, player, { newIgn = null, newGamertag = null, newTimezone = null } = {}) {
   const playerNotChangedEmbed = new EmbedBuilder()
     .setTitle('Player Not Changed')
     .setColor(COLORS.RED);
@@ -1429,6 +1429,7 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
 
   // Save all old and new values for the values that are changing
   if (newIgn !== null && newIgn !== player.ign) newValues.ign = newIgn; oldValues.ign = player.ign;
+  if (newGamertag !== null && newGamertag !== player.gamertag) newValues.gamertag = newGamertag; oldValues.gamertag = player.gamertag;
   if (newTimezone !== null && newTimezone !== player.timezone) newValues.timezone = newTimezone; oldValues.timezone = player.timezone;
 
   // Check if anything is actually changing
@@ -1465,6 +1466,11 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
       case 'timezone': {
         logInfoChanges.push({ key: 'timezone', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
         formattedInfoChanges.push({ key: '**Timezone**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
+        break;
+      }
+      case 'gamertag': {
+        logInfoChanges.push({ key: 'gamertag', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Gamertag**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
         break;
       }
     }

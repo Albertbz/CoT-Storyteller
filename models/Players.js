@@ -1,5 +1,6 @@
 const { Hooks } = require("sequelize/lib/hooks");
 const { sendCharacterJoinMessage } = require("../helpers/messageSender");
+const { formatCharacterName } = require("../helpers/formatters");
 
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('players', {
@@ -35,6 +36,7 @@ module.exports = (sequelize, DataTypes) => {
           `\n` +
           `user: <@${this.id}>\n` +
           `ign: \`${this.ign}\`\n` +
+          `gamertag: \`${this.gamertag ? this.gamertag : '-'}\`\n` +
           `timezone: \`${this.timezone ? this.timezone : '-'}\`\n` +
           `character: ${character ? `\`${character.name}\` (\`${this.characterId}\`)` : '`-`'}\n` +
           `active: \`${this.isActive ? `Yes` : `No`}\``
@@ -47,11 +49,15 @@ module.exports = (sequelize, DataTypes) => {
     formattedInfo: {
       type: DataTypes.VIRTUAL,
       async get() {
+        const character = await this.getCharacter();
         return (
           `### General Info\n` +
           `**Discord User:** <@${this.id}>\n` +
           `**VS Username:** ${this.ign}\n` +
-          `**Timezone:** ${this.timezone ? this.timezone : '-'}\n`);
+          `**Gamertag:** ${this.gamertag ? this.gamertag : '-'}\n` +
+          `**Timezone:** ${this.timezone ? this.timezone : '-'}\n\n` +
+          `Currently ${character ? `playing ${formatCharacterName(character.name)}.` : 'not playing a character.'}`
+        );
       },
       set(value) {
         throw new Error('Do not try to set the formattedInfo value!')
