@@ -43,12 +43,11 @@ module.exports = (sequelize, DataTypes) => {
     formattedInfo: {
       type: DataTypes.VIRTUAL,
       async get() {
-        const character = await this.getCharacter();
         return (
+          `### General Info\n` +
           `**Discord User:** <@${this.id}>\n` +
           `**VS Username:** ${this.ign}\n` +
-          `**Timezone:** ${this.timezone ? this.timezone : '-'}\n` +
-          `**Character:** ${character ? `${character.name}` : '-'}\n`);
+          `**Timezone:** ${this.timezone ? this.timezone : '-'}\n`);
       },
       set(value) {
         throw new Error('Do not try to set the formattedInfo value!')

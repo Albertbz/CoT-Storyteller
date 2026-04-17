@@ -21,14 +21,12 @@ module.exports = {
  * Create and return the dashboard message.
  */
 async function createDashboardMessage() {
-  // Components array to hold all the message components
-  const components = [];
-
+  // Create the container for the message
   const container = new ContainerBuilder()
     .addTextDisplayComponents((textDisplay) =>
       textDisplay.setContent(
         `# Dashboards\n` +
-        `In this channel, you can manage your current character, any offspring that you are a contact of, as well as the region your character is in (assuming you have the appropriate permissions).`
+        `In this channel you can manage yourself, your current character, any offspring that you are a contact of, as well as the region your character is in.`
       ))
     .addSeparatorComponents((separator) => separator)
     .addTextDisplayComponents((textDisplay) =>
@@ -38,17 +36,20 @@ async function createDashboardMessage() {
     .addActionRowComponents((actionRow) =>
       actionRow.setComponents(
         new ButtonBuilder()
+          .setCustomId('player-manager-button')
+          .setLabel('Player')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🎮'),
+        new ButtonBuilder()
           .setCustomId('character-manager-button')
           .setLabel('Character')
           .setStyle(ButtonStyle.Secondary)
-          .setEmoji('👤')
-        ,
+          .setEmoji('👤'),
         new ButtonBuilder()
           .setCustomId('offspring-manager-button')
           .setLabel('Offspring')
           .setStyle(ButtonStyle.Secondary)
-          .setEmoji('👶')
-        ,
+          .setEmoji('👶'),
         new ButtonBuilder()
           .setCustomId('region-manager-button')
           .setLabel('Region')
@@ -57,8 +58,7 @@ async function createDashboardMessage() {
       )
     )
 
-  components.push(container);
 
   // Return the message object
-  return { components: components, flags: MessageFlags.IsComponentsV2 };
+  return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
