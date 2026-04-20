@@ -489,7 +489,7 @@ async function getPlayerManagerContainer(userId) {
     .addActionRowComponents(
       new ActionRowBuilder().setComponents(
         new ButtonBuilder()
-          .setCustomId('player-change-vs-username-button')
+          .setCustomId('player-update-vs-username-button')
           .setLabel('Update VS Username')
           .setStyle(ButtonStyle.Secondary)
           .setEmoji('🎮'),

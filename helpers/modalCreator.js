@@ -738,6 +738,43 @@ async function changeRecruitmentRolesModal(region) {
   return modal;
 }
 
+async function updateVSUsernameModal(player, usernameValue = null) {
+  const modal = new ModalBuilder()
+    .setCustomId('player-update-vs-username-modal')
+    .setTitle('Update VS Username')
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently updating your VS username, which is currently noted down as **${player.ign}**.\n` +
+      `Please enter your new VS username in the input below, and ensure that it is the same as the username that is shown in the bottom left corner of the main menu of the game.`
+    );
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  const usernameInput = new TextInputBuilder()
+    .setCustomId('vs-username-input')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('Enter your new VS username')
+    .setMaxLength(50);
+
+  if (usernameValue) {
+    usernameInput.setValue(usernameValue);
+  }
+  else if (player.ign) {
+    usernameInput.setValue(player.ign);
+  }
+
+  const usernameLabel = new LabelBuilder()
+    .setLabel('What is your new VS username?')
+    .setDescription('Make sure to enter the correct username.')
+    .setTextInputComponent(usernameInput);
+
+  modal.addLabelComponents(usernameLabel);
+
+  return modal;
+}
+
 module.exports = {
   characterCreateModal,
   finalDeathModal,
@@ -749,5 +786,6 @@ module.exports = {
   offspringChangeNameModal,
   offspringChangeInheritanceModal,
   denyChangeModal,
-  changeRecruitmentRolesModal
+  changeRecruitmentRolesModal,
+  updateVSUsernameModal
 }
