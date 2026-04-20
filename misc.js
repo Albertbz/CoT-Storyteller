@@ -1058,7 +1058,7 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
     newValues.name = newName;
     oldValues.name = character.name;
   }
-  if (newTitle !== null && newTitle === '-' ? character.title !== null : newTitle !== character.title) {
+  if (newTitle !== null && (newTitle === '-' ? character.title !== null : newTitle !== character.title)) {
     newValues.title = newTitle === '-' ? null : newTitle;
     oldValues.title = character.title;
   }
@@ -1529,7 +1529,7 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newG
 
   // Save all old and new values for the values that are changing
   if (newIgn !== null && newIgn !== player.ign) newValues.ign = newIgn; oldValues.ign = player.ign;
-  if (newGamertag !== null && newGamertag === '-' ? player.gamertag !== null : newGamertag !== player.gamertag) {
+  if (newGamertag !== null && (newGamertag === '-' ? player.gamertag !== null : newGamertag !== player.gamertag)) {
     newValues.gamertag = newGamertag === '-' ? null : newGamertag;
     oldValues.gamertag = player.gamertag;
   }
