@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Client } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Deceased, Duchies } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
-const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter, changeDuchyInDatabase, changeDeceasedInDatabase, changeSocialClassInDatabase, changeWorldInDatabase } = require('../../misc.js');
+const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, changeDuchyInDatabase, changeDeceasedInDatabase, changeSocialClassInDatabase, changeWorldInDatabase } = require('../../misc.js');
 const { WANDERER_REGION_ID, WORLD_ID } = require('../../constants.js');
 
 module.exports = {

@@ -775,6 +775,43 @@ async function updateVSUsernameModal(player, usernameValue = null) {
   return modal;
 }
 
+async function changeGamertagModal(player, gamertagValue = null) {
+  const modal = new ModalBuilder()
+    .setCustomId('player-change-gamertag-modal')
+    .setTitle('Change Gamertag')
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing your gamertag, which is currently ${player.gamertag ? `set to **${player.gamertag}**` : 'not set'}.\n` +
+      `Please enter your new gamertag in the input below. This gamertag will be shown in your nickname here on the Discord server along with your character's name. If you do not want to have a gamertag shown, you can leave the input blank.`
+    );
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  const gamertagInput = new TextInputBuilder()
+    .setCustomId('gamertag-input')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(false)
+    .setPlaceholder('Enter your new gamertag')
+    .setMaxLength(50);
+
+  if (gamertagValue) {
+    gamertagInput.setValue(gamertagValue);
+  }
+  else if (player.gamertag) {
+    gamertagInput.setValue(player.gamertag);
+  }
+
+  const gamertagLabel = new LabelBuilder()
+    .setLabel('What is your new gamertag?')
+    // .setDescription('Make sure to enter the correct gamertag.')
+    .setTextInputComponent(gamertagInput);
+
+  modal.addLabelComponents(gamertagLabel);
+
+  return modal;
+}
+
 module.exports = {
   characterCreateModal,
   finalDeathModal,
@@ -787,5 +824,6 @@ module.exports = {
   offspringChangeInheritanceModal,
   denyChangeModal,
   changeRecruitmentRolesModal,
-  updateVSUsernameModal
+  updateVSUsernameModal,
+  changeGamertagModal
 }

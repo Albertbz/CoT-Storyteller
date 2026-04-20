@@ -546,16 +546,8 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
      * Checks successful, proceed with assignment
      */
     await player.setCharacter(characterId);
-    await syncMemberRolesWithCharacter(player, character)
-    // Change member's nickname to character name if not present
-    if (!member.nickname || (member.nickname && !member.nickname.includes(character.name))) {
-      try {
-        await member.setNickname(character.name.trim());
-      }
-      catch (error) {
-        console.log(`Could not set nickname for ${member.user.username}: ${error}`);
-      }
-    }
+    await syncMemberRoles(player);
+    await setDiscordNickname(player);
 
     // If the character was a playable child, remove that entry
     if (playableChild) {
@@ -608,6 +600,9 @@ async function unassignCharacterFromPlayer(storyteller, player) {
     }
 
     player.setCharacter(null);
+
+    await syncMemberRoles(player);
+    await setDiscordNickname(player);
 
     await postInLogChannel(
       'Character unassigned from Player',
@@ -839,9 +834,9 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
     }
 
     // Sync roles of member if applicable
-    const player = await Players.findOne({ where: { characterId: character.id } });
+    const player = await character.getPlayer();
     if (player) {
-      await syncMemberRolesWithCharacter(player, character);
+      await syncMemberRoles(player);
     }
 
     // Post creation of steelbearer in log channel
@@ -1014,44 +1009,15 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
   // Set player's character to null if applicable
   let player = null;
   if (playedById) {
-    player = await Players.findOne({ where: { id: playedById } });
+    player = await Players.findByPk(playedById);
     if (player) {
       await player.setCharacter(null);
     }
   }
   // Remove roles of member if specified
   if (removeRoles && playedById) {
-    // Get all region roles
-    const regions = await Regions.findAll();
-    const regionRoleIds = regions.map(region => region.roleId);
-
-    // Get all social class roles
-    const socialClasses = await SocialClasses.findAll();
-    const socialClassRoleIds = socialClasses.map(socialClass => socialClass.roleId);
-
-    // Get steelbearer role
-    const steelbearerRoleEntry = await DiscordRoles.findByPk('steelbearer');
-    const steelbearerRoleId = steelbearerRoleEntry ? steelbearerRoleEntry.roleId : null;
-
-    const rolesToRemove = [];
-    rolesToRemove.push(...regionRoleIds);
-    rolesToRemove.push(...socialClassRoleIds);
-    if (steelbearerRoleId) {
-      rolesToRemove.push(steelbearerRoleId);
-    }
-
-    if (player) {
-      const guild = await client.guilds.fetch(guildId);
-      try {
-        const member = await guild.members.fetch(player.id);
-        if (member) {
-          await member.roles.remove(rolesToRemove);
-        }
-      }
-      catch (error) {
-        console.log('Error fetching member to remove roles on deceased addition: ' + error);
-      }
-    }
+    await syncMemberRoles(player);
+    await setDiscordNickname(player);
   }
 
   await postInLogChannel(
@@ -1381,10 +1347,15 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   await character.update(newValues);
 
 
-  // If character is being played by a player, update their Discord roles
-  const player = await Players.findOne({ where: { characterId: character.id } });
+  // If character is being played by a player, update their Discord roles and
+  // possibly their nickname as well
+  const player = await character.getPlayer();
   if (player) {
-    await syncMemberRolesWithCharacter(player, character);
+    await syncMemberRoles(player);
+
+    if (newValues.name) {
+      await setDiscordNickname(player);
+    }
   }
 
   // Post in log channel if applicable
@@ -1412,6 +1383,126 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   return { character, embed: characterChangedEmbed }
 }
 
+/**
+ * Truncates a full name to fit within a specified maximum length.
+ * Includes sanitization, cultural particles, and generational suffix handling.
+ *
+ * @param {string} fullName - The full input name.
+ * @param {number} maxLength - The maximum allowed character count.
+ * @returns {string} The optimally truncated name.
+ */
+function truncateName(fullName, maxLength) {
+  let cleanName = fullName
+    .replace(/\b(Dr\.|Mr\.|Mrs\.|Ms\.|Sir|Lady|Brother|Bishop|Count|Friar)\s/gi, '')
+    .replace(/['"“‘].*?['"”’]/g, '')
+    .replace(/\(.*?\)/g, '')
+    .trim()
+    .replace(/\s+/g, ' ');
+
+  if (cleanName.length <= maxLength) return cleanName;
+
+  const rawParts = cleanName.split(' ');
+  if (rawParts.length === 1) return cleanName.substring(0, maxLength);
+
+  // Suffix Extraction
+  const suffixSet = new Set(['jr', 'jr.', 'sr', 'sr.', 'i', 'ii', 'iii', 'iv', 'v']);
+  let suffix = '';
+
+  if (rawParts.length > 2 && suffixSet.has(rawParts[rawParts.length - 1].toLowerCase())) {
+    suffix = ` ${rawParts.pop()}`; // Remove suffix from rawParts and store with leading space
+  }
+
+  const particles = new Set([
+    'de', 'du', 'di', 'da', 'dos', 'das', 'van', 'von', 'der', 'den', 'la', 'le', 'del',
+    'ibn', 'bin', 'bint', 'al', 'el', 'ó', "o'", 'ní', 'mac', 'mc'
+  ]);
+
+  let first = rawParts[0];
+  let surnameStartIndex = rawParts.length - 1;
+
+  for (let i = 1; i < rawParts.length - 1; i++) {
+    if (particles.has(rawParts[i].toLowerCase())) {
+      surnameStartIndex = i;
+      break;
+    }
+  }
+
+  const middles = rawParts.slice(1, surnameStartIndex);
+  const surnameParts = rawParts.slice(surnameStartIndex);
+  const fullSurnameStr = surnameParts.join(' ');
+
+  let primarySurname = [];
+  for (let i = 0; i < surnameParts.length; i++) {
+    primarySurname.push(surnameParts[i]);
+    if (!particles.has(surnameParts[i].toLowerCase())) break;
+  }
+  const primarySurnameStr = primarySurname.join(' ');
+
+  let initPrimaryArray = [...primarySurname];
+  let lastPrimaryWord = initPrimaryArray.pop();
+  initPrimaryArray.push(`${lastPrimaryWord[0].toUpperCase()}.`);
+  const initPrimaryStr = initPrimaryArray.join(' ');
+
+  let candidate = '';
+
+  // Evaluate candidates WITH the suffix reattached
+  if (middles.length > 0) {
+    const initialedMiddles = middles.map(m => `${m[0].toUpperCase()}.`).join(' ');
+    candidate = `${first} ${initialedMiddles} ${fullSurnameStr}${suffix}`;
+    if (candidate.length <= maxLength) return candidate;
+
+    candidate = `${first} ${fullSurnameStr}${suffix}`;
+    if (candidate.length <= maxLength) return candidate;
+  }
+
+  candidate = `${first} ${primarySurnameStr}${suffix}`;
+  if (candidate.length <= maxLength) return candidate;
+
+  candidate = `${first} ${initPrimaryStr}${suffix}`;
+  if (candidate.length <= maxLength) return candidate;
+
+  candidate = `${first[0].toUpperCase()}. ${primarySurnameStr}${suffix}`;
+  if (candidate.length <= maxLength) return candidate;
+
+  candidate = `${first[0].toUpperCase()}. ${initPrimaryStr}${suffix}`;
+  if (candidate.length <= maxLength) return candidate;
+
+  // Failsafe: If it STILL exceeds limits, drop the suffix and try again before hard truncating
+  if (suffix !== '') {
+    // Re-run Step 4 without the suffix
+    candidate = `${first} ${initPrimaryStr}`;
+    if (candidate.length <= maxLength) return candidate;
+  }
+
+  return cleanName.substring(0, maxLength);
+}
+
+async function setDiscordNickname(player) {
+  const guild = await client.guilds.fetch(guildId);
+  try {
+    const member = await guild.members.fetch(player.id);
+    if (member) {
+      const character = await player.getCharacter();
+      const characterName = character ? character.name : null;
+      const characterNamePart = characterName ? characterName : '(No character)';
+      const gamertagPart = player.gamertag ? ` | ${player.gamertag}` : '';
+
+      let newNickname = `${characterNamePart}${gamertagPart}`;
+      if (characterNamePart.length + gamertagPart.length > 32) {
+        // If the combined length of the character name and gamertag exceeds 32 characters, truncate the character name
+        const allowedCharacterNameLength = 32 - gamertagPart.length - 3; // 3 for the ellipsis
+        const truncatedCharacterName = truncateName(characterNamePart, allowedCharacterNameLength);
+        const truncatedNewNickname = `${truncatedCharacterName}${gamertagPart}`;
+        newNickname = truncatedNewNickname;
+      }
+      await member.setNickname(newNickname);
+    }
+  }
+  catch (error) {
+    console.log('Error setting Discord nickname for ' + player.id + ': ' + error.message);
+  }
+}
+
 
 async function changePlayerInDatabase(storyteller, player, { newIgn = null, newGamertag = null, newTimezone = null } = {}) {
   const playerNotChangedEmbed = new EmbedBuilder()
@@ -1429,7 +1520,10 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newG
 
   // Save all old and new values for the values that are changing
   if (newIgn !== null && newIgn !== player.ign) newValues.ign = newIgn; oldValues.ign = player.ign;
-  if (newGamertag !== null && newGamertag !== player.gamertag) newValues.gamertag = newGamertag; oldValues.gamertag = player.gamertag;
+  if (newGamertag !== null && newGamertag === '-' ? player.gamertag !== null : newGamertag !== player.gamertag) {
+    newValues.gamertag = newGamertag === '-' ? null : newGamertag;
+    oldValues.gamertag = player.gamertag;
+  }
   if (newTimezone !== null && newTimezone !== player.timezone) newValues.timezone = newTimezone; oldValues.timezone = player.timezone;
 
   // Check if anything is actually changing
@@ -1439,8 +1533,8 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newG
     return { player: null, embed: playerNotChangedEmbed };
   }
 
+  // Check whether there are spaces in the IGN
   if (newValues.ign) {
-    // Check whether there are spaces in the IGN
     if (newValues.ign.includes(' ')) {
       playerNotChangedEmbed
         .setDescription('A VS username cannot contain spaces.');
@@ -1450,6 +1544,9 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newG
 
   // All checks passed, proceed with update
   await player.update(newValues);
+
+  // Update Discord nickname
+  await setDiscordNickname(player);
 
   // Post in log channel
   const logInfoChanges = [];
@@ -1469,8 +1566,8 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newG
         break;
       }
       case 'gamertag': {
-        logInfoChanges.push({ key: 'gamertag', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
-        formattedInfoChanges.push({ key: '**Gamertag**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
+        logInfoChanges.push({ key: 'gamertag', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Gamertag**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
         break;
       }
     }
@@ -1611,8 +1708,8 @@ async function changeRegionInDatabase(storyteller, region, { newName = null, new
         break;
       }
       case 'roleId': {
-        logInfoChanges.push({ key: 'roleId', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
-        formattedInfoChanges.push({ key: '**Role ID**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        logInfoChanges.push({ key: 'role', oldValue: oldValue ? `${roleMention(oldValue)} (${inlineCode(oldValue)})` : inlineCode('-'), newValue: newValue ? `${roleMention(newValue)} (${inlineCode(newValue)})` : inlineCode('-') });
+        formattedInfoChanges.push({ key: '**Role**', oldValue: oldValue ? roleMention(oldValue) : '-', newValue: newValue ? roleMention(newValue) : '-' });
         break;
       }
       case 'rulingHouseId': {
@@ -2176,7 +2273,7 @@ async function changeWorldInDatabase(storyteller, world, { newName = null, newCu
       await char.update({ socialClassName: 'Notable', yearOfMaturity: char.yearOfCreation + 1 });
       const charPlayer = await char.getPlayer();
       if (charPlayer) {
-        await syncMemberRolesWithCharacter(charPlayer, char);
+        await syncMemberRoles(charPlayer);
       }
     }
 
@@ -2219,7 +2316,7 @@ async function changeWorldInDatabase(storyteller, world, { newName = null, newCu
       await char.update({ socialClassName: 'Notable', yearOfMaturity: char.yearOfCreation });
       const charPlayer = await char.getPlayer();
       if (charPlayer) {
-        await syncMemberRolesWithCharacter(charPlayer, char);
+        await syncMemberRoles(charPlayer);
       }
     }
 
@@ -2607,7 +2704,7 @@ async function changeDeceasedInDatabase(storyteller, deceased, { newYearOfDeath 
 
 
 // Syncs a Discord member's roles based on their character's region and social class
-async function syncMemberRolesWithCharacter(player, character) {
+async function syncMemberRoles(player) {
   const guild = await client.guilds.fetch(guildId);
   let member = null;
   try {
@@ -2641,90 +2738,114 @@ async function syncMemberRolesWithCharacter(player, character) {
   let rolesToAdd = [];
   let rolesToRemove = [];
 
-  // Region roles
-  try {
-    const currentRegion = await character.getRegion();
-    const allOtherRegions = await Regions.findAll({ where: { id: { [Op.not]: currentRegion.id } } });
-    // Remove all other region roles
-    for (const otherRegion of allOtherRegions) {
-      if (otherRegion.roleId && member.roles.cache.has(otherRegion.roleId)) {
-        rolesToRemove.push(otherRegion.roleId);
-      }
-    }
-    // Add current region role if they don't have it
-    if (currentRegion && currentRegion.roleId) {
-      if (!member.roles.cache.has(currentRegion.roleId)) {
-        rolesToAdd.push(currentRegion.roleId);
-      }
-    }
-  }
-  catch (error) {
-    console.log('Failed to assign region role: ' + error);
-    return false;
-  }
+  const character = await player.getCharacter();
+  // If no character, remove all roles
+  if (!character) {
+    // Get all region roles
+    const regions = await Regions.findAll();
+    const regionRoleIds = regions.map(region => region.roleId);
 
-  // Social class roles
-  try {
-    const socialClass = await character.getSocialClass();
-    const notableSocialClass = await SocialClasses.findOne({ where: { name: 'Notable' } });
-    const nobleSocialClass = await SocialClasses.findOne({ where: { name: 'Noble' } });
-    const rulerSocialClass = await SocialClasses.findOne({ where: { name: 'Ruler' } });
+    // Get all social class roles
+    const socialClasses = await SocialClasses.findAll();
+    const socialClassRoleIds = socialClasses.map(socialClass => socialClass.roleId);
 
-    if (socialClass.name === 'Ruler') {
-      if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
-      if (!member.roles.cache.has(nobleSocialClass.roleId)) rolesToAdd.push(nobleSocialClass.roleId);
-      if (!member.roles.cache.has(rulerSocialClass.roleId)) rolesToAdd.push(rulerSocialClass.roleId);
-    }
-    else if (socialClass.name === 'Noble') {
-      if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
-      if (!member.roles.cache.has(nobleSocialClass.roleId)) rolesToAdd.push(nobleSocialClass.roleId);
-      // Remove ruler if they had it before
-      if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
-    }
-    else if (socialClass.name === 'Notable') {
-      if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
-      // Remove noble and ruler if they had them before
-      if (member.roles.cache.has(nobleSocialClass.roleId)) rolesToRemove.push(nobleSocialClass.roleId);
-      if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
-    }
-    else {
-      // Remove notable, noble, and ruler if they had them before
-      if (member.roles.cache.has(notableSocialClass.roleId)) rolesToRemove.push(notableSocialClass.roleId);
-      if (member.roles.cache.has(nobleSocialClass.roleId)) rolesToRemove.push(nobleSocialClass.roleId);
-      if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
-    }
-  }
-  catch (error) {
-    console.log('Failed to assign social class roles: ' + error);
-    return false;
-  }
-
-  // Steelbearer role
-  try {
+    // Get steelbearer role
     const steelbearerRoleEntry = await DiscordRoles.findByPk('steelbearer');
-    if (!steelbearerRoleEntry) {
-      console.log('Steelbearer role ID not found in database.');
+    const steelbearerRoleId = steelbearerRoleEntry ? steelbearerRoleEntry.roleId : null;
+
+    rolesToRemove.push(...regionRoleIds);
+    rolesToRemove.push(...socialClassRoleIds);
+    if (steelbearerRoleId) {
+      rolesToRemove.push(steelbearerRoleId);
     }
-    else {
-      // Check whether character is steelbearer by looking at steelbearers
-      const steelbearerRecord = await Steelbearers.findOne({ where: { characterId: character.id } });
-      if (steelbearerRecord) {
-        if (!member.roles.cache.has(steelbearerRoleEntry.roleId)) {
-          rolesToAdd.push(steelbearerRoleEntry.roleId);
+  }
+  // Otherwise assign roles based on region and social class
+  else {
+    // Region roles
+    try {
+      const currentRegion = await character.getRegion();
+      const allOtherRegions = await Regions.findAll({ where: { id: { [Op.not]: currentRegion.id } } });
+      // Remove all other region roles
+      for (const otherRegion of allOtherRegions) {
+        if (otherRegion.roleId && member.roles.cache.has(otherRegion.roleId)) {
+          rolesToRemove.push(otherRegion.roleId);
         }
+      }
+      // Add current region role if they don't have it
+      if (currentRegion && currentRegion.roleId) {
+        if (!member.roles.cache.has(currentRegion.roleId)) {
+          rolesToAdd.push(currentRegion.roleId);
+        }
+      }
+    }
+    catch (error) {
+      console.log('Failed to assign region role: ' + error);
+      return false;
+    }
+
+    // Social class roles
+    try {
+      const socialClass = await character.getSocialClass();
+      const notableSocialClass = await SocialClasses.findOne({ where: { name: 'Notable' } });
+      const nobleSocialClass = await SocialClasses.findOne({ where: { name: 'Noble' } });
+      const rulerSocialClass = await SocialClasses.findOne({ where: { name: 'Ruler' } });
+
+      if (socialClass.name === 'Ruler') {
+        if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
+        if (!member.roles.cache.has(nobleSocialClass.roleId)) rolesToAdd.push(nobleSocialClass.roleId);
+        if (!member.roles.cache.has(rulerSocialClass.roleId)) rolesToAdd.push(rulerSocialClass.roleId);
+      }
+      else if (socialClass.name === 'Noble') {
+        if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
+        if (!member.roles.cache.has(nobleSocialClass.roleId)) rolesToAdd.push(nobleSocialClass.roleId);
+        // Remove ruler if they had it before
+        if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
+      }
+      else if (socialClass.name === 'Notable') {
+        if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
+        // Remove noble and ruler if they had them before
+        if (member.roles.cache.has(nobleSocialClass.roleId)) rolesToRemove.push(nobleSocialClass.roleId);
+        if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
       }
       else {
-        // Remove steelbearer role if they had it before
-        if (member.roles.cache.has(steelbearerRoleEntry.roleId)) {
-          rolesToRemove.push(steelbearerRoleEntry.roleId);
-        }
+        // Remove notable, noble, and ruler if they had them before
+        if (member.roles.cache.has(notableSocialClass.roleId)) rolesToRemove.push(notableSocialClass.roleId);
+        if (member.roles.cache.has(nobleSocialClass.roleId)) rolesToRemove.push(nobleSocialClass.roleId);
+        if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
       }
     }
+    catch (error) {
+      console.log('Failed to assign social class roles: ' + error);
+      return false;
+    }
 
-  }
-  catch (error) {
-    console.log('Failed to assign steelbearer role: ' + error);
-    return false;
+    // Steelbearer role
+    try {
+      const steelbearerRoleEntry = await DiscordRoles.findByPk('steelbearer');
+      if (!steelbearerRoleEntry) {
+        console.log('Steelbearer role ID not found in database.');
+      }
+      else {
+        // Check whether character is steelbearer by looking at steelbearers
+        const steelbearerRecord = await Steelbearers.findOne({ where: { characterId: character.id } });
+        if (steelbearerRecord) {
+          if (!member.roles.cache.has(steelbearerRoleEntry.roleId)) {
+            rolesToAdd.push(steelbearerRoleEntry.roleId);
+          }
+        }
+        else {
+          // Remove steelbearer role if they had it before
+          if (member.roles.cache.has(steelbearerRoleEntry.roleId)) {
+            rolesToRemove.push(steelbearerRoleEntry.roleId);
+          }
+        }
+      }
+
+    }
+    catch (error) {
+      console.log('Failed to assign steelbearer role: ' + error);
+      return false;
+    }
   }
 
   // Proceed with adding and removing roles
@@ -3238,7 +3359,7 @@ module.exports = {
   changeSocialClassInDatabase,
   changeWorldInDatabase,
   assignSteelbearerToRegion,
-  syncMemberRolesWithCharacter,
+  syncMemberRoles,
   updateRecruitmentPost,
   addDeathPostToDatabase,
   addRegionManagerToDatabase,
