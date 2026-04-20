@@ -1,6 +1,6 @@
 const { Hooks } = require("sequelize/lib/hooks");
 const { sendCharacterJoinMessage } = require("../helpers/messageSender");
-const { formatCharacterName } = require("../helpers/formatters");
+const { formatCharacterName, getFullTimezoneString } = require("../helpers/formatters");
 
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define('players', {
@@ -55,7 +55,7 @@ module.exports = (sequelize, DataTypes) => {
           `**Discord User:** <@${this.id}>\n` +
           `**VS Username:** ${this.ign}\n` +
           `**Gamertag:** ${this.gamertag ? this.gamertag : '-'}\n` +
-          `**Timezone:** ${this.timezone ? this.timezone : '-'}\n\n` +
+          `**Timezone:** ${getFullTimezoneString(this.timezone)}\n\n` +
           `Currently ${character ? `playing ${formatCharacterName(character.name)}.` : 'not playing a character.'}`
         );
       },

@@ -1533,7 +1533,10 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newG
     newValues.gamertag = newGamertag === '-' ? null : newGamertag;
     oldValues.gamertag = player.gamertag;
   }
-  if (newTimezone !== null && newTimezone !== player.timezone) newValues.timezone = newTimezone; oldValues.timezone = player.timezone;
+  if (newTimezone !== null && (newTimezone === '-' ? player.timezone !== null : newTimezone !== player.timezone)) {
+    newValues.timezone = newTimezone === '-' ? null : newTimezone;
+    oldValues.timezone = player.timezone;
+  }
 
   // Check if anything is actually changing
   if (Object.keys(newValues).length === 0) {
@@ -1570,8 +1573,8 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newG
         break;
       }
       case 'timezone': {
-        logInfoChanges.push({ key: 'timezone', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
-        formattedInfoChanges.push({ key: '**Timezone**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
+        logInfoChanges.push({ key: 'timezone', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Timezone**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
         break;
       }
       case 'gamertag': {
