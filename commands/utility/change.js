@@ -29,6 +29,7 @@ module.exports = {
           option
             .setName('gamertag_new')
             .setDescription('The new gamertag.')
+            .setMaxLength(20)
         )
         .addStringOption(option =>
           option
@@ -51,6 +52,11 @@ module.exports = {
           option
             .setName('name_new')
             .setDescription('The new name.')
+        )
+        .addStringOption(option =>
+          option
+            .setName('title_new')
+            .setDescription('The new title.')
         )
         .addStringOption(option =>
           option
@@ -914,6 +920,7 @@ module.exports = {
     if (subcommand === 'character') {
       const characterId = interaction.options.getString('name');
       const newName = interaction.options.getString('name_new');
+      const newTitle = interaction.options.getString('title_new');
       const newSex = interaction.options.getString('sex_new');
       const newRegionId = interaction.options.getString('region_new');
       const newHouseId = interaction.options.getString('house_new');
@@ -933,6 +940,7 @@ module.exports = {
       try {
         const { character: updatedCharacter, embed: characterChangedEmbed } = await changeCharacterInDatabase(interaction.user, character, true, {
           newName: newName,
+          newTitle: newTitle,
           newSex: newSex,
           newRegionId: newRegionId,
           newHouseId: newHouseId,

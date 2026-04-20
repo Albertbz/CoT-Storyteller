@@ -15,6 +15,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       defaultValue: 'Unnamed'
     },
+    title: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
     sex: {
       type: DataTypes.STRING,
     },
@@ -104,6 +108,7 @@ module.exports = (sequelize, DataTypes) => {
           `id: \`${this.id}\`\n` +
           `\n` +
           `name: \`${this.name}\`\n` +
+          `title: \`${this.title ? this.title : '-'}\`\n` +
           `sex: \`${this.sex ? this.sex : '-'}\`\n` +
           `region: ${region ? `\`${region.name}\` (\`${this.regionId}\`)` : '`-`'}\n` +
           `house: ${house ? `\`${house.name}\` (\`${this.houseId}\`)` : '`-`'}\n` +
@@ -137,10 +142,11 @@ module.exports = (sequelize, DataTypes) => {
         const generalInfo = (
           `### General Info\n` +
           `**Name:** ${this.name}\n` +
+          `**Title:** ${this.title ? this.title : '*None*'}\n` +
           `${this.sex ? `**Sex:** ${this.sex}\n` : ''}` +
           `**Year of Creation:** ${this.yearOfCreation}\n` +
-          `**Region:** ${region ? region.name : `-`}\n` +
-          `${region && region.id === WANDERER_REGION_ID ? `` : `**House:** ${house ? house.name : `-`}\n`}` +
+          `**Region:** ${region ? region.name : `*None*`}\n` +
+          `${region && region.id === WANDERER_REGION_ID ? `` : `**House:** ${house ? house.name : `*None*`}\n`}` +
           `**Social Class:** ${this.socialClassName}`);
         //`**Role:** ${this.role ? this.role : '-'}\n` +
         //`**Comments:** ${this.comments ? this.comments : '-'}`);

@@ -40,7 +40,7 @@ module.exports = {
       [
         new TextDisplayBuilder().setContent(
           `# Confirm Gamertag Change\n\n` +
-          `You are about to ${gamertagToSet === '-' ? `remove your gamertag, ${oldGamertagDisplay}` : `change your gamertag from ${oldGamertagDisplay} to ${newGamertagDisplay}`}. When you change your gamertag, your nickname here on the Discord server will be updated to reflect the new gamertag or lack thereof along with your character's name.`
+          `You are about to ${gamertagToSet === '-' ? `remove your gamertag, ${oldGamertagDisplay}` : `change your gamertag from **${oldGamertagDisplay}** to **${newGamertagDisplay}**`}. When you change your gamertag, your nickname here on the Discord server will be updated to reflect the new gamertag or lack thereof along with your character's name.`
         )
       ],
       'player-manager-return-button',

@@ -1038,7 +1038,7 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
 
 // Changes the provided values of a character and posts the change to the log
 // channel using postInLogChannel.
-async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newRegionId = null, newHouseId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null, newYearOfCreation = null, forceChange = false, autoChangeHouse = true } = {}) {
+async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newTitle = null, newSex = null, newRegionId = null, newHouseId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null, newYearOfCreation = null, forceChange = false, autoChangeHouse = true } = {}) {
   const characterNotChangedEmbed = new EmbedBuilder()
     .setTitle('Character Not Changed')
     .setColor(COLORS.RED);
@@ -1057,6 +1057,10 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   if (newName !== null && newName !== character.name) {
     newValues.name = newName;
     oldValues.name = character.name;
+  }
+  if (newTitle !== null && newTitle === '-' ? character.title !== null : newTitle !== character.title) {
+    newValues.title = newTitle === '-' ? null : newTitle;
+    oldValues.title = character.title;
   }
   if (newSex !== null && newSex !== character.sex) {
     newValues.sex = newSex === 'Undefined' ? null : newSex;
@@ -1240,6 +1244,11 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
       case 'name': {
         logInfoChanges.push({ key: 'name', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
         formattedInfoChanges.push({ key: '**Name**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'title': {
+        logInfoChanges.push({ key: 'title', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Title**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
         break;
       }
       case 'sex': {

@@ -66,6 +66,11 @@ async function getCharacterManagerContainer(userId) {
           .setStyle(ButtonStyle.Secondary)
           .setEmoji('✍️'),
         new ButtonBuilder()
+          .setCustomId('character-change-title-button')
+          .setLabel('Change Title')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🎖️'),
+        new ButtonBuilder()
           .setCustomId('character-change-region-button')
           .setLabel('Change Region/House')
           .setStyle(ButtonStyle.Secondary)

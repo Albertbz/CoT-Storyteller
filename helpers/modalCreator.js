@@ -793,7 +793,7 @@ async function changeGamertagModal(player, gamertagValue = null) {
     .setStyle(TextInputStyle.Short)
     .setRequired(false)
     .setPlaceholder('Enter your new gamertag')
-    .setMaxLength(50);
+    .setMaxLength(20);
 
   if (gamertagValue) {
     gamertagInput.setValue(gamertagValue);
@@ -804,10 +804,47 @@ async function changeGamertagModal(player, gamertagValue = null) {
 
   const gamertagLabel = new LabelBuilder()
     .setLabel('What is your new gamertag?')
-    // .setDescription('Make sure to enter the correct gamertag.')
+    .setDescription('A maximum of 20 characters is allowed. Leave blank to remove gamertag.')
     .setTextInputComponent(gamertagInput);
 
   modal.addLabelComponents(gamertagLabel);
+
+  return modal;
+}
+
+async function changeCharacterTitleModal(character, titleValue = null) {
+  const modal = new ModalBuilder()
+    .setCustomId('character-change-title-modal')
+    .setTitle('Change Title of Character')
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing the title of the character ${formatCharacterName(character.name)}, which is currently ${character.title ? `**${character.title}**` : 'not set'}.\n` +
+      `Please enter the new title for this character in the input below. If you want to remove the character's title, you can leave the input blank.`
+    )
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  const titleInput = new TextInputBuilder()
+    .setCustomId('character-title-input')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(false)
+    .setPlaceholder('Enter new title for the character')
+    .setMaxLength(50);
+
+  if (titleValue) {
+    titleInput.setValue(titleValue);
+  }
+  else if (character.title) {
+    titleInput.setValue(character.title);
+  }
+
+  const titleLabel = new LabelBuilder()
+    .setLabel('What is the new title for the character?')
+    .setDescription('A maximum of 50 characters is allowed. Leave blank to remove title.')
+    .setTextInputComponent(titleInput);
+
+  modal.addLabelComponents(titleLabel);
 
   return modal;
 }
@@ -825,5 +862,6 @@ module.exports = {
   denyChangeModal,
   changeRecruitmentRolesModal,
   updateVSUsernameModal,
-  changeGamertagModal
+  changeGamertagModal,
+  changeCharacterTitleModal
 }
