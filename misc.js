@@ -1361,10 +1361,7 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   const player = await character.getPlayer();
   if (player) {
     await syncMemberRoles(player);
-
-    if (newValues.name) {
-      await setDiscordNickname(player);
-    }
+    await setDiscordNickname(player);
   }
 
   // Post in log channel if applicable
@@ -1392,119 +1389,13 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   return { character, embed: characterChangedEmbed }
 }
 
-/**
- * Truncates a full name to fit within a specified maximum length.
- * Includes sanitization, cultural particles, and generational suffix handling.
- *
- * @param {string} fullName - The full input name.
- * @param {number} maxLength - The maximum allowed character count.
- * @returns {string} The optimally truncated name.
- */
-function truncateName(fullName, maxLength) {
-  let cleanName = fullName
-    .replace(/\b(Dr\.|Mr\.|Mrs\.|Ms\.|Sir|Lady|Brother|Bishop|Count|Friar)\s/gi, '')
-    .replace(/['"“‘].*?['"”’]/g, '')
-    .replace(/\(.*?\)/g, '')
-    .trim()
-    .replace(/\s+/g, ' ');
-
-  if (cleanName.length <= maxLength) return cleanName;
-
-  const rawParts = cleanName.split(' ');
-  if (rawParts.length === 1) return cleanName.substring(0, maxLength);
-
-  // Suffix Extraction
-  const suffixSet = new Set(['jr', 'jr.', 'sr', 'sr.', 'i', 'ii', 'iii', 'iv', 'v']);
-  let suffix = '';
-
-  if (rawParts.length > 2 && suffixSet.has(rawParts[rawParts.length - 1].toLowerCase())) {
-    suffix = ` ${rawParts.pop()}`; // Remove suffix from rawParts and store with leading space
-  }
-
-  const particles = new Set([
-    'de', 'du', 'di', 'da', 'dos', 'das', 'van', 'von', 'der', 'den', 'la', 'le', 'del',
-    'ibn', 'bin', 'bint', 'al', 'el', 'ó', "o'", 'ní', 'mac', 'mc'
-  ]);
-
-  let first = rawParts[0];
-  let surnameStartIndex = rawParts.length - 1;
-
-  for (let i = 1; i < rawParts.length - 1; i++) {
-    if (particles.has(rawParts[i].toLowerCase())) {
-      surnameStartIndex = i;
-      break;
-    }
-  }
-
-  const middles = rawParts.slice(1, surnameStartIndex);
-  const surnameParts = rawParts.slice(surnameStartIndex);
-  const fullSurnameStr = surnameParts.join(' ');
-
-  let primarySurname = [];
-  for (let i = 0; i < surnameParts.length; i++) {
-    primarySurname.push(surnameParts[i]);
-    if (!particles.has(surnameParts[i].toLowerCase())) break;
-  }
-  const primarySurnameStr = primarySurname.join(' ');
-
-  let initPrimaryArray = [...primarySurname];
-  let lastPrimaryWord = initPrimaryArray.pop();
-  initPrimaryArray.push(`${lastPrimaryWord[0].toUpperCase()}.`);
-  const initPrimaryStr = initPrimaryArray.join(' ');
-
-  let candidate = '';
-
-  // Evaluate candidates WITH the suffix reattached
-  if (middles.length > 0) {
-    const initialedMiddles = middles.map(m => `${m[0].toUpperCase()}.`).join(' ');
-    candidate = `${first} ${initialedMiddles} ${fullSurnameStr}${suffix}`;
-    if (candidate.length <= maxLength) return candidate;
-
-    candidate = `${first} ${fullSurnameStr}${suffix}`;
-    if (candidate.length <= maxLength) return candidate;
-  }
-
-  candidate = `${first} ${primarySurnameStr}${suffix}`;
-  if (candidate.length <= maxLength) return candidate;
-
-  candidate = `${first} ${initPrimaryStr}${suffix}`;
-  if (candidate.length <= maxLength) return candidate;
-
-  candidate = `${first[0].toUpperCase()}. ${primarySurnameStr}${suffix}`;
-  if (candidate.length <= maxLength) return candidate;
-
-  candidate = `${first[0].toUpperCase()}. ${initPrimaryStr}${suffix}`;
-  if (candidate.length <= maxLength) return candidate;
-
-  // Failsafe: If it STILL exceeds limits, drop the suffix and try again before hard truncating
-  if (suffix !== '') {
-    // Re-run Step 4 without the suffix
-    candidate = `${first} ${initPrimaryStr}`;
-    if (candidate.length <= maxLength) return candidate;
-  }
-
-  return cleanName.substring(0, maxLength);
-}
-
 async function setDiscordNickname(player) {
   const guild = await client.guilds.fetch(guildId);
   try {
     const member = await guild.members.fetch(player.id);
     if (member) {
-      const character = await player.getCharacter();
-      const characterName = character ? character.name : null;
-      const characterNamePart = characterName ? characterName : '(No character)';
-      const gamertagPart = player.gamertag ? ` | ${player.gamertag}` : '';
-
-      let newNickname = `${characterNamePart}${gamertagPart}`;
-      if (characterNamePart.length + gamertagPart.length > 32) {
-        // If the combined length of the character name and gamertag exceeds 32 characters, truncate the character name
-        const allowedCharacterNameLength = 32 - gamertagPart.length - 3; // 3 for the ellipsis
-        const truncatedCharacterName = truncateName(characterNamePart, allowedCharacterNameLength);
-        const truncatedNewNickname = `${truncatedCharacterName}${gamertagPart}`;
-        newNickname = truncatedNewNickname;
-      }
-      await member.setNickname(newNickname);
+      const nickname = await player.discordNickname;
+      await member.setNickname(nickname);
     }
   }
   catch (error) {
@@ -1513,7 +1404,7 @@ async function setDiscordNickname(player) {
 }
 
 
-async function changePlayerInDatabase(storyteller, player, { newIgn = null, newGamertag = null, newTimezone = null } = {}) {
+async function changePlayerInDatabase(storyteller, player, { newIgn = null, newGamertag = null, newTimezone = null, newEnableNicknameCharacterTitlePrefix = null, newEnableNicknameGamertagSuffix = null, newDefaultNickname = null } = {}) {
   const playerNotChangedEmbed = new EmbedBuilder()
     .setTitle('Player Not Changed')
     .setColor(COLORS.RED);
@@ -1536,6 +1427,18 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newG
   if (newTimezone !== null && (newTimezone === '-' ? player.timezone !== null : newTimezone !== player.timezone)) {
     newValues.timezone = newTimezone === '-' ? null : newTimezone;
     oldValues.timezone = player.timezone;
+  }
+  if (newEnableNicknameCharacterTitlePrefix !== null && newEnableNicknameCharacterTitlePrefix !== player.enableNicknameCharacterTitlePrefix) {
+    newValues.enableNicknameCharacterTitlePrefix = newEnableNicknameCharacterTitlePrefix;
+    oldValues.enableNicknameCharacterTitlePrefix = player.enableNicknameCharacterTitlePrefix;
+  }
+  if (newEnableNicknameGamertagSuffix !== null && newEnableNicknameGamertagSuffix !== player.enableNicknameGamertagSuffix) {
+    newValues.enableNicknameGamertagSuffix = newEnableNicknameGamertagSuffix;
+    oldValues.enableNicknameGamertagSuffix = player.enableNicknameGamertagSuffix;
+  }
+  if (newDefaultNickname !== null && (newDefaultNickname === '-' ? player.defaultNickname !== null : newDefaultNickname !== player.defaultNickname)) {
+    newValues.defaultNickname = newDefaultNickname === '-' ? null : newDefaultNickname;
+    oldValues.defaultNickname = player.defaultNickname;
   }
 
   // Check if anything is actually changing
@@ -1580,6 +1483,21 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newG
       case 'gamertag': {
         logInfoChanges.push({ key: 'gamertag', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
         formattedInfoChanges.push({ key: '**Gamertag**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'enableNicknameCharacterTitlePrefix': {
+        logInfoChanges.push({ key: 'enableNicknameCharacterTitlePrefix', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Enable Nickname Character Title Prefix**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'enableNicknameGamertagSuffix': {
+        logInfoChanges.push({ key: 'enableNicknameGamertagSuffix', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Enable Nickname Gamertag Suffix**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'defaultNickname': {
+        logInfoChanges.push({ key: 'defaultNickname', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Default Nickname**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
         break;
       }
     }

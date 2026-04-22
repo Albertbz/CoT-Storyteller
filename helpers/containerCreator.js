@@ -509,7 +509,12 @@ async function getPlayerManagerContainer(userId) {
           .setCustomId('player-change-timezone-button')
           .setLabel('Change Timezone')
           .setStyle(ButtonStyle.Secondary)
-          .setEmoji('⏰')
+          .setEmoji('⏰'),
+        new ButtonBuilder()
+          .setCustomId('player-manage-nickname-button')
+          .setLabel('Manage Nickname')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🏷️')
       )
     )
 
