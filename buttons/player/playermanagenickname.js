@@ -22,8 +22,7 @@ module.exports = {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Manage Nickname\n` +
-          `Here you can manage how your Discord nickname is displayed based on your assigned character and gamertag. You can toggle whether to include your character's title as a prefix and your gamertag as a suffix. You can also set a default nickname that will be used when you don't have a character assigned.\n\n` +
-          `When you are playing a character, your nickname will be displayed as:\n${inlineCode(`{Character Title}{Character Name} | {Gamertag}`)}\nwith the character title and gamertag included or excluded based on your settings. When you are not playing a character, your nickname will be your default nickname if you have set one, or it will show as "(no character)" if you haven't set a default nickname, again with gamertag included if specified.\n` +
+          `When you are playing a character, your nickname will be displayed as:\n${inlineCode(`{Character Title}{Character Name} | {Gamertag}`)}\nwith the character title and gamertag included or excluded based on your settings.\nWhen you are not playing a character, your nickname will be your default nickname if you have set one, or it will show as "(no character)" if you haven't set a default nickname, with gamertag included if specified.\n` +
           `### Current Settings\n` +
           `**Character Title Prefix:** ${player.enableNicknameCharacterTitlePrefix ? 'Enabled' : 'Disabled'}\n` +
           `**Gamertag Suffix:** ${player.enableNicknameGamertagSuffix ? 'Enabled' : 'Disabled'}\n` +
@@ -41,18 +40,18 @@ module.exports = {
       .addActionRowComponents(
         new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setCustomId('toggle-character-title-prefix-button')
-            .setLabel('Toggle Character Title Prefix')
+            .setCustomId('player-toggle-character-title-prefix-button')
+            .setLabel(`${player.enableNicknameCharacterTitlePrefix ? 'Disable' : 'Enable'} Character Title Prefix`)
             .setEmoji('🎩')
             .setStyle(ButtonStyle.Secondary),
           new ButtonBuilder()
-            .setCustomId('toggle-gamertag-suffix-button')
-            .setLabel('Toggle Gamertag Suffix')
+            .setCustomId('player-toggle-gamertag-suffix-button')
+            .setLabel(`${player.enableNicknameGamertagSuffix ? 'Disable' : 'Enable'} Gamertag Suffix`)
             .setEmoji('🎮')
             .setStyle(ButtonStyle.Secondary),
           new ButtonBuilder()
-            .setCustomId('set-default-nickname-button')
-            .setLabel('Set Default Nickname')
+            .setCustomId('player-change-default-nickname-button')
+            .setLabel('Change Default Nickname')
             .setEmoji('✏️')
             .setStyle(ButtonStyle.Secondary),
           new ButtonBuilder()
