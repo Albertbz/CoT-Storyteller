@@ -54,4 +54,20 @@ async function bridgePost(endpoint, body = {}) {
     });
 }
 
-module.exports = { bridgeGet, bridgePost };
+function handleWebhookData(body) {
+    const { type, data } = JSON.parse(body);
+
+    if (type === 'date') {
+        require('node:fs').writeFileSync('./vs-date-cache.json', JSON.stringify({ ...data, cachedAt: new Date().toISOString() }, null, 2));
+        console.log(`[StorytellerBridge] Day cached → ${data.dateFormatted}`);
+    }
+
+    if (type === 'death') {
+        const channel = client.channels.cache.get(require('./configs/config.json').death_channel_id);
+        if (channel) channel.send(`💀 **${data.player}** died — cause: ${data.cause}${data.source ? ` (${data.source})` : ''}`);
+        console.log(`[StorytellerBridge] Death: ${data.player}`);
+    }
+}
+
+
+module.exports = { bridgeGet, bridgePost, handleWebhookData };
