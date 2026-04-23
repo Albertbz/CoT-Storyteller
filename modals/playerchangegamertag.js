@@ -20,8 +20,8 @@ module.exports = {
     // If one was not provided, set it to '-' to indicate that it should be set to null in the database
     const gamertagToSet = newGamertag.trim() === '' ? '-' : newGamertag.trim();
 
-    const oldGamertagDisplay = player.gamertag ? `**${player.gamertag}**` : 'not set';
-    const newGamertagDisplay = gamertagToSet === '-' ? 'not set' : `**${gamertagToSet}**`;
+    const oldGamertagDisplay = player.gamertag ? `**${player.gamertag}**` : '*None*';
+    const newGamertagDisplay = gamertagToSet === '-' ? '*None*' : `**${gamertagToSet}**`;
 
     // Ensure that it is different from the current one (treat null and '-' as the same)
     if ((gamertagToSet === '-' && !player.gamertag) || gamertagToSet === player.gamertag) {

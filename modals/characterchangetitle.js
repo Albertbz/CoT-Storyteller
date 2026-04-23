@@ -20,8 +20,8 @@ module.exports = {
     const newTitle = interaction.fields.getTextInputValue('character-title-input').trim();
     const titleToSet = newTitle === '' ? '-' : newTitle;
 
-    const oldTitleDisplay = character.title ? character.title : 'not set';
-    const newTitleDisplay = titleToSet === '-' ? 'not set' : titleToSet;
+    const oldTitleDisplay = character.title ? character.title : '*None*';
+    const newTitleDisplay = titleToSet === '-' ? '*None*' : titleToSet;
 
     // Ensure that the title is different from the current title
     if ((titleToSet === '-' && !character.title) || titleToSet === character.title) {

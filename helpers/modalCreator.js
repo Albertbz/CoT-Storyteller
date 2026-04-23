@@ -782,7 +782,7 @@ async function changeGamertagModal(player, gamertagValue = null) {
 
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing your gamertag, which is currently ${player.gamertag ? `set to **${player.gamertag}**` : 'not set'}.\n` +
+      `You are currently changing your gamertag, which is currently ${player.gamertag ? `set to **${player.gamertag}**` : '*None*'}.\n` +
       `Please enter your new gamertag in the input below. This gamertag will be shown in your nickname here on the Discord server along with your character's name. If you do not want to have a gamertag shown, you can leave the input blank.`
     );
 
@@ -819,7 +819,7 @@ async function changeCharacterTitleModal(character, titleValue = null) {
 
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing the title of the character ${formatCharacterName(character.name)}, which is currently ${character.title ? `**${character.title}**` : 'not set'}.\n` +
+      `You are currently changing the title of the character ${formatCharacterName(character.name)}, which is currently ${character.title ? `**${character.title}**` : '*None*'}.\n` +
       `Please enter the new title for this character in the input below. If you want to remove the character's title, you can leave the input blank.`
     )
 
@@ -830,7 +830,7 @@ async function changeCharacterTitleModal(character, titleValue = null) {
     .setStyle(TextInputStyle.Short)
     .setRequired(false)
     .setPlaceholder('Enter new title for the character')
-    .setMaxLength(50);
+    .setMaxLength(20);
 
   if (titleValue) {
     titleInput.setValue(titleValue);
@@ -841,7 +841,7 @@ async function changeCharacterTitleModal(character, titleValue = null) {
 
   const titleLabel = new LabelBuilder()
     .setLabel('What is the new title for the character?')
-    .setDescription('A maximum of 50 characters is allowed. Leave blank to remove title.')
+    .setDescription('A maximum of 20 characters is allowed. Leave blank to remove title.')
     .setTextInputComponent(titleInput);
 
   modal.addLabelComponents(titleLabel);
@@ -856,7 +856,7 @@ async function changePlayerDefaultNicknameModal(player, nicknameValue = null) {
 
   const textDisplay = new TextDisplayBuilder()
     .setContent(
-      `You are currently changing your default nickname, which is currently ${player.defaultNickname ? `set to **${player.defaultNickname}**` : 'not set'}.\n` +
+      `You are currently changing your default nickname, which is currently ${player.defaultNickname ? `set to **${player.defaultNickname}**` : '*None*'}.\n` +
       `Your default nickname is the nickname that will be set when you are not playing a character. If you do not want to have a default nickname, you can leave the input blank, and will simply be called "(no character)" when you are not playing a character.`
     );
 

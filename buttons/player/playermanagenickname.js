@@ -1,4 +1,4 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags, SeparatorBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, inlineCode } = require("discord.js");
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags, SeparatorBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, inlineCode, SectionBuilder } = require("discord.js");
 const { Players } = require("../../dbObjects");
 
 module.exports = {
@@ -18,48 +18,83 @@ module.exports = {
      * 2. Whether to include the gamertag as a suffix in the nickname
      * 3. What the default nickname should be when no character is assigned
      */
+    const character = await player.getCharacter();
     const container = new ContainerBuilder()
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# Manage Nickname\n` +
-          `When you are playing a character, your nickname will be displayed as:\n${inlineCode(`{Character Title}{Character Name} | {Gamertag}`)}\nwith the character title and gamertag included or excluded based on your settings.\nWhen you are not playing a character, your nickname will be your default nickname if you have set one, or it will show as "(no character)" if you haven't set a default nickname, with gamertag included if specified.\n` +
-          `### Current Settings\n` +
-          `**Character Title Prefix:** ${player.enableNicknameCharacterTitlePrefix ? 'Enabled' : 'Disabled'}\n` +
-          `**Gamertag Suffix:** ${player.enableNicknameGamertagSuffix ? 'Enabled' : 'Disabled'}\n` +
-          `**Default Nickname:** ${player.defaultNickname ? `${player.defaultNickname}` : '*None*'}\n` +
-          `### Resulting Nickname\n` +
-          `${await player.discordNickname}\n`
+          `When you are playing a character, your nickname will be displayed as:` +
+          `\n${inlineCode(`{Character Title }{Character Name}{ | Gamertag}`)}\n` +
+          `with the character title and gamertag included or excluded based on your settings.\n` +
+          `When you are not playing a character, your nickname will be your default nickname if you have set one, or it will show as "(no character)" if you haven't set a default nickname, with gamertag included if specified.`
         )
       )
       .addSeparatorComponents(new SeparatorBuilder())
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `Use the buttons below to change your nickname settings. Changes will be reflected in your nickname immediately.`
-        )
+      .addSectionComponents(
+        new SectionBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `**Character Title Prefix** *(${player.enableNicknameCharacterTitlePrefix ? 'enabled' : 'disabled'})*\n` +
+              `${character ? character.title ? `${character.title}` : '*No character title specified...*' : '*Not currently playing a character...*'}`
+            )
+          )
+          .setButtonAccessory(
+            new ButtonBuilder()
+              .setCustomId('player-toggle-character-title-prefix-button')
+              .setLabel(`${player.enableNicknameCharacterTitlePrefix ? 'Disable' : 'Enable'} Character Title Prefix`)
+              .setEmoji('🎩')
+              .setStyle(ButtonStyle.Secondary)
+          )
       )
-      .addActionRowComponents(
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('player-toggle-character-title-prefix-button')
-            .setLabel(`${player.enableNicknameCharacterTitlePrefix ? 'Disable' : 'Enable'} Character Title Prefix`)
-            .setEmoji('🎩')
-            .setStyle(ButtonStyle.Secondary),
-          new ButtonBuilder()
-            .setCustomId('player-toggle-gamertag-suffix-button')
-            .setLabel(`${player.enableNicknameGamertagSuffix ? 'Disable' : 'Enable'} Gamertag Suffix`)
-            .setEmoji('🎮')
-            .setStyle(ButtonStyle.Secondary),
-          new ButtonBuilder()
-            .setCustomId('player-change-default-nickname-button')
-            .setLabel('Change Default Nickname')
-            .setEmoji('✏️')
-            .setStyle(ButtonStyle.Secondary),
-          new ButtonBuilder()
-            .setCustomId('player-manager-return-button')
-            .setLabel('Cancel')
-            .setStyle(ButtonStyle.Danger)
-        )
+      .addSectionComponents(
+        new SectionBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `**Gamertag Suffix** *(${player.enableNicknameGamertagSuffix ? 'enabled' : 'disabled'})*\n` +
+              `${player.gamertag ? player.gamertag : '*No gamertag specified...*'}`
+            )
+          )
+          .setButtonAccessory(
+            new ButtonBuilder()
+              .setCustomId('player-toggle-gamertag-suffix-button')
+              .setLabel(`${player.enableNicknameGamertagSuffix ? 'Disable' : 'Enable'} Gamertag Suffix`)
+              .setEmoji('🎮')
+              .setStyle(ButtonStyle.Secondary)
+          )
       )
+      .addSectionComponents(
+        new SectionBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `**Default Nickname**\n` +
+              `${player.defaultNickname ? player.defaultNickname : '*None*'}`
+            )
+          )
+          .setButtonAccessory(
+            new ButtonBuilder()
+              .setCustomId('player-change-default-nickname-button')
+              .setLabel('Change Default Nickname')
+              .setEmoji('✏️')
+              .setStyle(ButtonStyle.Secondary)
+          )
+      )
+      .addSeparatorComponents(new SeparatorBuilder())
+      .addSectionComponents(
+        new SectionBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `# Current Resulting Nickname\n` +
+              `Based on your current settings, your nickname is displayed as:\n` +
+              `**${await player.discordNickname}**`
+            )
+          )
+          .setButtonAccessory(
+            new ButtonBuilder()
+              .setCustomId('player-manager-return-button')
+              .setLabel('Cancel')
+              .setStyle(ButtonStyle.Danger)
+          )
+      );
 
     return interaction.editReply({ components: [container], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
   }

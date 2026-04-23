@@ -97,7 +97,7 @@ module.exports = (sequelize, DataTypes) => {
           `### General Info\n` +
           `**Discord User:** <@${this.id}>\n` +
           `**VS Username:** ${this.ign}\n` +
-          `**Gamertag:** ${this.gamertag ? this.gamertag : '-'}\n` +
+          `**Gamertag:** ${this.gamertag ? this.gamertag : '*None*'}\n` +
           `**Timezone:** ${getFullTimezoneString(this.timezone)}\n\n` +
           `Currently ${character ? `playing ${formatCharacterName(character.name)}.` : 'not playing a character.'}`
         );
