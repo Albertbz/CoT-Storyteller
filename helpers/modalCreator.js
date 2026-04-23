@@ -849,6 +849,43 @@ async function changeCharacterTitleModal(character, titleValue = null) {
   return modal;
 }
 
+async function changePlayerDefaultNicknameModal(player, nicknameValue = null) {
+  const modal = new ModalBuilder()
+    .setCustomId('player-change-default-nickname-modal')
+    .setTitle('Change Default Nickname')
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing your default nickname, which is currently ${player.defaultNickname ? `set to **${player.defaultNickname}**` : 'not set'}.\n` +
+      `Your default nickname is the nickname that will be set when you are not playing a character. If you do not want to have a default nickname, you can leave the input blank, and will simply be called "(no character)" when you are not playing a character.`
+    );
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  const nicknameInput = new TextInputBuilder()
+    .setCustomId('default-nickname-input')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(false)
+    .setPlaceholder('Enter your new default nickname')
+    .setMaxLength(32);
+
+  if (nicknameValue) {
+    nicknameInput.setValue(nicknameValue);
+  }
+  else if (player.defaultNickname) {
+    nicknameInput.setValue(player.defaultNickname);
+  }
+
+  const nicknameLabel = new LabelBuilder()
+    .setLabel('What is your new default nickname?')
+    .setDescription('A maximum of 32 characters is allowed. Leave blank to remove default nickname.')
+    .setTextInputComponent(nicknameInput);
+
+  modal.addLabelComponents(nicknameLabel);
+
+  return modal;
+}
+
 module.exports = {
   characterCreateModal,
   finalDeathModal,
@@ -863,5 +900,6 @@ module.exports = {
   changeRecruitmentRolesModal,
   updateVSUsernameModal,
   changeGamertagModal,
-  changeCharacterTitleModal
+  changeCharacterTitleModal,
+  changePlayerDefaultNicknameModal
 }

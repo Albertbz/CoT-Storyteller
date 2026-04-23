@@ -26,7 +26,7 @@ module.exports = {
           `### Current Settings\n` +
           `**Character Title Prefix:** ${player.enableNicknameCharacterTitlePrefix ? 'Enabled' : 'Disabled'}\n` +
           `**Gamertag Suffix:** ${player.enableNicknameGamertagSuffix ? 'Enabled' : 'Disabled'}\n` +
-          `**Default Nickname:** ${player.defaultNickname ? `\`${player.defaultNickname}\`` : '*None*'}\n` +
+          `**Default Nickname:** ${player.defaultNickname ? `${player.defaultNickname}` : '*None*'}\n` +
           `### Resulting Nickname\n` +
           `${await player.discordNickname}\n`
         )
