@@ -22,6 +22,23 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       defaultValue: 'None'
     },
+    isMonogamous: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        const bearingCharacter = await this.getBearingCharacter();
+        const conceivingCharacter = await this.getConceivingCharacter();
+
+        const bearingRelationships = await bearingCharacter.getRelationshipsBearing();
+        const conceivingRelationships = await conceivingCharacter.getRelationshipsConceiving();
+
+        const bearingMonogamous = bearingRelationships.length === 1 && !bearingCharacter.isRollingForBastards;
+        const conceivingMonogamous = conceivingRelationships.length === 1 && !conceivingCharacter.isRollingForBastards;
+        return bearingMonogamous && conceivingMonogamous;
+      },
+      set(value) {
+        throw new Error('Do not try to set the isMonogamous value!')
+      }
+    },
     logInfo: {
       type: DataTypes.VIRTUAL,
       async get() {

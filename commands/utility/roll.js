@@ -3,7 +3,7 @@ const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationshi
 const { Op } = require('sequelize');
 const { addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
 const { ageToFertilityModifier } = require('../../helpers/fertility.js');
-const { calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringChanceEmbed, getFertilityModifier, rollDeathAndGetResult, saveDeathRollResultToDatabase } = require('../../helpers/rollHelper.js');
+const { calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringChanceTextDisplay, getFertilityModifier, rollDeathAndGetResult, saveDeathRollResultToDatabase } = require('../../helpers/rollHelper.js');
 const { WORLD_ID } = require('../../constants.js');
 
 module.exports = {
@@ -152,7 +152,7 @@ module.exports = {
 
     const interactionUser = interaction.user;
     const collectorFilter = i => i.user.id === interactionUser.id;
-    const rollChancesEmbed = buildOffspringChanceEmbed();
+    const rollChancesEmbed = buildOffspringChanceTextDisplay();
 
     // Handle offspring roll for relationship
     if (interaction.options.getSubcommand() === 'relationship') {

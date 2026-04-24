@@ -31,6 +31,8 @@ function determineOffspringResult(childless, son, daughter, twinDaughters, twinS
     }
     return offspring;
   }
+
+  return ['Childless'];
 }
 
 function calculateOffspringRoll({ age1, age2 = 0, isBastardRoll = false } = {}) {
@@ -111,10 +113,10 @@ function formatOffspringCounts(rollRes) {
   if (!text) {
     const childrenText = [];
     if (amountOfSons > 1) childrenText.push(amountOfSons + ' Sons');
-    else if (amountOfSons === 1) childrenText.push('Son');
+    else if (amountOfSons === 1) childrenText.push('A Son');
 
     if (amountOfDaughters > 1) childrenText.push(amountOfDaughters + ' Daughters');
-    else if (amountOfDaughters === 1) childrenText.push('Daughter');
+    else if (amountOfDaughters === 1) childrenText.push('A Daughter');
 
     text = childrenText.join(' and ');
   }
@@ -123,7 +125,7 @@ function formatOffspringCounts(rollRes) {
 }
 
 async function getPlayerSnowflakeForCharacter(characterId) {
-  const player = await Players.findOne({ where: { characterId } });
+  const player = await Players.findOne({ where: { characterId: characterId } });
   return player ? player.id : null;
 }
 
@@ -136,12 +138,12 @@ function buildOffspringPairLine(bearingName, conceivingName, rollRes, checks = {
     offspringText = Array.isArray(rollRes) ? rollRes.join(', ') : String(rollRes);
   }
 
-  let line = inlineCode(bearingName) + ' & ' + inlineCode(conceivingName) + ' (' + checks.fertilityModifier + '% fertile)' + ':\n' + bold(offspringText)
-  const parts = []
-  if (typeof checks.fertilityCheck !== 'undefined') parts.push('Fertility: ' + checks.fertilityCheck)
-  if (typeof checks.offspringCheck !== 'undefined') parts.push('Offspring: ' + checks.offspringCheck)
-  if (parts.length > 0) line += ' ' + italic('(' + parts.join(' / ') + ')')
-  return line
+  let line = `***${bearingName}*** & ***${conceivingName}*** (${checks.fertilityModifier}% fertile):\n${bold(offspringText)}`;
+  const parts = [];
+  if (typeof checks.fertilityCheck !== 'undefined') parts.push('Fertility: ' + checks.fertilityCheck);
+  if (typeof checks.offspringCheck !== 'undefined') parts.push('Offspring: ' + checks.offspringCheck);
+  if (parts.length > 0) line += ' ' + italic('(' + parts.join(' / ') + ')');
+  return line;
 }
 
 /**
@@ -338,7 +340,7 @@ function makeDeathRollsSummaryMessages(linesList, messageTitle, containerColor) 
   return messages;
 }
 
-// Build an embed that shows the roll chance thresholds for relationships and bastards
+// Build a description that shows the roll chance thresholds and their corresponding offspring results
 function buildChanceDescription(thresholds, labels) {
   let desc = '';
   let prev = 1;
@@ -360,14 +362,16 @@ function buildChanceDescription(thresholds, labels) {
   return desc;
 }
 
-function buildOffspringChanceEmbed() {
-  const rollChancesDescription = '**Intercharacter Rolls**\n' + buildChanceDescription(REL_THRESHOLDS, OFFSPRING_LABELS) + '\n**NPC Rolls**\n' + buildChanceDescription(BAST_THRESHOLDS, OFFSPRING_LABELS);
-
-  const rollChancesEmbed = new EmbedBuilder()
-    .setTitle('Offspring roll chances')
-    .setDescription(rollChancesDescription)
-    .setColor(COLORS.BLUE);
-  return rollChancesEmbed;
+function buildOffspringChanceTextDisplay() {
+  const rollChancesTextDisplay = new TextDisplayBuilder().setContent(
+    `# Offspring Roll Chances\n` +
+    `-# After a successful fertility roll, the following thresholds are used to determine the offspring result.\n` +
+    `### Intercharacter Rolls\n` +
+    `${buildChanceDescription(REL_THRESHOLDS, OFFSPRING_LABELS)}` +
+    `### NPC Rolls\n` +
+    `${buildChanceDescription(BAST_THRESHOLDS, OFFSPRING_LABELS)}`
+  );
+  return rollChancesTextDisplay;
 }
 
 
@@ -385,6 +389,6 @@ module.exports = {
   rollDeathAndGetResult,
   saveDeathRollResultToDatabase,
   makeDeathRollsSummaryMessages,
-  buildOffspringChanceEmbed,
+  buildOffspringChanceTextDisplay,
   getFertilityModifier
 };

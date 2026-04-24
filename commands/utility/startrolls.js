@@ -2,7 +2,7 @@ const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, 
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, Relationships, PlayableChildren, Deceased, DeathRollDeaths } = require('../../dbObjects.js');
 const { addCharacterToDatabase, addPlayableChildToDatabase, COLORS } = require('../../misc.js');
 const { ageToFertilityModifier } = require('../../helpers/fertility.js');
-const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathRollResultToDatabase, makeDeathRollsSummaryMessages, buildOffspringChanceEmbed } = require('../../helpers/rollHelper.js');
+const { REL_THRESHOLDS, BAST_THRESHOLDS, OFFSPRING_LABELS, calculateOffspringRoll, formatOffspringCounts, getPlayerSnowflakeForCharacter, buildOffspringPairLine, calculateDeathRoll, rollDeathAndGetResult, saveDeathRollResultToDatabase, makeDeathRollsSummaryMessages, buildOffspringChanceTextDisplay } = require('../../helpers/rollHelper.js');
 const { WANDERER_REGION_ID, WORLD_ID } = require('../../constants.js');
 
 // Centralized messages
@@ -68,560 +68,1133 @@ module.exports = {
 
     const world = await Worlds.findByPk(WORLD_ID)
 
-    // Do offspring rolls
-    if (interaction.options.getSubcommand() === 'offspring') {
-      const startButton = new ButtonBuilder()
-        .setCustomId('start')
-        .setLabel('Start')
-        .setStyle(ButtonStyle.Primary);
+    const subcommand = interaction.options.getSubcommand();
 
-      const cancelButton = new ButtonBuilder()
-        .setCustomId('cancel')
-        .setLabel('Cancel')
-        .setStyle(ButtonStyle.Danger);
-
-      const startRow = new ActionRowBuilder()
-        .addComponents(startButton, cancelButton);
-
-      const rollButton = new ButtonBuilder()
-        .setCustomId('roll')
-        .setLabel('Roll')
-        .setStyle(ButtonStyle.Primary);
-
-      const skipButton = new ButtonBuilder()
-        .setCustomId('skip_offspring_rolls')
-        .setLabel('Skip')
-        .setStyle(ButtonStyle.Secondary);
-
-      const rollRow = new ActionRowBuilder()
-        .addComponents(rollButton, skipButton);
-
-      const continueButton = new ButtonBuilder()
-        .setCustomId('continue')
-        .setLabel('Save and Continue')
-        .setStyle(ButtonStyle.Primary);
-      const continueRow = new ActionRowBuilder()
-        .addComponents(continueButton);
-
-      // Handle all relationships
-      const relationships = await Relationships.findAll({
+    if (subcommand === 'offspring') {
+      // Get all intercharacter rolls, and make a textdisplay listing them
+      const intercharacterRolls = await Relationships.findAll({
         include: [
           { model: Characters, as: 'bearingCharacter' },
-          { model: Characters, as: 'conceivingCharacter' },
+          { model: Characters, as: 'conceivingCharacter' }
         ]
-      });
-
-      const relationshipRollsText = []
-      const bearingCharacters = new Map();
-
-      for (const relationship of relationships) {
-        relationshipRollsText.push(subtext(inlineCode(relationship.bearingCharacter.name) + ' & ' + inlineCode(relationship.conceivingCharacter.name)))
-        bearingCharacters.set(relationship.bearingCharacter.id, relationship.bearingCharacter)
-      }
-
-      // Get all bastard rolls
-      const charactersRollingForBastards = await Characters.findAll({ where: { isRollingForBastards: true } });
-
-      const charactersRollingForBastardsFiltered = charactersRollingForBastards.filter(character => {
-        return !bearingCharacters.has(character.id);
       })
 
-      const bastardRollsTexs = []
+      // Sort by bearing character name, then conceiving character name, alphabetically
+      intercharacterRolls.sort((a, b) => {
+        const aBearingName = a.bearingCharacter.name.toLowerCase();
+        const bBearingName = b.bearingCharacter.name.toLowerCase();
+        if (aBearingName < bBearingName) return -1;
+        if (aBearingName > bBearingName) return 1;
+        const aConceivingName = a.conceivingCharacter.name.toLowerCase();
+        const bConceivingName = b.conceivingCharacter.name.toLowerCase();
+        if (aConceivingName < bConceivingName) return -1;
+        if (aConceivingName > bConceivingName) return 1;
+        return 0;
+      })
 
-      for (const character of charactersRollingForBastards) {
-        bastardRollsTexs.push(subtext(inlineCode(character.name)));
+      const intercharacterRollsTextDisplay = new TextDisplayBuilder().setContent(
+        `# Intercharacter Rolls\n` +
+        `${intercharacterRolls.length > 0 ? intercharacterRolls.map(relationship => `***${relationship.bearingCharacter.name}*** & ***${relationship.conceivingCharacter.name}***`).join('\n') : '*None*'}\n\n` +
+        `-# All of these characters are rolling for offspring with another character.`
+      )
+
+      // Get all NPC rolls, and make a textdisplay listing them
+      const npcRollCharacters = await Characters.findAll({ where: { isRollingForBastards: true } });
+      // Sort by character name alphabetically
+      npcRollCharacters.sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        if (aName < bName) return -1;
+        if (aName > bName) return 1;
+        return 0;
+      })
+
+      const npcRollsTextDisplay = new TextDisplayBuilder().setContent(
+        `# NPC Rolls\n` +
+        `${npcRollCharacters.length > 0 ? npcRollCharacters.map(character => `***${character.name}***`).join('\n') : '*None*'}\n\n` +
+        `-# All of these characters are rolling for offspring with an NPC.`
+      )
+
+      if (intercharacterRolls.length === 0 && npcRollCharacters.length === 0) {
+        const noRollsContainer = new ContainerBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `# No Offspring Rolls\n` +
+              `There are no offspring rolls to process.`
+            )
+          )
+        return interaction.editReply({ components: [noRollsContainer], flags: [MessageFlags.IsComponentsV2] });
+      }
+
+      // Make a container with the list of rolls to do, as well as the chance
+      // thresholds for each type of roll
+      const rollsAndChancesContainer = new ContainerBuilder()
+        .addTextDisplayComponents(intercharacterRollsTextDisplay)
+        .addSeparatorComponents(new SeparatorBuilder())
+        .addTextDisplayComponents(npcRollsTextDisplay)
+        .addSeparatorComponents(new SeparatorBuilder())
+        .addTextDisplayComponents(buildOffspringChanceTextDisplay())
+
+      // Make a container for the control buttons (start, cancel, skip)
+      const controlsContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Ready to start\n` +
+            `Please press Start when you are ready to start the offspring rolls.\n` +
+            `If you do not interact with the buttons for 5 minutes, the rolls will stop.`
+          )
+        )
+        .addActionRowComponents(
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId('offspring-rolls-start')
+              .setLabel('Start')
+              .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+              .setCustomId('offspring-rolls-cancel')
+              .setLabel('Cancel')
+              .setStyle(ButtonStyle.Danger)
+          )
+        )
+
+      // Send the initial message
+      const message = await interaction.editReply({ components: [rollsAndChancesContainer, controlsContainer], flags: [MessageFlags.IsComponentsV2] });
+
+      // Make a list of objects representing the rolls to do, with containers for
+      // each roll, with info on the roll and the buttons to roll, skip, and cancel
+      const rollsList = [];
+
+      // Get all characters that are bearing in intercharacter rolls, making sure
+      // not to include duplicates if a character is bearing in multiple rolls
+      const bearingCharactersMap = new Map();
+      for (const icr of intercharacterRolls) {
+        if (!bearingCharactersMap.has(icr.bearingCharacter.id)) {
+          bearingCharactersMap.set(icr.bearingCharacter.id, icr.bearingCharacter);
+        }
+      }
+
+      const bearingCharacters = Array.from(bearingCharactersMap.values());
+
+      for (const bearingCharacter of bearingCharacters) {
+        // Get the rolls that the bearing character is participating in
+        const intercharacterRollsForBearingCharacter = intercharacterRolls.filter(icr => icr.bearingCharacter.id === bearingCharacter.id);
+
+        const isRollingWithNPC = npcRollCharacters.some(npcRoll => npcRoll.id === bearingCharacter.id);
+        // If the bearing character is rolling with an NPC, remove from the NPC rolls list so that it doesn't get rolled for again when we loop through the NPC rolls
+        if (isRollingWithNPC) {
+          const npcRollIndex = npcRollCharacters.findIndex(npcRoll => npcRoll.id === bearingCharacter.id);
+          if (npcRollIndex !== -1) {
+            npcRollCharacters.splice(npcRollIndex, 1);
+          }
+        }
+
+        const rollsText = [];
+        for (const icr of intercharacterRollsForBearingCharacter) {
+          const bearerFertility = await icr.bearingCharacter.fertility;
+          const conceiverFertility = await icr.conceivingCharacter.fertility;
+
+          rollsText.push(`- ***${icr.bearingCharacter.name}*** *(${bearerFertility * 100}% fertile)* & ***${icr.conceivingCharacter.name}*** *(${conceiverFertility * 100}% fertile)* | *Combined Fertility: ${(bearerFertility * conceiverFertility) * 100}%*`);
+        }
+
+        if (isRollingWithNPC) {
+          const bearerFertility = (await intercharacterRollsForBearingCharacter[0].bearingCharacter.fertility) * 100;
+          rollsText.push(`- ***${intercharacterRollsForBearingCharacter[0].bearingCharacter.name}*** *(${bearerFertility}% fertile)* & *NPC* | *Combined fertility: ${bearerFertility}%*`)
+        }
+
+        const container = new ContainerBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `# Offspring Roll\n` +
+              `### Offspring Rolls for ***${intercharacterRollsForBearingCharacter[0].bearingCharacter.name}***\n` +
+              `This character is part of the following offspring rolls:\n` +
+              `${rollsText.join('\n')}\n\n`
+            )
+          )
+          .addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setCustomId(`offspring-rolls-roll`)
+                .setLabel('Roll')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId(`offspring-rolls-skip`)
+                .setLabel('Skip')
+                .setStyle(ButtonStyle.Secondary),
+              new ButtonBuilder()
+                .setCustomId(`offspring-rolls-cancel`)
+                .setLabel('Cancel')
+                .setStyle(ButtonStyle.Danger)
+            )
+          )
+
+        const performRoll = async () => {
+          const offspringResults = [];
+          for (const icr of intercharacterRollsForBearingCharacter) {
+            const bearingCharacterAge = world.currentYear - icr.bearingCharacter.yearOfMaturity;
+            const conceivingCharacterAge = world.currentYear - icr.conceivingCharacter.yearOfMaturity;
+            const roll = calculateOffspringRoll({ age1: bearingCharacterAge, age2: conceivingCharacterAge })
+
+            // If monogamous, give another roll if first did not produce children
+            const isMonogamous = await icr.isMonogamous;
+            if (isMonogamous && !(roll.result.includes('Son') || roll.result.includes('Daughter'))) {
+              const secondRoll = calculateOffspringRoll({ age1: bearingCharacterAge, age2: conceivingCharacterAge })
+              offspringResults.push({ result: secondRoll.result, checks: { fertilityCheck: secondRoll.fertilityCheck, offspringCheck: secondRoll.offspringCheck, fertilityModifier: secondRoll.fertilityModifier }, parent1Character: icr.bearingCharacter, parent2Character: icr.conceivingCharacter })
+            }
+            else {
+              offspringResults.push({ result: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, parent1Character: icr.bearingCharacter, parent2Character: icr.conceivingCharacter })
+            }
+          }
+
+          if (isRollingWithNPC) {
+            const bearingCharacterAge = world.currentYear - bearingCharacter.yearOfMaturity;
+            const roll = calculateOffspringRoll({ age1: bearingCharacterAge, isBastardRoll: true })
+            offspringResults.push({ result: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, parent1Character: bearingCharacter, parent2Character: undefined })
+          }
+
+          // Filter for successful rolls (those that resulted in at least one child), and failed rolls
+          const successfulRolls = offspringResults.filter(or => or.result.includes('Son') || or.result.includes('Daughter'));
+          const failedRolls = offspringResults.filter(or => !or.result.includes('Son') && !or.result.includes('Daughter'));
+          // Choose a successful roll at random if there are multiple, otherwise set to null
+          const successfulRoll = successfulRolls.length > 0 ? pickRandomElement(successfulRolls) : null;
+
+          // Change any other successful rolls to failed rolls, with new result "Other Roll Was Successful"
+          for (const roll of successfulRolls) {
+            if (successfulRoll !== roll) {
+              roll.result = ['Other Roll Was Successful'];
+              failedRolls.push(roll);
+            }
+          }
+
+          const offspringResult = {
+            successfulRoll: successfulRoll,
+            failedRolls: failedRolls
+          }
+
+          const offspringRollsText = offspringResults.map(({ result, checks, parent1Character, parent2Character }) => {
+            return buildOffspringPairLine(parent1Character.name, parent2Character ? parent2Character.name : 'NPC', result, checks)
+          });
+
+          const offspringResultText = successfulRoll ? `***${successfulRoll.parent1Character.name}*** and ${successfulRoll.parent2Character ? `***${successfulRoll.parent2Character.name}***` : '*an NPC*'} have succeeded in having **${formatOffspringCounts(successfulRoll.result).text}**!` : `***${bearingCharacter.name}*** did not have any offspring.`;
+          const color = successfulRoll ? COLORS.GREEN : COLORS.RED;
+
+          const resultContainer = new ContainerBuilder()
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(
+                `# Result of roll\n` +
+                `### Roll(s)\n` +
+                offspringRollsText.join('\n\n') +
+                `\n` +
+                `### Result\n` +
+                offspringResultText
+              )
+            )
+            .addActionRowComponents(
+              new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setCustomId('offspring-rolls-save')
+                  .setLabel('Save and Continue')
+                  .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                  .setCustomId('offspring-rolls-skip')
+                  .setLabel('Skip')
+                  .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                  .setCustomId('offspring-rolls-cancel')
+                  .setLabel('Cancel')
+                  .setStyle(ButtonStyle.Danger)
+              )
+            )
+            .setAccentColor(color);
+
+          return { resultContainer: resultContainer, offspringResult: offspringResult };
+        }
+
+        rollsList.push({ container: container, performRoll: performRoll });
+      }
+
+      // Do the same for NPC rolls
+      for (const character of npcRollCharacters) {
+        const characterFertility = await character.fertility;
+        const rollsText = `- ***${character.name}*** *(${characterFertility * 100}% fertile)* & *NPC* | *Combined fertility: ${characterFertility * 100}%*`;
+
+        const container = new ContainerBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `# Offspring Roll\n` +
+              `### Offspring Roll for ***${character.name}***\n` +
+              `This character is part of the following offspring roll:\n` +
+              `${rollsText}\n\n`
+            )
+          )
+          .addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setCustomId(`offspring-rolls-roll`)
+                .setLabel('Roll')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId(`offspring-rolls-skip`)
+                .setLabel('Skip')
+                .setStyle(ButtonStyle.Secondary),
+              new ButtonBuilder()
+                .setCustomId(`offspring-rolls-cancel`)
+                .setLabel('Cancel')
+                .setStyle(ButtonStyle.Danger)
+            )
+          )
+
+        const performRoll = async () => {
+          const characterAge = world.currentYear - character.yearOfMaturity;
+          const roll = calculateOffspringRoll({ age1: characterAge, isBastardRoll: true })
+
+          const isSuccessful = roll.result.includes('Son') || roll.result.includes('Daughter');
+
+          const offspringResult = {
+            successfulRoll: isSuccessful ? { result: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, parent1Character: character, parent2Character: undefined } : null,
+            failedRolls: !isSuccessful ? [{ result: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, parent1Character: character, parent2Character: undefined }] : []
+          }
+
+          const offspringResultText = isSuccessful ? `***${character.name}*** and *an NPC* have succeeded in having **${formatOffspringCounts(roll.result).text}**!` : `***${character.name}*** did not have any offspring.`;
+          const color = isSuccessful ? COLORS.GREEN : COLORS.RED;
+
+          const resultContainer = new ContainerBuilder()
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(
+                `# Result of roll\n` +
+                `### Roll\n` +
+                buildOffspringPairLine(character.name, 'NPC', roll.result, { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }) +
+                `\n` +
+                `### Result\n` +
+                offspringResultText
+              )
+            )
+            .addActionRowComponents(
+              new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setCustomId('offspring-rolls-save')
+                  .setLabel('Save and Continue')
+                  .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                  .setCustomId('offspring-rolls-skip')
+                  .setLabel('Skip')
+                  .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                  .setCustomId('offspring-rolls-cancel')
+                  .setLabel('Cancel')
+                  .setStyle(ButtonStyle.Danger)
+              )
+            )
+            .setAccentColor(color);
+
+          return { resultContainer: resultContainer, offspringResult: offspringResult };
+        }
+
+        rollsList.push({ container: container, performRoll: performRoll });
       }
 
 
-      // Split listing into two embeds: relationships and bastards
-      const relationshipsDescription = '**The following characters are rolling for children with another character:**\n' +
-        (relationshipRollsText.length > 0 ? relationshipRollsText.join('\n') : '*None*');
+      let rollIndex = 0;
+      let currentOffspringResult = null;
+      let currentResultContainer = null;
 
-      const bastardsDescription = '**The following characters are rolling for bastards with an NPC:**\n' +
-        (bastardRollsTexs.length > 0 ? bastardRollsTexs.join('\n') : '*None*');
-
-      const relEmbed = new EmbedBuilder()
-        .setTitle('**Intercharacter Rolls**')
-        .setDescription(relationshipsDescription)
-        .setColor(COLORS.BLUE);
-
-      const bastEmbed = new EmbedBuilder()
-        .setTitle('**NPC Rolls**')
-        .setDescription(bastardsDescription)
-        .setColor(COLORS.BLUE);
-
-      // Build an embed that shows the roll chance thresholds for relationships and bastards
-      const rollChancesEmbed = buildOffspringChanceEmbed();
-
-      const controlEmbed = new EmbedBuilder()
-        .setTitle('Ready to start')
-        .setDescription('Please press Start when you are ready to start the offspring rolls.\n\nIf you do not interact with the buttons for 5 minutes, the rolls will stop.')
-        .setColor(COLORS.BLUE);
-
-      const startMessage = await interaction.editReply({
-        embeds: [relEmbed, bastEmbed, rollChancesEmbed, controlEmbed],
-        components: [startRow],
-        withResponse: true
-      });
-
-      const interactionUser = interaction.user;
-      const collectorFilter = i => {
+      // Create a listener for the control buttons that will handle starting the 
+      // rolls, cancelling, and skipping. If start is pressed, show a 
+      // confirmation message and then start the rolls. If cancel is pressed, 
+      // show a cancellation message and stop. If skip is pressed, skip to the 
+      // next roll.
+      const filter = i => {
         try {
-          return i.user.id === interactionUser.id;
+          return i.user.id === interaction.user.id;
         }
         catch (error) {
-          console.error('Error in collector filter:', error);
+          console.error('Error in control buttons collector filter:', error);
         }
       };
-      const finalRelationshipSummaries = [];
-      const finalBastardSummaries = [];
+      const collector = message.createMessageComponentCollector({ filter, time: 300_000 });
 
-      try {
-        const startInteraction = await startMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-        try {
-          await startInteraction.deferUpdate();
-        }
-        catch (error) {
-          console.log('Error deferring startInteraction:', error);
-        }
+      collector.on('ignore', i => {
+        i.reply({ content: 'You cannot interact with these buttons because you were not the one to initiate the rolls.', flags: [MessageFlags.Ephemeral] });
+      })
 
-        if (startInteraction.customId === 'cancel') {
-          // Handle cancellation
-          console.log('Offspring rolls cancelled by user.');
-          await startMessage.edit({ content: 'Offspring rolls have been cancelled.', components: [], embeds: [] });
-          return;
-        }
+      collector.on('collect', async i => {
+        await i.deferUpdate();
 
-        if (startInteraction.customId === 'start') {
-          for (const [_, bearingCharacter] of bearingCharacters) {
-            // Keep track of whether the roll(s) for this bearing character
-            // is to be monogamous
-            let isMonogamous = true;
+        // Cancel rolls
+        if (i.customId === 'offspring-rolls-cancel') {
+          collector.stop();
 
-            // Get all relationships for this bearing character
-            const relationshipsBearing = await bearingCharacter.getRelationshipsBearing();
-
-            // Get all conceiving characters for this bearing character
-            const conceivingCharacters = []
-            for (const relationship of relationshipsBearing) {
-              const conceivingCharacter = await relationship.getConceivingCharacter();
-              conceivingCharacters.push(conceivingCharacter);
-
-              // If any conceiving character is in several relationships, or
-              // is also rolling for bastards, set isMonogamous to false
-              const relationshipsConceiving = await conceivingCharacter.getRelationshipsConceiving();
-              if (relationshipsConceiving.length > 1 || conceivingCharacter.isRollingForBastards) {
-                isMonogamous = false;
-              }
-            }
-
-            // If the bearing character is also rolling for bastards, add a
-            // line for that too, and set isMonogamous to false
-            let bastardNPC = ''
-            if (bearingCharacter.isRollingForBastards) {
-              bastardNPC = '\n' + inlineCode('NPC');
-              isMonogamous = false;
-            }
-
-            // Calculate fertility modifier for bearing character
-            const fertilityModifierBearing = ageToFertilityModifier(world.currentYear - bearingCharacter.yearOfMaturity) * 100;
-
-            // Build embed 
-            const embed = new EmbedBuilder()
-              .setTitle('Intercharacter roll - ' + (isMonogamous ? 'Monogamous' : 'Polygamous'))
-              .setDescription(
-                'Bearing partner:\n' +
-                inlineCode(bearingCharacter.name) + ' (' + fertilityModifierBearing + '% fertile)\n\n' +
-                'Conceiving partner(s):\n' +
-                conceivingCharacters.map(character => inlineCode(character.name) + ' (' + ageToFertilityModifier((world.currentYear - character.yearOfMaturity)) * 100 + '% fertile)').join('\n') + bastardNPC
+          const cancelledContainer = new ContainerBuilder()
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(
+                `# Cancelled Offspring Rolls\n` +
+                `The offspring rolls have been cancelled. Any rolls that were already done will not be undone, but no further rolls will be processed.`
               )
-              .setColor(COLORS.BLUE)
+            )
 
-            const rollMessage = await startMessage.edit({
-              embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
-              components: [rollRow],
-              withResponse: true
-            })
+          return message.edit({ components: [cancelledContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+        }
 
-            try {
-              const rollInteraction = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-              try {
-                await rollInteraction.deferUpdate();
-              }
-              catch (error) {
-                console.log('Error deferring rollInteraction:', error);
-              }
+        // Start rolls
+        if (i.customId === 'offspring-rolls-start') {
+          // Restart the timer on the collector
+          collector.resetTimer();
+          // Show the first roll container
+          await message.edit({ components: [rollsAndChancesContainer, rollsList[rollIndex].container], flags: [MessageFlags.IsComponentsV2] })
+        }
 
-              if (rollInteraction.customId === 'skip_offspring_rolls') {
-                // Just continue to next roll
-                continue;
-              }
+        // Skip rolls
+        if (i.customId === 'offspring-rolls-skip') {
+          // Restart the timer on the collector
+          collector.resetTimer();
 
-              if (rollInteraction.customId === 'roll') {
-                const bearingCharacterAge = world.currentYear - bearingCharacter.yearOfMaturity
+          // Increment roll index, show next roll container if there are more rolls, otherwise show finished message and stop collector
+          rollIndex++;
+          if (rollIndex >= rollsList.length) {
+            collector.stop();
 
-                const offspringResults = [];
-                for (const conceivingCharacter of conceivingCharacters) {
-                  const roll = calculateOffspringRoll({ age1: bearingCharacterAge, age2: world.currentYear - conceivingCharacter.yearOfMaturity })
-                  offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, conceivingCharacter: conceivingCharacter })
-                  // If monogamous, give another roll if first did not produce children
-                  if (isMonogamous && !(roll.result.includes('Son') || roll.result.includes('Daughter'))) {
-                    const secondRoll = calculateOffspringRoll({ age1: bearingCharacterAge, age2: world.currentYear - conceivingCharacter.yearOfMaturity })
-                    offspringResults.push({ rollRes: secondRoll.result, checks: { fertilityCheck: secondRoll.fertilityCheck, offspringCheck: secondRoll.offspringCheck, fertilityModifier: secondRoll.fertilityModifier }, conceivingCharacter: conceivingCharacter })
-                  }
+            const finishedContainer = new ContainerBuilder()
+              .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(
+                  `# Finished Offspring Rolls\n` +
+                  `All offspring rolls have been completed.`
+                )
+              )
+            return message.edit({ components: [finishedContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+          }
+          else {
+            await message.edit({ components: [rollsAndChancesContainer, rollsList[rollIndex].container], flags: [MessageFlags.IsComponentsV2] })
+          }
+        }
+
+        if (i.customId === 'offspring-rolls-roll') {
+          // Restart the timer on the collector
+          collector.resetTimer();
+
+          // Perform the roll, get the result container and the offspring result object that has the rolls and the relationship (if any) for the successful roll
+          const { resultContainer, offspringResult } = await rollsList[rollIndex].performRoll();
+          currentResultContainer = resultContainer;
+          currentOffspringResult = offspringResult;
+          // Show the result container
+          await message.edit({ components: [rollsAndChancesContainer, resultContainer], flags: [MessageFlags.IsComponentsV2] });
+        }
+
+        if (i.customId === 'offspring-rolls-save') {
+          // Restart the timer on the collector
+          collector.resetTimer();
+
+          // Update the message to show that the result is being saved and sent to the parents
+          currentResultContainer.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `-# Saving result and notifying players. Please wait...`
+            )
+          )
+
+          await message.edit({ components: [rollsAndChancesContainer, currentResultContainer], flags: [MessageFlags.IsComponentsV2] });
+
+          // If there was a successful roll, create the child characters and 
+          // playable child entries in the database, and send a DM to the parents 
+          // notifying them of their new child(ren)
+          if (currentOffspringResult && currentOffspringResult.successfulRoll) {
+            let regionId = WANDERER_REGION_ID;
+            let houseId = null;
+            let socialClassName = 'Notable';
+            let legitimacy = 'Illegitimate';
+
+            if (currentOffspringResult.successfulRoll.parent2Character) {
+              // Find the relationship between the parents to determine the region, house, social class, and legitimacy of the child
+              const relationship = await Relationships.findOne({
+                where: {
+                  bearingCharacterId: currentOffspringResult.successfulRoll.parent1Character.id,
+                  conceivingCharacterId: currentOffspringResult.successfulRoll.parent2Character.id
                 }
+              });
 
-                if (bearingCharacter.isRollingForBastards) {
-                  const roll = calculateOffspringRoll({ age1: bearingCharacterAge, isBastardRoll: true })
-                  offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, conceivingCharacter: undefined })
-                }
-
-                const offspringRollsText = offspringResults.map(({ rollRes, conceivingCharacter, checks }, _) => {
-                  return buildOffspringPairLine(bearingCharacter.name, conceivingCharacter ? conceivingCharacter.name : 'NPC', rollRes, checks)
-                })
-
-                const successfulRolls = []
-                for (const { rollRes, conceivingCharacter } of offspringResults) {
-                  if (rollRes.includes('Son') || rollRes.includes('Daughter')) {
-                    successfulRolls.push({ rollRes: rollRes, conceivingCharacter: conceivingCharacter })
-                  }
-                }
-
-                let offspringResultText = inlineCode(bearingCharacter.name) + ' did **not** get pregnant.';
-                const offspringResult = {
-                  relationship: null,
-                  rolls: []
-                }
-                let color = COLORS.RED
-
-                if (successfulRolls.length > 0) {
-                  color = COLORS.GREEN
-                  const chosen = pickRandomElement(successfulRolls)
-                  const rollRes = chosen.rollRes
-                  const conceivingCharacter = chosen.conceivingCharacter
-
-
-                  // Update offspringResult
-                  if (conceivingCharacter) {
-                    try {
-                      const relationship = await Relationships.findOne({
-                        where: { bearingCharacterId: bearingCharacter.id, conceivingCharacterId: conceivingCharacter.id },
-                        include: [
-                          { model: Characters, as: 'bearingCharacter' },
-                          { model: Characters, as: 'conceivingCharacter' }
-                        ]
-                      })
-                      if (relationship) {
-                        offspringResult.relationship = relationship
-                      }
-                    }
-                    catch (error) {
-                      console.log(error)
-                      throw new Error('Something went wrong when trying to find the relationship for the successful roll.')
-                    }
-                  }
-                  offspringResult.rolls = rollRes
-
-
-                  const { amountOfSons, amountOfDaughters, text: offspringText } = formatOffspringCounts(rollRes)
-
-                  if (conceivingCharacter) {
-                    offspringResultText = inlineCode(bearingCharacter.name) + ' got pregnant with ' + inlineCode(conceivingCharacter.name) + ', and got:\n' + offspringText
-                  }
-                  else {
-                    offspringResultText = inlineCode(bearingCharacter.name) + ' got pregnant with an NPC, and got:\n' + offspringText
-                  }
-                }
-
-                const embed = new EmbedBuilder()
-                  .setTitle('Result of roll')
-                  .setDescription(
-                    bold('Rolls:') + '\n' +
-                    offspringRollsText.join('\n\n') +
-                    '\n\n\n' +
-                    bold('Result:') + '\n' +
-                    offspringResultText)
-                  .setColor(color)
-
-                // Save compact summary for final report (relationships only if children were produced)
-                let partnerName = 'NPC';
-                if (offspringResult.relationship && offspringResult.relationship.conceivingCharacter) {
-                  partnerName = offspringResult.relationship.conceivingCharacter.name;
-                }
-                const offspringTextCompact = (offspringResult.rolls && offspringResult.rolls.length) ? formatOffspringCounts(offspringResult.rolls).text : 'No children';
-                if (offspringTextCompact !== 'No children') {
-                  finalRelationshipSummaries.push(inlineCode(bearingCharacter.name) + ' & ' + inlineCode(partnerName) + ': ' + offspringTextCompact);
-                }
-
-                const resultMessage = await rollMessage.edit({
-                  embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
-                  components: [continueRow],
-                  withResponse: true
-                })
-
-                try {
-                  const resultInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-                  try {
-                    await resultInteraction.deferUpdate();
-
-                    if (successfulRolls.length > 0) {
-                      const savingEmbed = new EmbedBuilder()
-                        .setTitle('Result of roll')
-                        .setDescription(
-                          bold('Rolls:') + '\n' +
-                          offspringRollsText.join('\n\n') +
-                          '\n\n\n' +
-                          bold('Result:') + '\n' +
-                          offspringResultText + '\n\n' +
-                          italic('Saving result to database...'))
-                        .setColor(color)
-                      await resultMessage.edit({ embeds: [relEmbed, bastEmbed, rollChancesEmbed, savingEmbed] });
-                    }
-
-                  }
-                  catch (error) {
-                    console.log('Error deferring resultInteraction:', error);
-                  }
-
-                  if (resultInteraction.customId === 'continue') {
-
-                    for (const childType of offspringResult.rolls) {
-                      // Make the character
-                      let regionId = WANDERER_REGION_ID; // Default to wanderer region
-                      let houseId = null;
-
-                      if (offspringResult.relationship) {
-                        // By default takes the region and house of the conceiving parent
-                        regionId = offspringResult.relationship.conceivingCharacter.regionId;
-                        houseId = offspringResult.relationship.conceivingCharacter.houseId;
-                      }
-
-                      const { character: childCharacter, _ } = await addCharacterToDatabase(interactionUser, {
-                        name: childType,
-                        sex: childType === 'Son' ? 'Male' : 'Female',
-                        regionId: regionId,
-                        houseId: houseId,
-                        socialClassName: offspringResult.relationship ? (offspringResult.relationship.inheritedTitle === 'Noble' ? 'Noble' : 'Notable') : 'Notable',
-                        yearOfMaturity: world.currentYear + 3,
-                        yearOfCreation: world.currentYear + 1,
-                        parent1Id: offspringResult.relationship ? offspringResult.relationship.bearingCharacter.id : bearingCharacter.id,
-                        parent2Id: offspringResult.relationship ? offspringResult.relationship.conceivingCharacter.id : null,
-                      })
-
-                      // Make the playable child
-                      try {
-                        // Resolve player snowflakes for both parents (may be null)
-                        const parent1Snowflake = offspringResult.relationship
-                          ? await getPlayerSnowflakeForCharacter(offspringResult.relationship.bearingCharacter.id)
-                          : await getPlayerSnowflakeForCharacter(bearingCharacter.id);
-
-                        const parent2Snowflake = offspringResult.relationship
-                          ? await getPlayerSnowflakeForCharacter(offspringResult.relationship.conceivingCharacter.id)
-                          : null;
-
-                        // Ensure contact1Snowflake holds an existing snowflake even if it's the second parent only
-                        const contact1Snowflake = parent1Snowflake ?? parent2Snowflake ?? null;
-                        const contact2Snowflake = (parent1Snowflake && parent2Snowflake) ? parent2Snowflake : null;
-
-                        const playableChild = await addPlayableChildToDatabase(interactionUser, {
-                          characterId: childCharacter.id,
-                          legitimacy: offspringResult.relationship ? (offspringResult.relationship.isCommitted ? 'Legitimate' : 'Illegitimate') : 'Illegitimate',
-                          contact1Snowflake: contact1Snowflake,
-                          contact2Snowflake: contact2Snowflake,
-                        });
-                      }
-                      catch (error) {
-                        console.log(error)
-                        throw new Error('Something went wrong when creating the playable child.')
-                      }
-                    }
-                  }
-                }
-                catch (error) {
-                  if (error.code === 'InteractionCollectorError') {
-                    console.log('Result interaction collector timed out.', error.message);
-                    return resultMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] })
-                  }
-                  console.log(error)
-                  return resultMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] })
-                }
+              if (relationship) {
+                regionId = currentOffspringResult.successfulRoll.parent2Character.regionId;
+                houseId = currentOffspringResult.successfulRoll.parent2Character.houseId;
+                socialClassName = relationship.inheritedTitle === 'Noble' ? 'Noble' : 'Notable';
+                legitimacy = relationship.isCommitted ? 'Legitimate' : 'Illegitimate';
               }
             }
-            catch (error) {
-              if (error.code === 'InteractionCollectorError') {
-                console.log('Roll interaction collector timed out.', error.message);
-                return rollMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+
+            // Get the snowflakes of the players playing as the parents, if any, to add as contacts for the child
+            const snowflakeList = [];
+            const parent1Player = currentOffspringResult.successfulRoll.parent1Character ? await Players.findOne({ where: { characterId: currentOffspringResult.successfulRoll.parent1Character.id } }) : null;
+            if (parent1Player) {
+              snowflakeList.push(parent1Player.id);
+            }
+
+            const parent2Player = currentOffspringResult.successfulRoll.parent2Character ? await Players.findOne({ where: { characterId: currentOffspringResult.successfulRoll.parent2Character.id } }) : null;
+            if (parent2Player) {
+              snowflakeList.push(parent2Player.id);
+            }
+
+            for (const childType of currentOffspringResult.successfulRoll.result) {
+              // Make the character for this child
+              const { character: childCharacter } = await addCharacterToDatabase(i.user, {
+                name: childType,
+                sex: childType.includes('Son') ? 'Male' : 'Female',
+                regionId: regionId,
+                houseId: houseId,
+                socialClassName: socialClassName,
+                yearOfMaturity: world.currentYear + 3,
+                yearOfCreation: world.currentYear + 1,
+                parent1Id: currentOffspringResult.successfulRoll.parent1Character.id,
+                parent2Id: currentOffspringResult.successfulRoll.parent2Character ? currentOffspringResult.successfulRoll.parent2Character.id : null,
+              })
+
+              // Make the playable child entry for this child
+              await addPlayableChildToDatabase(i.user, {
+                characterId: childCharacter.id,
+                legitimacy: legitimacy,
+                contact1Snowflake: snowflakeList[0] || null,
+                contact2Snowflake: snowflakeList[1] || null,
+              });
+            }
+
+            // Send a DM to the parents notifying them of their new child(ren)
+            const successfulRollContainer = new ContainerBuilder()
+              .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(
+                  `# Offspring Roll Result\n` +
+                  `Congratulations! The roll between ***${currentOffspringResult.successfulRoll.parent1Character.name}*** and ${currentOffspringResult.successfulRoll.parent2Character ? `***${currentOffspringResult.successfulRoll.parent2Character.name}***` : '*an NPC*'} has resulted in **${formatOffspringCounts(currentOffspringResult.successfulRoll.result).text}**!\n` +
+                  `Your new offspring can be managed in the Offspring Dashboard, and will be born in the next in-game year. When the time comes, please make sure to chisel out a block, rename it with your child's name, and make it into a tabletop piece. Then, use the Offspring Dashboard to assign them a name. Otherwise, they will be considered an orphan.`
+                )
+              )
+              .setAccentColor(COLORS.GREEN);
+
+            for (const snowflake of snowflakeList) {
+              try {
+                const user = await i.client.users.fetch(snowflake);
+                await user.send({ components: [successfulRollContainer], flags: [MessageFlags.IsComponentsV2] });
+              } catch (error) {
+                console.log(`Not able to send DM about successful offspring roll to user with id ${snowflake}:`, error.message);
               }
-              console.log(error)
-              return rollMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
             }
           }
 
-          // Do bastard rolls
-          for (const character of charactersRollingForBastardsFiltered) {
-            // Calculate fertility modifier
-            const fertilityModifier = ageToFertilityModifier(world.currentYear - character.yearOfMaturity) * 100;
+          if (currentOffspringResult && currentOffspringResult.failedRolls.length > 0) {
+            for (const failedRoll of currentOffspringResult.failedRolls) {
+              const failedRollContainer = new ContainerBuilder()
+                .addTextDisplayComponents(
+                  new TextDisplayBuilder().setContent(
+                    `# Offspring Roll Result\n` +
+                    `Unfortunately, the roll between ***${failedRoll.parent1Character.name}*** and ${failedRoll.parent2Character ? `***${failedRoll.parent2Character.name}***` : '*an NPC*'} has failed to produce any offspring. Better luck next time!`
+                  )
+                )
+                .setAccentColor(COLORS.RED);
 
-            const embed = new EmbedBuilder()
-              .setTitle('Bastard NPC roll')
-              .setDescription('Rolling character: ' + inlineCode(character.name) + ' (' + fertilityModifier + '% fertile)')
-              .setColor(COLORS.BLUE);
-
-            const rollMessage = await startMessage.edit({
-              embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
-              components: [rollRow],
-              withResponse: true
-            });
-
-            try {
-              const rollInteraction = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-              try {
-                await rollInteraction.deferUpdate();
-              }
-              catch (error) {
-                console.log('Error deferring rollInteraction (bastard):', error);
+              // Get the snowflakes of the players playing as the parents in the failed rolls
+              const snowflakeList = [];
+              const parent1Player = failedRoll.parent1Character ? await Players.findOne({ where: { characterId: failedRoll.parent1Character.id } }) : null;
+              if (parent1Player) {
+                snowflakeList.push(parent1Player.id);
               }
 
-              if (rollInteraction.customId === 'skip_offspring_rolls') {
-                // Just continue to next roll
-                continue;
+              const parent2Player = failedRoll.parent2Character ? await Players.findOne({ where: { characterId: failedRoll.parent2Character.id } }) : null;
+              if (parent2Player) {
+                snowflakeList.push(parent2Player.id);
               }
 
-              if (rollInteraction.customId === 'roll') {
-                const characterAge = world.currentYear - character.yearOfMaturity;
-                const roll = calculateOffspringRoll({ age1: characterAge, isBastardRoll: true });
-                const rollRes = roll.result;
-                const checks = { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier };
-                const offspringRollsText = buildOffspringPairLine(character.name, 'NPC', rollRes, checks);
-
-                const successfulRoll = rollRes.includes('Son') || rollRes.includes('Daughter');
-
-                let color = COLORS.RED;
-                let offspringResultText = inlineCode(character.name) + ' did **not** get a child with an NPC.';
-                if (successfulRoll) {
-                  color = COLORS.GREEN;
-                  const { text: offspringText } = formatOffspringCounts(rollRes);
-                  offspringResultText = inlineCode(character.name) + ' got the following with an NPC:\n' + offspringText;
-                }
-
-                const resultEmbed = new EmbedBuilder()
-                  .setTitle('Result of roll')
-                  .setDescription(offspringRollsText + '\n\n' + offspringResultText)
-                  .setColor(color);
-
-                // Save compact summary for final report (bastards only if children were produced)
-                const offspringTextCompactBastard = successfulRoll ? formatOffspringCounts(rollRes).text : 'No children';
-                if (offspringTextCompactBastard !== 'No children') {
-                  finalBastardSummaries.push(inlineCode(character.name) + ': ' + offspringTextCompactBastard);
-                }
-
-                const resultMessage = await rollMessage.edit({
-                  embeds: [relEmbed, bastEmbed, rollChancesEmbed, resultEmbed],
-                  components: [continueRow],
-                  withResponse: true
-                });
-
+              for (const snowflake of snowflakeList) {
                 try {
-                  const resultInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
-                  try {
-                    await resultInteraction.deferUpdate();
-
-                    if (successfulRoll) {
-                      const savingEmbed = new EmbedBuilder()
-                        .setTitle('Result of roll')
-                        .setDescription(offspringRollsText + '\n\n' + offspringResultText + '\n\n' + italic('Saving result to database...'))
-                        .setColor(color)
-                      await resultMessage.edit({ embeds: [relEmbed, bastEmbed, rollChancesEmbed, savingEmbed] });
-                    }
-
-                  }
-                  catch (error) {
-                    console.log('Error deferring resultInteraction (bastard):', error);
-                  }
-
-                  if (resultInteraction.customId === 'continue') {
-                    if (successfulRoll) {
-                      for (const childRoll of rollRes) {
-                        let regionId = WANDERER_REGION_ID; // Default to wanderer region
-
-                        const { character: childCharacter } = await addCharacterToDatabase(interactionUser, {
-                          name: childRoll,
-                          sex: childRoll === 'Son' ? 'Male' : 'Female',
-                          regionId: regionId,
-                          socialClassName: 'Notable',
-                          yearOfMaturity: world.currentYear + 3,
-                          yearOfCreation: world.currentYear + 1,
-                          parent1Id: character.id
-                        });
-
-                        try {
-                          const parent1Snowflake = await getPlayerSnowflakeForCharacter(character.id);
-
-                          await addPlayableChildToDatabase(interactionUser, { characterId: childCharacter.id, legitimacy: 'Illegitimate', contact1Snowflake: parent1Snowflake });
-                        } catch (error) {
-                          console.log(error);
-                          throw new Error('Something went wrong when creating the playable child.');
-                        }
-                      }
-                    }
-                  }
-                }
-                catch (error) {
-                  if (error.code === 'InteractionCollectorError') {
-                    return resultMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
-                  }
-                  console.log(error);
-                  return resultMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+                  const user = await i.client.users.fetch(snowflake);
+                  await user.send({ components: [failedRollContainer], flags: [MessageFlags.IsComponentsV2] });
+                } catch (error) {
+                  console.log(`Not able to send DM about failed offspring roll to user with id ${snowflake}:`, error.message);
                 }
               }
-            }
-            catch (error) {
-              if (error.code === 'InteractionCollectorError') {
-                return rollMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
-              }
-              console.log(error);
-              return rollMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
             }
           }
 
+          // Increment roll index, show next roll container if there are more rolls, otherwise show finished message and stop collector
+          rollIndex++;
+          if (rollIndex >= rollsList.length) {
+            collector.stop();
+
+            const finishedContainer = new ContainerBuilder()
+              .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(
+                  `# Finished Offspring Rolls\n` +
+                  `All offspring rolls have been completed. All those that were opted in to either type of roll have been notified of their results. `
+                )
+              )
+            return message.edit({ components: [finishedContainer], flags: [MessageFlags.IsComponentsV2] });
+          }
+          else {
+            return message.edit({ components: [rollsAndChancesContainer, rollsList[rollIndex].container], flags: [MessageFlags.IsComponentsV2] })
+          }
         }
-      } catch (error) {
-        if (error.code === 'InteractionCollectorError') {
-          console.log('Start interaction collector timed out.', error.message);
-          return startMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+      });
+
+      collector.on('end', async (collected, reason) => {
+        if (reason === 'time') {
+          const timeoutContainer = new ContainerBuilder()
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(
+                `# Offspring Rolls Timeout\n` +
+                `The offspring rolls have timed out. No further rolls will be processed.`
+              )
+            )
+
+          return message.edit({ components: [timeoutContainer], flags: [MessageFlags.IsComponentsV2] });
         }
-        console.log(error);
-        return startMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
-      }
-
-      if (finalRelationshipSummaries.length === 0 && finalBastardSummaries.length === 0) {
-        return startMessage.edit({ content: 'Finished offspring rolls. No children were produced.', components: [], embeds: [] });
-      }
-
-      // Build embeds array and send both summaries in the same message
-      const embedsToSend = [];
-      if (finalRelationshipSummaries.length > 0) {
-        const relSummaryEmbed = new EmbedBuilder()
-          .setTitle('Offspring summary — Relationships')
-          .setDescription(finalRelationshipSummaries.join('\n'))
-          .setColor(COLORS.BLUE);
-        embedsToSend.push(relSummaryEmbed);
-      }
-
-      if (finalBastardSummaries.length > 0) {
-        const bastSummaryEmbed = new EmbedBuilder()
-          .setTitle('Offspring summary — Bastards')
-          .setDescription(finalBastardSummaries.join('\n'))
-          .setColor(COLORS.BLUE);
-        embedsToSend.push(bastSummaryEmbed);
-      }
-
-      if (embedsToSend.length > 0) {
-        return startMessage.edit({ embeds: embedsToSend, components: [] });
-      }
-
-      return null;
+      });
     }
+    // Do offspring rolls
+    // if (interaction.options.getSubcommand() === 'offspring') {
+    //   const startButton = new ButtonBuilder()
+    //     .setCustomId('start')
+    //     .setLabel('Start')
+    //     .setStyle(ButtonStyle.Primary);
+
+    //   const cancelButton = new ButtonBuilder()
+    //     .setCustomId('cancel')
+    //     .setLabel('Cancel')
+    //     .setStyle(ButtonStyle.Danger);
+
+    //   const startRow = new ActionRowBuilder()
+    //     .addComponents(startButton, cancelButton);
+
+    //   const rollButton = new ButtonBuilder()
+    //     .setCustomId('roll')
+    //     .setLabel('Roll')
+    //     .setStyle(ButtonStyle.Primary);
+
+    //   const skipButton = new ButtonBuilder()
+    //     .setCustomId('skip_offspring_rolls')
+    //     .setLabel('Skip')
+    //     .setStyle(ButtonStyle.Secondary);
+
+    //   const rollRow = new ActionRowBuilder()
+    //     .addComponents(rollButton, skipButton);
+
+    //   const continueButton = new ButtonBuilder()
+    //     .setCustomId('continue')
+    //     .setLabel('Save and Continue')
+    //     .setStyle(ButtonStyle.Primary);
+    //   const continueRow = new ActionRowBuilder()
+    //     .addComponents(continueButton);
+
+    //   // Handle all relationships
+    //   const relationships = await Relationships.findAll({
+    //     include: [
+    //       { model: Characters, as: 'bearingCharacter' },
+    //       { model: Characters, as: 'conceivingCharacter' },
+    //     ]
+    //   });
+
+    //   const relationshipRollsText = []
+    //   const bearingCharacters = new Map();
+
+    //   for (const relationship of relationships) {
+    //     relationshipRollsText.push(subtext(inlineCode(relationship.bearingCharacter.name) + ' & ' + inlineCode(relationship.conceivingCharacter.name)))
+    //     bearingCharacters.set(relationship.bearingCharacter.id, relationship.bearingCharacter)
+    //   }
+
+    //   // Get all bastard rolls
+    //   const charactersRollingForBastards = await Characters.findAll({ where: { isRollingForBastards: true } });
+
+    //   const charactersRollingForBastardsFiltered = charactersRollingForBastards.filter(character => {
+    //     return !bearingCharacters.has(character.id);
+    //   })
+
+    //   const bastardRollsTexs = []
+
+    //   for (const character of charactersRollingForBastards) {
+    //     bastardRollsTexs.push(subtext(inlineCode(character.name)));
+    //   }
+
+
+    //   // Split listing into two embeds: relationships and bastards
+    //   const relationshipsDescription = '**The following characters are rolling for children with another character:**\n' +
+    //     (relationshipRollsText.length > 0 ? relationshipRollsText.join('\n') : '*None*');
+
+    //   const bastardsDescription = '**The following characters are rolling for bastards with an NPC:**\n' +
+    //     (bastardRollsTexs.length > 0 ? bastardRollsTexs.join('\n') : '*None*');
+
+    //   const relEmbed = new EmbedBuilder()
+    //     .setTitle('**Intercharacter Rolls**')
+    //     .setDescription(relationshipsDescription)
+    //     .setColor(COLORS.BLUE);
+
+    //   const bastEmbed = new EmbedBuilder()
+    //     .setTitle('**NPC Rolls**')
+    //     .setDescription(bastardsDescription)
+    //     .setColor(COLORS.BLUE);
+
+    //   // Build an embed that shows the roll chance thresholds for relationships and bastards
+    //   const rollChancesEmbed = buildOffspringChanceTextDisplay();
+
+    //   const controlEmbed = new EmbedBuilder()
+    //     .setTitle('Ready to start')
+    //     .setDescription('Please press Start when you are ready to start the offspring rolls.\n\nIf you do not interact with the buttons for 5 minutes, the rolls will stop.')
+    //     .setColor(COLORS.BLUE);
+
+    //   const startMessage = await interaction.editReply({
+    //     embeds: [relEmbed, bastEmbed, rollChancesEmbed, controlEmbed],
+    //     components: [startRow],
+    //     withResponse: true
+    //   });
+
+    //   const interactionUser = interaction.user;
+    //   const collectorFilter = i => {
+    //     try {
+    //       return i.user.id === interactionUser.id;
+    //     }
+    //     catch (error) {
+    //       console.error('Error in collector filter:', error);
+    //     }
+    //   };
+    //   const finalRelationshipSummaries = [];
+    //   const finalBastardSummaries = [];
+
+    //   try {
+    //     const startInteraction = await startMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+    //     try {
+    //       await startInteraction.deferUpdate();
+    //     }
+    //     catch (error) {
+    //       console.log('Error deferring startInteraction:', error);
+    //     }
+
+    //     if (startInteraction.customId === 'cancel') {
+    //       // Handle cancellation
+    //       console.log('Offspring rolls cancelled by user.');
+    //       await startMessage.edit({ content: 'Offspring rolls have been cancelled.', components: [], embeds: [] });
+    //       return;
+    //     }
+
+    //     if (startInteraction.customId === 'start') {
+    //       for (const [_, bearingCharacter] of bearingCharacters) {
+    //         // Keep track of whether the roll(s) for this bearing character
+    //         // is to be monogamous
+    //         let isMonogamous = true;
+
+    //         // Get all relationships for this bearing character
+    //         const relationshipsBearing = await bearingCharacter.getRelationshipsBearing();
+
+    //         // Get all conceiving characters for this bearing character
+    //         const conceivingCharacters = []
+    //         for (const relationship of relationshipsBearing) {
+    //           const conceivingCharacter = await relationship.getConceivingCharacter();
+    //           conceivingCharacters.push(conceivingCharacter);
+
+    //           // If any conceiving character is in several relationships, or
+    //           // is also rolling for bastards, set isMonogamous to false
+    //           const relationshipsConceiving = await conceivingCharacter.getRelationshipsConceiving();
+    //           if (relationshipsConceiving.length > 1 || conceivingCharacter.isRollingForBastards) {
+    //             isMonogamous = false;
+    //           }
+    //         }
+
+    //         // If the bearing character is also rolling for bastards, add a
+    //         // line for that too, and set isMonogamous to false
+    //         let bastardNPC = ''
+    //         if (bearingCharacter.isRollingForBastards) {
+    //           bastardNPC = '\n' + inlineCode('NPC');
+    //           isMonogamous = false;
+    //         }
+
+    //         // Calculate fertility modifier for bearing character
+    //         const fertilityModifierBearing = ageToFertilityModifier(world.currentYear - bearingCharacter.yearOfMaturity) * 100;
+
+    //         // Build embed 
+    //         const embed = new EmbedBuilder()
+    //           .setTitle('Intercharacter roll - ' + (isMonogamous ? 'Monogamous' : 'Polygamous'))
+    //           .setDescription(
+    //             'Bearing partner:\n' +
+    //             inlineCode(bearingCharacter.name) + ' (' + fertilityModifierBearing + '% fertile)\n\n' +
+    //             'Conceiving partner(s):\n' +
+    //             conceivingCharacters.map(character => inlineCode(character.name) + ' (' + ageToFertilityModifier((world.currentYear - character.yearOfMaturity)) * 100 + '% fertile)').join('\n') + bastardNPC
+    //           )
+    //           .setColor(COLORS.BLUE)
+
+    //         const rollMessage = await startMessage.edit({
+    //           embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
+    //           components: [rollRow],
+    //           withResponse: true
+    //         })
+
+    //         try {
+    //           const rollInteraction = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+    //           try {
+    //             await rollInteraction.deferUpdate();
+    //           }
+    //           catch (error) {
+    //             console.log('Error deferring rollInteraction:', error);
+    //           }
+
+    //           if (rollInteraction.customId === 'skip_offspring_rolls') {
+    //             // Just continue to next roll
+    //             continue;
+    //           }
+
+    //           if (rollInteraction.customId === 'roll') {
+    //             const bearingCharacterAge = world.currentYear - bearingCharacter.yearOfMaturity
+
+    //             const offspringResults = [];
+    //             for (const conceivingCharacter of conceivingCharacters) {
+    //               const roll = calculateOffspringRoll({ age1: bearingCharacterAge, age2: world.currentYear - conceivingCharacter.yearOfMaturity })
+    //               offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, conceivingCharacter: conceivingCharacter })
+    //               // If monogamous, give another roll if first did not produce children
+    //               if (isMonogamous && !(roll.result.includes('Son') || roll.result.includes('Daughter'))) {
+    //                 const secondRoll = calculateOffspringRoll({ age1: bearingCharacterAge, age2: world.currentYear - conceivingCharacter.yearOfMaturity })
+    //                 offspringResults.push({ rollRes: secondRoll.result, checks: { fertilityCheck: secondRoll.fertilityCheck, offspringCheck: secondRoll.offspringCheck, fertilityModifier: secondRoll.fertilityModifier }, conceivingCharacter: conceivingCharacter })
+    //               }
+    //             }
+
+    //             if (bearingCharacter.isRollingForBastards) {
+    //               const roll = calculateOffspringRoll({ age1: bearingCharacterAge, isBastardRoll: true })
+    //               offspringResults.push({ rollRes: roll.result, checks: { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier }, conceivingCharacter: undefined })
+    //             }
+
+    //             const offspringRollsText = offspringResults.map(({ rollRes, conceivingCharacter, checks }, _) => {
+    //               return buildOffspringPairLine(bearingCharacter.name, conceivingCharacter ? conceivingCharacter.name : 'NPC', rollRes, checks)
+    //             })
+
+    //             const successfulRolls = []
+    //             for (const { rollRes, conceivingCharacter } of offspringResults) {
+    //               if (rollRes.includes('Son') || rollRes.includes('Daughter')) {
+    //                 successfulRolls.push({ rollRes: rollRes, conceivingCharacter: conceivingCharacter })
+    //               }
+    //             }
+
+    //             let offspringResultText = inlineCode(bearingCharacter.name) + ' did **not** get pregnant.';
+    //             const offspringResult = {
+    //               relationship: null,
+    //               rolls: []
+    //             }
+    //             let color = COLORS.RED
+
+    //             if (successfulRolls.length > 0) {
+    //               color = COLORS.GREEN
+    //               const chosen = pickRandomElement(successfulRolls)
+    //               const rollRes = chosen.rollRes
+    //               const conceivingCharacter = chosen.conceivingCharacter
+
+
+    //               // Update offspringResult
+    //               if (conceivingCharacter) {
+    //                 try {
+    //                   const relationship = await Relationships.findOne({
+    //                     where: { bearingCharacterId: bearingCharacter.id, conceivingCharacterId: conceivingCharacter.id },
+    //                     include: [
+    //                       { model: Characters, as: 'bearingCharacter' },
+    //                       { model: Characters, as: 'conceivingCharacter' }
+    //                     ]
+    //                   })
+    //                   if (relationship) {
+    //                     offspringResult.relationship = relationship
+    //                   }
+    //                 }
+    //                 catch (error) {
+    //                   console.log(error)
+    //                   throw new Error('Something went wrong when trying to find the relationship for the successful roll.')
+    //                 }
+    //               }
+    //               offspringResult.rolls = rollRes
+
+
+    //               const { amountOfSons, amountOfDaughters, text: offspringText } = formatOffspringCounts(rollRes)
+
+    //               if (conceivingCharacter) {
+    //                 offspringResultText = inlineCode(bearingCharacter.name) + ' got pregnant with ' + inlineCode(conceivingCharacter.name) + ', and got:\n' + offspringText
+    //               }
+    //               else {
+    //                 offspringResultText = inlineCode(bearingCharacter.name) + ' got pregnant with an NPC, and got:\n' + offspringText
+    //               }
+    //             }
+
+    //             const embed = new EmbedBuilder()
+    //               .setTitle('Result of roll')
+    //               .setDescription(
+    //                 bold('Rolls:') + '\n' +
+    //                 offspringRollsText.join('\n\n') +
+    //                 '\n\n\n' +
+    //                 bold('Result:') + '\n' +
+    //                 offspringResultText)
+    //               .setColor(color)
+
+    //             // Save compact summary for final report (relationships only if children were produced)
+    //             let partnerName = 'NPC';
+    //             if (offspringResult.relationship && offspringResult.relationship.conceivingCharacter) {
+    //               partnerName = offspringResult.relationship.conceivingCharacter.name;
+    //             }
+    //             const offspringTextCompact = (offspringResult.rolls && offspringResult.rolls.length) ? formatOffspringCounts(offspringResult.rolls).text : 'No children';
+    //             if (offspringTextCompact !== 'No children') {
+    //               finalRelationshipSummaries.push(inlineCode(bearingCharacter.name) + ' & ' + inlineCode(partnerName) + ': ' + offspringTextCompact);
+    //             }
+
+    //             const resultMessage = await rollMessage.edit({
+    //               embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
+    //               components: [continueRow],
+    //               withResponse: true
+    //             })
+
+    //             try {
+    //               const resultInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+    //               try {
+    //                 await resultInteraction.deferUpdate();
+
+    //                 if (successfulRolls.length > 0) {
+    //                   const savingEmbed = new EmbedBuilder()
+    //                     .setTitle('Result of roll')
+    //                     .setDescription(
+    //                       bold('Rolls:') + '\n' +
+    //                       offspringRollsText.join('\n\n') +
+    //                       '\n\n\n' +
+    //                       bold('Result:') + '\n' +
+    //                       offspringResultText + '\n\n' +
+    //                       italic('Saving result to database...'))
+    //                     .setColor(color)
+    //                   await resultMessage.edit({ embeds: [relEmbed, bastEmbed, rollChancesEmbed, savingEmbed] });
+    //                 }
+
+    //               }
+    //               catch (error) {
+    //                 console.log('Error deferring resultInteraction:', error);
+    //               }
+
+    //               if (resultInteraction.customId === 'continue') {
+
+    //                 for (const childType of offspringResult.rolls) {
+    //                   // Make the character
+    //                   let regionId = WANDERER_REGION_ID; // Default to wanderer region
+    //                   let houseId = null;
+
+    //                   if (offspringResult.relationship) {
+    //                     // By default takes the region and house of the conceiving parent
+    //                     regionId = offspringResult.relationship.conceivingCharacter.regionId;
+    //                     houseId = offspringResult.relationship.conceivingCharacter.houseId;
+    //                   }
+
+    //                   const { character: childCharacter, _ } = await addCharacterToDatabase(interactionUser, {
+    //                     name: childType,
+    //                     sex: childType === 'Son' ? 'Male' : 'Female',
+    //                     regionId: regionId,
+    //                     houseId: houseId,
+    //                     socialClassName: offspringResult.relationship ? (offspringResult.relationship.inheritedTitle === 'Noble' ? 'Noble' : 'Notable') : 'Notable',
+    //                     yearOfMaturity: world.currentYear + 3,
+    //                     yearOfCreation: world.currentYear + 1,
+    //                     parent1Id: offspringResult.relationship ? offspringResult.relationship.bearingCharacter.id : bearingCharacter.id,
+    //                     parent2Id: offspringResult.relationship ? offspringResult.relationship.conceivingCharacter.id : null,
+    //                   })
+
+    //                   // Make the playable child
+    //                   try {
+    //                     // Resolve player snowflakes for both parents (may be null)
+    //                     const parent1Snowflake = offspringResult.relationship
+    //                       ? await getPlayerSnowflakeForCharacter(offspringResult.relationship.bearingCharacter.id)
+    //                       : await getPlayerSnowflakeForCharacter(bearingCharacter.id);
+
+    //                     const parent2Snowflake = offspringResult.relationship
+    //                       ? await getPlayerSnowflakeForCharacter(offspringResult.relationship.conceivingCharacter.id)
+    //                       : null;
+
+    //                     // Ensure contact1Snowflake holds an existing snowflake even if it's the second parent only
+    //                     const contact1Snowflake = parent1Snowflake ?? parent2Snowflake ?? null;
+    //                     const contact2Snowflake = (parent1Snowflake && parent2Snowflake) ? parent2Snowflake : null;
+
+    //                     const playableChild = await addPlayableChildToDatabase(interactionUser, {
+    //                       characterId: childCharacter.id,
+    //                       legitimacy: offspringResult.relationship ? (offspringResult.relationship.isCommitted ? 'Legitimate' : 'Illegitimate') : 'Illegitimate',
+    //                       contact1Snowflake: contact1Snowflake,
+    //                       contact2Snowflake: contact2Snowflake,
+    //                     });
+    //                   }
+    //                   catch (error) {
+    //                     console.log(error)
+    //                     throw new Error('Something went wrong when creating the playable child.')
+    //                   }
+    //                 }
+    //               }
+    //             }
+    //             catch (error) {
+    //               if (error.code === 'InteractionCollectorError') {
+    //                 console.log('Result interaction collector timed out.', error.message);
+    //                 return resultMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] })
+    //               }
+    //               console.log(error)
+    //               return resultMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] })
+    //             }
+    //           }
+    //         }
+    //         catch (error) {
+    //           if (error.code === 'InteractionCollectorError') {
+    //             console.log('Roll interaction collector timed out.', error.message);
+    //             return rollMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+    //           }
+    //           console.log(error)
+    //           return rollMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+    //         }
+    //       }
+
+    //       // Do bastard rolls
+    //       for (const character of charactersRollingForBastardsFiltered) {
+    //         // Calculate fertility modifier
+    //         const fertilityModifier = ageToFertilityModifier(world.currentYear - character.yearOfMaturity) * 100;
+
+    //         const embed = new EmbedBuilder()
+    //           .setTitle('Bastard NPC roll')
+    //           .setDescription('Rolling character: ' + inlineCode(character.name) + ' (' + fertilityModifier + '% fertile)')
+    //           .setColor(COLORS.BLUE);
+
+    //         const rollMessage = await startMessage.edit({
+    //           embeds: [relEmbed, bastEmbed, rollChancesEmbed, embed],
+    //           components: [rollRow],
+    //           withResponse: true
+    //         });
+
+    //         try {
+    //           const rollInteraction = await rollMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+    //           try {
+    //             await rollInteraction.deferUpdate();
+    //           }
+    //           catch (error) {
+    //             console.log('Error deferring rollInteraction (bastard):', error);
+    //           }
+
+    //           if (rollInteraction.customId === 'skip_offspring_rolls') {
+    //             // Just continue to next roll
+    //             continue;
+    //           }
+
+    //           if (rollInteraction.customId === 'roll') {
+    //             const characterAge = world.currentYear - character.yearOfMaturity;
+    //             const roll = calculateOffspringRoll({ age1: characterAge, isBastardRoll: true });
+    //             const rollRes = roll.result;
+    //             const checks = { fertilityCheck: roll.fertilityCheck, offspringCheck: roll.offspringCheck, fertilityModifier: roll.fertilityModifier };
+    //             const offspringRollsText = buildOffspringPairLine(character.name, 'NPC', rollRes, checks);
+
+    //             const successfulRoll = rollRes.includes('Son') || rollRes.includes('Daughter');
+
+    //             let color = COLORS.RED;
+    //             let offspringResultText = inlineCode(character.name) + ' did **not** get a child with an NPC.';
+    //             if (successfulRoll) {
+    //               color = COLORS.GREEN;
+    //               const { text: offspringText } = formatOffspringCounts(rollRes);
+    //               offspringResultText = inlineCode(character.name) + ' got the following with an NPC:\n' + offspringText;
+    //             }
+
+    //             const resultEmbed = new EmbedBuilder()
+    //               .setTitle('Result of roll')
+    //               .setDescription(offspringRollsText + '\n\n' + offspringResultText)
+    //               .setColor(color);
+
+    //             // Save compact summary for final report (bastards only if children were produced)
+    //             const offspringTextCompactBastard = successfulRoll ? formatOffspringCounts(rollRes).text : 'No children';
+    //             if (offspringTextCompactBastard !== 'No children') {
+    //               finalBastardSummaries.push(inlineCode(character.name) + ': ' + offspringTextCompactBastard);
+    //             }
+
+    //             const resultMessage = await rollMessage.edit({
+    //               embeds: [relEmbed, bastEmbed, rollChancesEmbed, resultEmbed],
+    //               components: [continueRow],
+    //               withResponse: true
+    //             });
+
+    //             try {
+    //               const resultInteraction = await resultMessage.awaitMessageComponent({ filter: collectorFilter, time: 300_000 });
+    //               try {
+    //                 await resultInteraction.deferUpdate();
+
+    //                 if (successfulRoll) {
+    //                   const savingEmbed = new EmbedBuilder()
+    //                     .setTitle('Result of roll')
+    //                     .setDescription(offspringRollsText + '\n\n' + offspringResultText + '\n\n' + italic('Saving result to database...'))
+    //                     .setColor(color)
+    //                   await resultMessage.edit({ embeds: [relEmbed, bastEmbed, rollChancesEmbed, savingEmbed] });
+    //                 }
+
+    //               }
+    //               catch (error) {
+    //                 console.log('Error deferring resultInteraction (bastard):', error);
+    //               }
+
+    //               if (resultInteraction.customId === 'continue') {
+    //                 if (successfulRoll) {
+    //                   for (const childRoll of rollRes) {
+    //                     let regionId = WANDERER_REGION_ID; // Default to wanderer region
+
+    //                     const { character: childCharacter } = await addCharacterToDatabase(interactionUser, {
+    //                       name: childRoll,
+    //                       sex: childRoll === 'Son' ? 'Male' : 'Female',
+    //                       regionId: regionId,
+    //                       socialClassName: 'Notable',
+    //                       yearOfMaturity: world.currentYear + 3,
+    //                       yearOfCreation: world.currentYear + 1,
+    //                       parent1Id: character.id
+    //                     });
+
+    //                     try {
+    //                       const parent1Snowflake = await getPlayerSnowflakeForCharacter(character.id);
+
+    //                       await addPlayableChildToDatabase(interactionUser, { characterId: childCharacter.id, legitimacy: 'Illegitimate', contact1Snowflake: parent1Snowflake });
+    //                     } catch (error) {
+    //                       console.log(error);
+    //                       throw new Error('Something went wrong when creating the playable child.');
+    //                     }
+    //                   }
+    //                 }
+    //               }
+    //             }
+    //             catch (error) {
+    //               if (error.code === 'InteractionCollectorError') {
+    //                 return resultMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+    //               }
+    //               console.log(error);
+    //               return resultMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+    //             }
+    //           }
+    //         }
+    //         catch (error) {
+    //           if (error.code === 'InteractionCollectorError') {
+    //             return rollMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+    //           }
+    //           console.log(error);
+    //           return rollMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+    //         }
+    //       }
+
+    //     }
+    //   } catch (error) {
+    //     if (error.code === 'InteractionCollectorError') {
+    //       console.log('Start interaction collector timed out.', error.message);
+    //       return startMessage.edit({ content: TIMEOUT_MESSAGE, components: [], embeds: [] });
+    //     }
+    //     console.log(error);
+    //     return startMessage.edit({ content: CANCEL_MESSAGE, components: [], embeds: [] });
+    //   }
+
+    //   if (finalRelationshipSummaries.length === 0 && finalBastardSummaries.length === 0) {
+    //     return startMessage.edit({ content: 'Finished offspring rolls. No children were produced.', components: [], embeds: [] });
+    //   }
+
+    //   // Build embeds array and send both summaries in the same message
+    //   const embedsToSend = [];
+    //   if (finalRelationshipSummaries.length > 0) {
+    //     const relSummaryEmbed = new EmbedBuilder()
+    //       .setTitle('Offspring summary — Relationships')
+    //       .setDescription(finalRelationshipSummaries.join('\n'))
+    //       .setColor(COLORS.BLUE);
+    //     embedsToSend.push(relSummaryEmbed);
+    //   }
+
+    //   if (finalBastardSummaries.length > 0) {
+    //     const bastSummaryEmbed = new EmbedBuilder()
+    //       .setTitle('Offspring summary — Bastards')
+    //       .setDescription(finalBastardSummaries.join('\n'))
+    //       .setColor(COLORS.BLUE);
+    //     embedsToSend.push(bastSummaryEmbed);
+    //   }
+
+    //   if (embedsToSend.length > 0) {
+    //     return startMessage.edit({ embeds: embedsToSend, components: [] });
+    //   }
+
+    //   return null;
+    // }
 
 
     /**
