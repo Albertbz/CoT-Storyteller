@@ -16,8 +16,14 @@ module.exports = {
         .addUserOption(option =>
           option
             .setName('user')
-            .setDescription('The user.')
-            .setRequired(true))
+            .setDescription('The Discord user to look up.')
+            .setRequired(false))
+        .addStringOption(option =>
+          option
+            .setName('ign')
+            .setDescription('The in-game name to look up.')
+            .setAutocomplete(true)
+            .setRequired(false))
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -80,7 +86,7 @@ module.exports = {
       await interaction.respond(characters.map(character => ({ name: character.name, value: character.id })))
     }
 
-    // Autocomplete for region names
+    // Autocomplete for region and ign names
     if (subcommand === 'region') {
       const focusedValue = interaction.options.getFocused();
       const regions = await Regions.findAll({
@@ -90,6 +96,16 @@ module.exports = {
       });
       await interaction.respond(regions.map(region => ({ name: region.name, value: region.id })))
     }
+    if (subcommand === 'player') {
+      const focusedValue = interaction.options.getFocused();
+      const players = await Players.findAll({
+        where: { ign: { [Op.startsWith]: focusedValue } },
+        attributes: ['ign'],
+        limit: 25
+      });
+      await interaction.respond(players.map(player => ({ name: player.ign, value: player.ign })));
+      }
+
 
     // Autocomplete for children
     if (subcommand === 'child') {
@@ -169,23 +185,53 @@ module.exports = {
      * Get info about a player
      */
     if (subcommand === 'player') {
+
       const user = interaction.options.getUser('user');
+      const ign = interaction.options.getString('ign');
 
-      // Get the player from the database
-      const player = await Players.findByPk(user.id);
-      if (!player) {
-        return interaction.editReply({ content: 'That user is not a player.', flags: MessageFlags.Ephemeral });
+      if (!user && !ign) {
+        return interaction.editReply({
+          content: 'You must provide either a user or an IGN.',
+          ephemeral: true
+        });
       }
+      else if (user && ign) {
+        return interaction.editReply({
+          content: 'Please provide only one: a user or an IGN.',
+          ephemeral: true
+        });
+      }
+      else if (!user && ign) {
+      const playerign = await Players.findOne({ where: { ign } });
+        if (!playerign) {
+          return interaction.editReply({ content: 'No player found with that IGN.', flags: MessageFlags.Ephemeral });
+        }
 
-      const playerInfoEmbed = await getPlayerInfoEmbed(player);
+      const playerInfoEmbed = await getPlayerInfoEmbed(playerign);
       infoEmbeds.push(playerInfoEmbed);
 
       // If they have a character, make an embed for that too
-      const character = await player.getCharacter();
+      const character = await playerign.getCharacter();
       if (character) {
         const characterInfoEmbed = await getCharacterInfoEmbed(character);
         infoEmbeds.push(characterInfoEmbed);
       }
+    }
+      else if (user && !ign) {
+        const player = await Players.findByPk(user.id);
+        if (!player) {
+          return interaction.editReply({ content: 'That user is not a player.', flags: MessageFlags.Ephemeral });
+        }
+        const playerInfoEmbed = await getPlayerInfoEmbed(player);
+        infoEmbeds.push(playerInfoEmbed);
+
+        // If they have a character, make an embed for that too
+        const character = await player.getCharacter();
+        if (character) {
+          const characterInfoEmbed = await getCharacterInfoEmbed(character);
+          infoEmbeds.push(characterInfoEmbed);
+      }
+    }
     }
 
     /**

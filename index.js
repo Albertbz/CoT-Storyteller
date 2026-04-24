@@ -6,6 +6,9 @@ const { token } = require('./configs/config.json');
 const { syncSpreadsheetsToDatabase } = require('./spreadsheetSync.js');
 const { updateRecruitmentPost } = require('./misc.js');
 const cron = require('node-cron');
+const http = require('node:http');
+const { bridge_api_key, webhook_port } = require('./configs/config.json');
+const { bridgeGet, bridgePost, handleWebhookData } = require('./helpers/StorytellerBridge.js');
 
 // Create a new client instance
 global.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent], partials: [Partials.GuildMember] });
@@ -190,6 +193,33 @@ cron.schedule('0 * * * *', async () => {
   scheduled: true,
   timezone: 'Etc/UTC'
 });
+
+console.log('Starting StorytellerBridge Webhook...');
+
+  const webhookServer = http.createServer((req, res) => {
+    if (req.method !== 'POST' || req.url !== '/vs-push') {
+      return res.writeHead(404).end();
+    }
+    if (bridge_api_key && req.headers['x-api-key'] !== bridge_api_key) {
+      return res.writeHead(401).end();
+    }
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        handleWebhookData(body);
+        res.writeHead(200).end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        res.writeHead(400).end();
+      }
+    });
+  });
+  webhookServer.on('error', err => {
+    console.error('[StorytellerBridge] Webhook server error:', err.message);
+  });
+
+  webhookServer.listen(webhook_port, () => console.log(`[StorytellerBridge] Webhook listening on port ${webhook_port}`));
+
 
 // Log in to Discord with the client's token
 client.login(token);

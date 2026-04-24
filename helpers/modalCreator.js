@@ -4,6 +4,7 @@ const { guildId } = require('../configs/config.json');
 const { Op, Sequelize } = require('sequelize');
 const { WANDERER_REGION_ID } = require('../constants.js');
 const { formatCharacterName } = require('./formatters.js');
+const { bridgeGet, bridgePost } = require('./StorytellerBridge.js');
 
 /**
  * Creates a character creation modal with optional pre-filled values.
@@ -125,6 +126,8 @@ async function characterCreateModal({ characterName = null, regionId = null, not
 }
 
 async function finalDeathModal({ deathDay = null, deathMonth = null, deathYear = null, deathCause = null, deathNote = null } = {}) {
+
+  try { game = await bridgeGet('/date'); } catch (error) { console.error('Error fetching game date:', error); };
   const modal = new ModalBuilder()
     .setCustomId('character-death-modal')
     .setTitle('Register Character Final Death');
@@ -133,7 +136,7 @@ async function finalDeathModal({ deathDay = null, deathMonth = null, deathYear =
   const dayInput = new TextInputBuilder()
     .setCustomId('death-day-input')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('e.g., 15')
+    .setPlaceholder(`${game.day + 1}` ?? 'Day of Death')
     .setRequired(true)
     .setMaxLength(2);
 
@@ -163,7 +166,7 @@ async function finalDeathModal({ deathDay = null, deathMonth = null, deathYear =
 
   const monthInput = new StringSelectMenuBuilder()
     .setCustomId('death-month-select')
-    .setPlaceholder('Select month of death')
+    .setPlaceholder(`${game.month}` ?? 'Month of Death')
     .setRequired(true)
     .addOptions(options);
 
@@ -176,7 +179,7 @@ async function finalDeathModal({ deathDay = null, deathMonth = null, deathYear =
   const yearInput = new TextInputBuilder()
     .setCustomId('death-year-input')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('e.g., 28')
+    .setPlaceholder(`${game.year}` ?? 'Year of Death')
     .setRequired(true)
     .setMaxLength(2);
 
