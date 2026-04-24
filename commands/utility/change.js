@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, InteractionContextType, MessageFlags, userMention, inlineCode, EmbedBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Client } = require('discord.js');
 const { Players, Characters, Regions, Houses, SocialClasses, Worlds, PlayableChildren, Relationships, Deceased, Duchies } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
-const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, syncMemberRolesWithCharacter, changeDuchyInDatabase, changeDeceasedInDatabase, changeSocialClassInDatabase, changeWorldInDatabase } = require('../../misc.js');
+const { postInLogChannel, changeCharacterInDatabase, changePlayerInDatabase, changeRegionInDatabase, changeHouseInDatabase, changePlayableChildInDatabase, changeRelationshipInDatabase, COLORS, changeDuchyInDatabase, changeDeceasedInDatabase, changeSocialClassInDatabase, changeWorldInDatabase } = require('../../misc.js');
 const { WANDERER_REGION_ID, WORLD_ID } = require('../../constants.js');
 
 module.exports = {
@@ -27,8 +27,30 @@ module.exports = {
         )
         .addStringOption(option =>
           option
+            .setName('gamertag_new')
+            .setDescription('The new gamertag.')
+            .setMaxLength(20)
+        )
+        .addStringOption(option =>
+          option
             .setName('timezone_new')
             .setDescription('The new timezone.')
+        )
+        .addBooleanOption(option =>
+          option
+            .setName('enablecharactertitleprefix_new')
+            .setDescription('Whether to enable the character title prefix in the player\'s nickname.')
+        )
+        .addBooleanOption(option =>
+          option
+            .setName('enablegamertagsuffix_new')
+            .setDescription('Whether to enable the gamertag suffix in the player\'s nickname.')
+        )
+        .addStringOption(option =>
+          option
+            .setName('defaultnickname_new')
+            .setDescription('The new default nickname to use when the player is not playing a character.')
+            .setMaxLength(32)
         )
     )
     .addSubcommand(subcommand =>
@@ -46,6 +68,11 @@ module.exports = {
           option
             .setName('name_new')
             .setDescription('The new name.')
+        )
+        .addStringOption(option =>
+          option
+            .setName('title_new')
+            .setDescription('The new title.')
         )
         .addStringOption(option =>
           option
@@ -879,11 +906,19 @@ module.exports = {
     if (subcommand === 'player') {
       const user = interaction.options.getUser('user');
       const newIgn = interaction.options.getString('ign_new');
+      const newGamertag = interaction.options.getString('gamertag_new');
       const newTimezone = interaction.options.getString('timezone_new');
+      const newEnableCharacterTitlePrefix = interaction.options.getBoolean('enablecharactertitleprefix_new');
+      const newEnableGamertagSuffix = interaction.options.getBoolean('enablegamertagsuffix_new');
+      const newDefaultNickname = interaction.options.getString('defaultnickname_new');
 
       const toUpdate = {};
       if (newIgn) toUpdate.newIgn = newIgn;
+      if (newGamertag) toUpdate.newGamertag = newGamertag;
       if (newTimezone) toUpdate.newTimezone = newTimezone;
+      if (newEnableCharacterTitlePrefix !== null) toUpdate.newEnableNicknameCharacterTitlePrefix = newEnableCharacterTitlePrefix;
+      if (newEnableGamertagSuffix !== null) toUpdate.newEnableNicknameGamertagSuffix = newEnableGamertagSuffix;
+      if (newDefaultNickname) toUpdate.newDefaultNickname = newDefaultNickname;
 
       const player = await Players.findByPk(user.id);
 
@@ -907,6 +942,7 @@ module.exports = {
     if (subcommand === 'character') {
       const characterId = interaction.options.getString('name');
       const newName = interaction.options.getString('name_new');
+      const newTitle = interaction.options.getString('title_new');
       const newSex = interaction.options.getString('sex_new');
       const newRegionId = interaction.options.getString('region_new');
       const newHouseId = interaction.options.getString('house_new');
@@ -926,6 +962,7 @@ module.exports = {
       try {
         const { character: updatedCharacter, embed: characterChangedEmbed } = await changeCharacterInDatabase(interaction.user, character, true, {
           newName: newName,
+          newTitle: newTitle,
           newSex: newSex,
           newRegionId: newRegionId,
           newHouseId: newHouseId,

@@ -58,7 +58,7 @@ async function showMessageThenReturnToContainer(interaction, message, waitTime, 
 
   setTimeout(async () => {
     const newContainer = await containerFunction();
-    await interaction.editReply({ components: [newContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2] });
+    await interaction.editReply({ components: [newContainer], flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2], allowedMentions: { parse: [] } });
   }, waitTime);
 }
 

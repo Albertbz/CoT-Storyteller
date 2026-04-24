@@ -546,16 +546,8 @@ async function assignCharacterToPlayer(characterId, playerId, storyteller) {
      * Checks successful, proceed with assignment
      */
     await player.setCharacter(characterId);
-    await syncMemberRolesWithCharacter(player, character)
-    // Change member's nickname to character name if not present
-    if (!member.nickname || (member.nickname && !member.nickname.includes(character.name))) {
-      try {
-        await member.setNickname(character.name.trim());
-      }
-      catch (error) {
-        console.log(`Could not set nickname for ${member.user.username}: ${error}`);
-      }
-    }
+    await syncMemberRoles(player);
+    await setDiscordNickname(player);
 
     // If the character was a playable child, remove that entry
     if (playableChild) {
@@ -608,6 +600,9 @@ async function unassignCharacterFromPlayer(storyteller, player) {
     }
 
     player.setCharacter(null);
+
+    await syncMemberRoles(player);
+    await setDiscordNickname(player);
 
     await postInLogChannel(
       'Character unassigned from Player',
@@ -839,9 +834,9 @@ async function assignSteelbearerToRegion(storyteller, character, type, duchyId =
     }
 
     // Sync roles of member if applicable
-    const player = await Players.findOne({ where: { characterId: character.id } });
+    const player = await character.getPlayer();
     if (player) {
-      await syncMemberRolesWithCharacter(player, character);
+      await syncMemberRoles(player);
     }
 
     // Post creation of steelbearer in log channel
@@ -1014,44 +1009,15 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
   // Set player's character to null if applicable
   let player = null;
   if (playedById) {
-    player = await Players.findOne({ where: { id: playedById } });
+    player = await Players.findByPk(playedById);
     if (player) {
       await player.setCharacter(null);
     }
   }
   // Remove roles of member if specified
   if (removeRoles && playedById) {
-    // Get all region roles
-    const regions = await Regions.findAll();
-    const regionRoleIds = regions.map(region => region.roleId);
-
-    // Get all social class roles
-    const socialClasses = await SocialClasses.findAll();
-    const socialClassRoleIds = socialClasses.map(socialClass => socialClass.roleId);
-
-    // Get steelbearer role
-    const steelbearerRoleEntry = await DiscordRoles.findByPk('steelbearer');
-    const steelbearerRoleId = steelbearerRoleEntry ? steelbearerRoleEntry.roleId : null;
-
-    const rolesToRemove = [];
-    rolesToRemove.push(...regionRoleIds);
-    rolesToRemove.push(...socialClassRoleIds);
-    if (steelbearerRoleId) {
-      rolesToRemove.push(steelbearerRoleId);
-    }
-
-    if (player) {
-      const guild = await client.guilds.fetch(guildId);
-      try {
-        const member = await guild.members.fetch(player.id);
-        if (member) {
-          await member.roles.remove(rolesToRemove);
-        }
-      }
-      catch (error) {
-        console.log('Error fetching member to remove roles on deceased addition: ' + error);
-      }
-    }
+    await syncMemberRoles(player);
+    await setDiscordNickname(player);
   }
 
   await postInLogChannel(
@@ -1072,7 +1038,7 @@ async function addDeceasedToDatabase(storyteller, removeRoles, { characterId, ye
 
 // Changes the provided values of a character and posts the change to the log
 // channel using postInLogChannel.
-async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newSex = null, newRegionId = null, newHouseId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null, newYearOfCreation = null, forceChange = false, autoChangeHouse = true } = {}) {
+async function changeCharacterInDatabase(storyteller, character, shouldPostInLogChannel, { newName = null, newTitle = null, newSex = null, newRegionId = null, newHouseId = null, newSocialClassName = null, newYearOfMaturity = null, newRole = null, newPveDeaths = null, newComments = null, newParent1Id = null, newParent2Id = null, newIsRollingForBastards = null, newDeathRoll1 = null, newDeathRoll2 = null, newDeathRoll3 = null, newDeathRoll4 = null, newDeathRoll5 = null, newYearOfCreation = null, forceChange = false, autoChangeHouse = true } = {}) {
   const characterNotChangedEmbed = new EmbedBuilder()
     .setTitle('Character Not Changed')
     .setColor(COLORS.RED);
@@ -1091,6 +1057,10 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   if (newName !== null && newName !== character.name) {
     newValues.name = newName;
     oldValues.name = character.name;
+  }
+  if (newTitle !== null && (newTitle === '-' ? character.title !== null : newTitle !== character.title)) {
+    newValues.title = newTitle === '-' ? null : newTitle;
+    oldValues.title = character.title;
   }
   if (newSex !== null && newSex !== character.sex) {
     newValues.sex = newSex === 'Undefined' ? null : newSex;
@@ -1276,6 +1246,11 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
         formattedInfoChanges.push({ key: '**Name**', oldValue: oldValue, newValue: newValue });
         break;
       }
+      case 'title': {
+        logInfoChanges.push({ key: 'title', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Title**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
       case 'sex': {
         logInfoChanges.push({ key: 'sex', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
         formattedInfoChanges.push({ key: '**Sex**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
@@ -1381,10 +1356,12 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   await character.update(newValues);
 
 
-  // If character is being played by a player, update their Discord roles
-  const player = await Players.findOne({ where: { characterId: character.id } });
+  // If character is being played by a player, update their Discord roles and
+  // possibly their nickname as well
+  const player = await character.getPlayer();
   if (player) {
-    await syncMemberRolesWithCharacter(player, character);
+    await syncMemberRoles(player);
+    await setDiscordNickname(player);
   }
 
   // Post in log channel if applicable
@@ -1412,8 +1389,22 @@ async function changeCharacterInDatabase(storyteller, character, shouldPostInLog
   return { character, embed: characterChangedEmbed }
 }
 
+async function setDiscordNickname(player) {
+  const guild = await client.guilds.fetch(guildId);
+  try {
+    const member = await guild.members.fetch(player.id);
+    if (member) {
+      const nickname = await player.discordNickname;
+      await member.setNickname(nickname);
+    }
+  }
+  catch (error) {
+    console.log('Error setting Discord nickname for ' + player.id + ': ' + error.message);
+  }
+}
 
-async function changePlayerInDatabase(storyteller, player, { newIgn = null, newTimezone = null } = {}) {
+
+async function changePlayerInDatabase(storyteller, player, { newIgn = null, newGamertag = null, newTimezone = null, newEnableNicknameCharacterTitlePrefix = null, newEnableNicknameGamertagSuffix = null, newDefaultNickname = null } = {}) {
   const playerNotChangedEmbed = new EmbedBuilder()
     .setTitle('Player Not Changed')
     .setColor(COLORS.RED);
@@ -1429,7 +1420,26 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
 
   // Save all old and new values for the values that are changing
   if (newIgn !== null && newIgn !== player.ign) newValues.ign = newIgn; oldValues.ign = player.ign;
-  if (newTimezone !== null && newTimezone !== player.timezone) newValues.timezone = newTimezone; oldValues.timezone = player.timezone;
+  if (newGamertag !== null && (newGamertag === '-' ? player.gamertag !== null : newGamertag !== player.gamertag)) {
+    newValues.gamertag = newGamertag === '-' ? null : newGamertag;
+    oldValues.gamertag = player.gamertag;
+  }
+  if (newTimezone !== null && (newTimezone === '-' ? player.timezone !== null : newTimezone !== player.timezone)) {
+    newValues.timezone = newTimezone === '-' ? null : newTimezone;
+    oldValues.timezone = player.timezone;
+  }
+  if (newEnableNicknameCharacterTitlePrefix !== null && newEnableNicknameCharacterTitlePrefix !== player.enableNicknameCharacterTitlePrefix) {
+    newValues.enableNicknameCharacterTitlePrefix = newEnableNicknameCharacterTitlePrefix;
+    oldValues.enableNicknameCharacterTitlePrefix = player.enableNicknameCharacterTitlePrefix;
+  }
+  if (newEnableNicknameGamertagSuffix !== null && newEnableNicknameGamertagSuffix !== player.enableNicknameGamertagSuffix) {
+    newValues.enableNicknameGamertagSuffix = newEnableNicknameGamertagSuffix;
+    oldValues.enableNicknameGamertagSuffix = player.enableNicknameGamertagSuffix;
+  }
+  if (newDefaultNickname !== null && (newDefaultNickname === '-' ? player.defaultNickname !== null : newDefaultNickname !== player.defaultNickname)) {
+    newValues.defaultNickname = newDefaultNickname === '-' ? null : newDefaultNickname;
+    oldValues.defaultNickname = player.defaultNickname;
+  }
 
   // Check if anything is actually changing
   if (Object.keys(newValues).length === 0) {
@@ -1438,8 +1448,8 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
     return { player: null, embed: playerNotChangedEmbed };
   }
 
+  // Check whether there are spaces in the IGN
   if (newValues.ign) {
-    // Check whether there are spaces in the IGN
     if (newValues.ign.includes(' ')) {
       playerNotChangedEmbed
         .setDescription('A VS username cannot contain spaces.');
@@ -1449,6 +1459,9 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
 
   // All checks passed, proceed with update
   await player.update(newValues);
+
+  // Update Discord nickname
+  await setDiscordNickname(player);
 
   // Post in log channel
   const logInfoChanges = [];
@@ -1463,8 +1476,28 @@ async function changePlayerInDatabase(storyteller, player, { newIgn = null, newT
         break;
       }
       case 'timezone': {
-        logInfoChanges.push({ key: 'timezone', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue) });
-        formattedInfoChanges.push({ key: '**Timezone**', oldValue: oldValue ? oldValue : '-', newValue: newValue });
+        logInfoChanges.push({ key: 'timezone', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Timezone**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'gamertag': {
+        logInfoChanges.push({ key: 'gamertag', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Gamertag**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        break;
+      }
+      case 'enableNicknameCharacterTitlePrefix': {
+        logInfoChanges.push({ key: 'enableNicknameCharacterTitlePrefix', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue) });
+        formattedInfoChanges.push({ key: '**Enable Nickname Character Title Prefix**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'enableNicknameGamertagSuffix': {
+        logInfoChanges.push({ key: 'enableNicknameGamertagSuffix', oldValue: inlineCode(oldValue), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Enable Nickname Gamertag Suffix**', oldValue: oldValue, newValue: newValue });
+        break;
+      }
+      case 'defaultNickname': {
+        logInfoChanges.push({ key: 'defaultNickname', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
+        formattedInfoChanges.push({ key: '**Default Nickname**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
         break;
       }
     }
@@ -1605,8 +1638,8 @@ async function changeRegionInDatabase(storyteller, region, { newName = null, new
         break;
       }
       case 'roleId': {
-        logInfoChanges.push({ key: 'roleId', oldValue: inlineCode(oldValue ? oldValue : '-'), newValue: inlineCode(newValue ? newValue : '-') });
-        formattedInfoChanges.push({ key: '**Role ID**', oldValue: oldValue ? oldValue : '-', newValue: newValue ? newValue : '-' });
+        logInfoChanges.push({ key: 'role', oldValue: oldValue ? `${roleMention(oldValue)} (${inlineCode(oldValue)})` : inlineCode('-'), newValue: newValue ? `${roleMention(newValue)} (${inlineCode(newValue)})` : inlineCode('-') });
+        formattedInfoChanges.push({ key: '**Role**', oldValue: oldValue ? roleMention(oldValue) : '-', newValue: newValue ? roleMention(newValue) : '-' });
         break;
       }
       case 'rulingHouseId': {
@@ -2170,7 +2203,7 @@ async function changeWorldInDatabase(storyteller, world, { newName = null, newCu
       await char.update({ socialClassName: 'Notable', yearOfMaturity: char.yearOfCreation + 1 });
       const charPlayer = await char.getPlayer();
       if (charPlayer) {
-        await syncMemberRolesWithCharacter(charPlayer, char);
+        await syncMemberRoles(charPlayer);
       }
     }
 
@@ -2213,7 +2246,7 @@ async function changeWorldInDatabase(storyteller, world, { newName = null, newCu
       await char.update({ socialClassName: 'Notable', yearOfMaturity: char.yearOfCreation });
       const charPlayer = await char.getPlayer();
       if (charPlayer) {
-        await syncMemberRolesWithCharacter(charPlayer, char);
+        await syncMemberRoles(charPlayer);
       }
     }
 
@@ -2601,7 +2634,7 @@ async function changeDeceasedInDatabase(storyteller, deceased, { newYearOfDeath 
 
 
 // Syncs a Discord member's roles based on their character's region and social class
-async function syncMemberRolesWithCharacter(player, character) {
+async function syncMemberRoles(player) {
   const guild = await client.guilds.fetch(guildId);
   let member = null;
   try {
@@ -2635,90 +2668,114 @@ async function syncMemberRolesWithCharacter(player, character) {
   let rolesToAdd = [];
   let rolesToRemove = [];
 
-  // Region roles
-  try {
-    const currentRegion = await character.getRegion();
-    const allOtherRegions = await Regions.findAll({ where: { id: { [Op.not]: currentRegion.id } } });
-    // Remove all other region roles
-    for (const otherRegion of allOtherRegions) {
-      if (otherRegion.roleId && member.roles.cache.has(otherRegion.roleId)) {
-        rolesToRemove.push(otherRegion.roleId);
-      }
-    }
-    // Add current region role if they don't have it
-    if (currentRegion && currentRegion.roleId) {
-      if (!member.roles.cache.has(currentRegion.roleId)) {
-        rolesToAdd.push(currentRegion.roleId);
-      }
-    }
-  }
-  catch (error) {
-    console.log('Failed to assign region role: ' + error);
-    return false;
-  }
+  const character = await player.getCharacter();
+  // If no character, remove all roles
+  if (!character) {
+    // Get all region roles
+    const regions = await Regions.findAll();
+    const regionRoleIds = regions.map(region => region.roleId);
 
-  // Social class roles
-  try {
-    const socialClass = await character.getSocialClass();
-    const notableSocialClass = await SocialClasses.findOne({ where: { name: 'Notable' } });
-    const nobleSocialClass = await SocialClasses.findOne({ where: { name: 'Noble' } });
-    const rulerSocialClass = await SocialClasses.findOne({ where: { name: 'Ruler' } });
+    // Get all social class roles
+    const socialClasses = await SocialClasses.findAll();
+    const socialClassRoleIds = socialClasses.map(socialClass => socialClass.roleId);
 
-    if (socialClass.name === 'Ruler') {
-      if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
-      if (!member.roles.cache.has(nobleSocialClass.roleId)) rolesToAdd.push(nobleSocialClass.roleId);
-      if (!member.roles.cache.has(rulerSocialClass.roleId)) rolesToAdd.push(rulerSocialClass.roleId);
-    }
-    else if (socialClass.name === 'Noble') {
-      if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
-      if (!member.roles.cache.has(nobleSocialClass.roleId)) rolesToAdd.push(nobleSocialClass.roleId);
-      // Remove ruler if they had it before
-      if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
-    }
-    else if (socialClass.name === 'Notable') {
-      if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
-      // Remove noble and ruler if they had them before
-      if (member.roles.cache.has(nobleSocialClass.roleId)) rolesToRemove.push(nobleSocialClass.roleId);
-      if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
-    }
-    else {
-      // Remove notable, noble, and ruler if they had them before
-      if (member.roles.cache.has(notableSocialClass.roleId)) rolesToRemove.push(notableSocialClass.roleId);
-      if (member.roles.cache.has(nobleSocialClass.roleId)) rolesToRemove.push(nobleSocialClass.roleId);
-      if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
-    }
-  }
-  catch (error) {
-    console.log('Failed to assign social class roles: ' + error);
-    return false;
-  }
-
-  // Steelbearer role
-  try {
+    // Get steelbearer role
     const steelbearerRoleEntry = await DiscordRoles.findByPk('steelbearer');
-    if (!steelbearerRoleEntry) {
-      console.log('Steelbearer role ID not found in database.');
+    const steelbearerRoleId = steelbearerRoleEntry ? steelbearerRoleEntry.roleId : null;
+
+    rolesToRemove.push(...regionRoleIds);
+    rolesToRemove.push(...socialClassRoleIds);
+    if (steelbearerRoleId) {
+      rolesToRemove.push(steelbearerRoleId);
     }
-    else {
-      // Check whether character is steelbearer by looking at steelbearers
-      const steelbearerRecord = await Steelbearers.findOne({ where: { characterId: character.id } });
-      if (steelbearerRecord) {
-        if (!member.roles.cache.has(steelbearerRoleEntry.roleId)) {
-          rolesToAdd.push(steelbearerRoleEntry.roleId);
+  }
+  // Otherwise assign roles based on region and social class
+  else {
+    // Region roles
+    try {
+      const currentRegion = await character.getRegion();
+      const allOtherRegions = await Regions.findAll({ where: { id: { [Op.not]: currentRegion.id } } });
+      // Remove all other region roles
+      for (const otherRegion of allOtherRegions) {
+        if (otherRegion.roleId && member.roles.cache.has(otherRegion.roleId)) {
+          rolesToRemove.push(otherRegion.roleId);
         }
+      }
+      // Add current region role if they don't have it
+      if (currentRegion && currentRegion.roleId) {
+        if (!member.roles.cache.has(currentRegion.roleId)) {
+          rolesToAdd.push(currentRegion.roleId);
+        }
+      }
+    }
+    catch (error) {
+      console.log('Failed to assign region role: ' + error);
+      return false;
+    }
+
+    // Social class roles
+    try {
+      const socialClass = await character.getSocialClass();
+      const notableSocialClass = await SocialClasses.findOne({ where: { name: 'Notable' } });
+      const nobleSocialClass = await SocialClasses.findOne({ where: { name: 'Noble' } });
+      const rulerSocialClass = await SocialClasses.findOne({ where: { name: 'Ruler' } });
+
+      if (socialClass.name === 'Ruler') {
+        if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
+        if (!member.roles.cache.has(nobleSocialClass.roleId)) rolesToAdd.push(nobleSocialClass.roleId);
+        if (!member.roles.cache.has(rulerSocialClass.roleId)) rolesToAdd.push(rulerSocialClass.roleId);
+      }
+      else if (socialClass.name === 'Noble') {
+        if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
+        if (!member.roles.cache.has(nobleSocialClass.roleId)) rolesToAdd.push(nobleSocialClass.roleId);
+        // Remove ruler if they had it before
+        if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
+      }
+      else if (socialClass.name === 'Notable') {
+        if (!member.roles.cache.has(notableSocialClass.roleId)) rolesToAdd.push(notableSocialClass.roleId);
+        // Remove noble and ruler if they had them before
+        if (member.roles.cache.has(nobleSocialClass.roleId)) rolesToRemove.push(nobleSocialClass.roleId);
+        if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
       }
       else {
-        // Remove steelbearer role if they had it before
-        if (member.roles.cache.has(steelbearerRoleEntry.roleId)) {
-          rolesToRemove.push(steelbearerRoleEntry.roleId);
-        }
+        // Remove notable, noble, and ruler if they had them before
+        if (member.roles.cache.has(notableSocialClass.roleId)) rolesToRemove.push(notableSocialClass.roleId);
+        if (member.roles.cache.has(nobleSocialClass.roleId)) rolesToRemove.push(nobleSocialClass.roleId);
+        if (member.roles.cache.has(rulerSocialClass.roleId)) rolesToRemove.push(rulerSocialClass.roleId);
       }
     }
+    catch (error) {
+      console.log('Failed to assign social class roles: ' + error);
+      return false;
+    }
 
-  }
-  catch (error) {
-    console.log('Failed to assign steelbearer role: ' + error);
-    return false;
+    // Steelbearer role
+    try {
+      const steelbearerRoleEntry = await DiscordRoles.findByPk('steelbearer');
+      if (!steelbearerRoleEntry) {
+        console.log('Steelbearer role ID not found in database.');
+      }
+      else {
+        // Check whether character is steelbearer by looking at steelbearers
+        const steelbearerRecord = await Steelbearers.findOne({ where: { characterId: character.id } });
+        if (steelbearerRecord) {
+          if (!member.roles.cache.has(steelbearerRoleEntry.roleId)) {
+            rolesToAdd.push(steelbearerRoleEntry.roleId);
+          }
+        }
+        else {
+          // Remove steelbearer role if they had it before
+          if (member.roles.cache.has(steelbearerRoleEntry.roleId)) {
+            rolesToRemove.push(steelbearerRoleEntry.roleId);
+          }
+        }
+      }
+
+    }
+    catch (error) {
+      console.log('Failed to assign steelbearer role: ' + error);
+      return false;
+    }
   }
 
   // Proceed with adding and removing roles
@@ -3232,7 +3289,7 @@ module.exports = {
   changeSocialClassInDatabase,
   changeWorldInDatabase,
   assignSteelbearerToRegion,
-  syncMemberRolesWithCharacter,
+  syncMemberRoles,
   updateRecruitmentPost,
   addDeathPostToDatabase,
   addRegionManagerToDatabase,

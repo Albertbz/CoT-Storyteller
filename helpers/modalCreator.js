@@ -738,6 +738,154 @@ async function changeRecruitmentRolesModal(region) {
   return modal;
 }
 
+async function updateVSUsernameModal(player, usernameValue = null) {
+  const modal = new ModalBuilder()
+    .setCustomId('player-update-vs-username-modal')
+    .setTitle('Update VS Username')
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently updating your VS username, which is currently noted down as **${player.ign}**.\n` +
+      `Please enter your new VS username in the input below, and ensure that it is the same as the username that is shown in the bottom left corner of the main menu of the game.`
+    );
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  const usernameInput = new TextInputBuilder()
+    .setCustomId('vs-username-input')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('Enter your new VS username')
+    .setMaxLength(50);
+
+  if (usernameValue) {
+    usernameInput.setValue(usernameValue);
+  }
+  else if (player.ign) {
+    usernameInput.setValue(player.ign);
+  }
+
+  const usernameLabel = new LabelBuilder()
+    .setLabel('What is your new VS username?')
+    .setDescription('Make sure to enter the correct username.')
+    .setTextInputComponent(usernameInput);
+
+  modal.addLabelComponents(usernameLabel);
+
+  return modal;
+}
+
+async function changeGamertagModal(player, gamertagValue = null) {
+  const modal = new ModalBuilder()
+    .setCustomId('player-change-gamertag-modal')
+    .setTitle('Change Gamertag')
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing your gamertag, which is currently ${player.gamertag ? `set to **${player.gamertag}**` : '*None*'}.\n` +
+      `Please enter your new gamertag in the input below. This gamertag will be shown in your nickname here on the Discord server along with your character's name. If you do not want to have a gamertag shown, you can leave the input blank.`
+    );
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  const gamertagInput = new TextInputBuilder()
+    .setCustomId('gamertag-input')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(false)
+    .setPlaceholder('Enter your new gamertag')
+    .setMaxLength(20);
+
+  if (gamertagValue) {
+    gamertagInput.setValue(gamertagValue);
+  }
+  else if (player.gamertag) {
+    gamertagInput.setValue(player.gamertag);
+  }
+
+  const gamertagLabel = new LabelBuilder()
+    .setLabel('What is your new gamertag?')
+    .setDescription('A maximum of 20 characters is allowed. Leave blank to remove gamertag.')
+    .setTextInputComponent(gamertagInput);
+
+  modal.addLabelComponents(gamertagLabel);
+
+  return modal;
+}
+
+async function changeCharacterTitleModal(character, titleValue = null) {
+  const modal = new ModalBuilder()
+    .setCustomId('character-change-title-modal')
+    .setTitle('Change Title of Character')
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing the title of the character ${formatCharacterName(character.name)}, which is currently ${character.title ? `**${character.title}**` : '*None*'}.\n` +
+      `Please enter the new title for this character in the input below. If you want to remove the character's title, you can leave the input blank.`
+    )
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  const titleInput = new TextInputBuilder()
+    .setCustomId('character-title-input')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(false)
+    .setPlaceholder('Enter new title for the character')
+    .setMaxLength(20);
+
+  if (titleValue) {
+    titleInput.setValue(titleValue);
+  }
+  else if (character.title) {
+    titleInput.setValue(character.title);
+  }
+
+  const titleLabel = new LabelBuilder()
+    .setLabel('What is the new title for the character?')
+    .setDescription('A maximum of 20 characters is allowed. Leave blank to remove title.')
+    .setTextInputComponent(titleInput);
+
+  modal.addLabelComponents(titleLabel);
+
+  return modal;
+}
+
+async function changePlayerDefaultNicknameModal(player, nicknameValue = null) {
+  const modal = new ModalBuilder()
+    .setCustomId('player-change-default-nickname-modal')
+    .setTitle('Change Default Nickname')
+
+  const textDisplay = new TextDisplayBuilder()
+    .setContent(
+      `You are currently changing your default nickname, which is currently ${player.defaultNickname ? `set to **${player.defaultNickname}**` : '*None*'}.\n` +
+      `Your default nickname is the nickname that will be set when you are not playing a character. If you do not want to have a default nickname, you can leave the input blank, and will simply be called "(no character)" when you are not playing a character.`
+    );
+
+  modal.addTextDisplayComponents(textDisplay);
+
+  const nicknameInput = new TextInputBuilder()
+    .setCustomId('default-nickname-input')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(false)
+    .setPlaceholder('Enter your new default nickname')
+    .setMaxLength(32);
+
+  if (nicknameValue) {
+    nicknameInput.setValue(nicknameValue);
+  }
+  else if (player.defaultNickname) {
+    nicknameInput.setValue(player.defaultNickname);
+  }
+
+  const nicknameLabel = new LabelBuilder()
+    .setLabel('What is your new default nickname?')
+    .setDescription('A maximum of 32 characters is allowed. Leave blank to remove default nickname.')
+    .setTextInputComponent(nicknameInput);
+
+  modal.addLabelComponents(nicknameLabel);
+
+  return modal;
+}
+
 module.exports = {
   characterCreateModal,
   finalDeathModal,
@@ -749,5 +897,9 @@ module.exports = {
   offspringChangeNameModal,
   offspringChangeInheritanceModal,
   denyChangeModal,
-  changeRecruitmentRolesModal
+  changeRecruitmentRolesModal,
+  updateVSUsernameModal,
+  changeGamertagModal,
+  changeCharacterTitleModal,
+  changePlayerDefaultNicknameModal
 }

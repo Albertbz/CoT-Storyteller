@@ -1,4 +1,4 @@
-const { ContainerBuilder, ButtonBuilder, ButtonStyle, inlineCode, StringSelectMenuOptionBuilder, ActionRowBuilder, StringSelectMenuBuilder, TextDisplayBuilder } = require('discord.js');
+const { ContainerBuilder, ButtonBuilder, ButtonStyle, inlineCode, StringSelectMenuOptionBuilder, ActionRowBuilder, StringSelectMenuBuilder, TextDisplayBuilder, SeparatorBuilder } = require('discord.js');
 const { PlayableChildren, Characters, Relationships, Players } = require('../dbObjects');
 const { Op } = require('sequelize');
 const { formatCharacterName } = require('./formatters');
@@ -65,6 +65,11 @@ async function getCharacterManagerContainer(userId) {
           .setLabel('Change Surname')
           .setStyle(ButtonStyle.Secondary)
           .setEmoji('✍️'),
+        new ButtonBuilder()
+          .setCustomId('character-change-title-button')
+          .setLabel('Change Title')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🎖️'),
         new ButtonBuilder()
           .setCustomId('character-change-region-button')
           .setLabel('Change Region/House')
@@ -450,9 +455,76 @@ async function getIntercharacterRollManagerContainer(character) {
   return container;
 }
 
+async function getPlayerManagerContainer(userId) {
+  const player = await Players.findByPk(userId);
+
+  if (!player) {
+    const notRegisteredContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# Not Registered as Player\n` +
+          `You are not registered as a player. Please make a whitelist application to get registered.`
+        )
+      )
+    return notRegisteredContainer;
+  }
+
+  /**
+   * Create the container for the player manager/dashboard. This will include 
+   * the info of the player, as well as buttons to manage their VS username,
+   * timezone, and gamertag.
+   */
+  const playerInfo = await player.formattedInfo;
+
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `# :video_game: Player Dashboard\n` +
+        playerInfo
+      )
+    )
+    .addSeparatorComponents(
+      new SeparatorBuilder()
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `Use the buttons below to manage various aspects of your player information.`
+      )
+    )
+    .addActionRowComponents(
+      new ActionRowBuilder().setComponents(
+        new ButtonBuilder()
+          .setCustomId('player-update-vs-username-button')
+          .setLabel('Update VS Username')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🎮'),
+        new ButtonBuilder()
+          .setCustomId('player-change-gamertag-button')
+          .setLabel('Change Gamertag')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🕹️')
+      ),
+      new ActionRowBuilder().setComponents(
+        new ButtonBuilder()
+          .setCustomId('player-change-timezone-button')
+          .setLabel('Change Timezone')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('⏰'),
+        new ButtonBuilder()
+          .setCustomId('player-manage-nickname-button')
+          .setLabel('Manage Nickname')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🏷️')
+      )
+    )
+
+  return container;
+}
+
 module.exports = {
   getCharacterManagerContainer,
   getOffspringManagerContainer,
   getRegionManagerContainer,
-  getIntercharacterRollManagerContainer
+  getIntercharacterRollManagerContainer,
+  getPlayerManagerContainer
 }
